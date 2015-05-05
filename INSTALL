@@ -1,0 +1,11 @@
+To install:
+
+  make 
+
+will make the plugins, then as root:
+
+  make install
+
+installs them in /usr/lib/ladspa.
+
+That's all there is to it...
