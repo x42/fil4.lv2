@@ -1,35 +1,87 @@
-#    Copyright (C) 2004-2009 Fons Adriaensen <fons@kokkinizita.net>
-#    
-#    This program is free software; you can redistribute it and/or modify
-#    it under the terms of the GNU General Public License as published by
-#    the Free Software Foundation; either version 2 of the License, or
-#    (at your option) any later version.
-#
-#    This program is distributed in the hope that it will be useful,
-#    but WITHOUT ANY WARRANTY; without even the implied warranty of
-#    MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
-#    GNU General Public License for more details.
-#
-#    You should have received a copy of the GNU General Public License
-#    along with this program; if not, write to the Free Software
-#    Foundation, Inc., 675 Mass Ave, Cambridge, MA 02139, USA.
+#!/usr/bin/make -f
+
+OPTIMIZATIONS ?= -msse -msse2 -mfpmath=sse -ffast-math -fomit-frame-pointer -O3 -fno-finite-math-only
+PREFIX ?= /usr/local
+CXXFLAGS ?= $(OPTIMIZATIONS) -Wall
+
+STRIP=strip
+STRIPFLAGS=-s
+
+###############################################################################
+
+LV2DIR ?= $(PREFIX)/lib/lv2
+LOADLIBES=-lm
+LV2NAME=fil4
+BUNDLE=fil4.lv2
+BUILDDIR=build/
+targets=
+
+UNAME=$(shell uname)
+ifeq ($(UNAME),Darwin)
+  LV2LDFLAGS=-dynamiclib
+  LIB_EXT=.dylib
+else
+  LV2LDFLAGS=-Wl,-Bstatic -Wl,-Bdynamic
+  LIB_EXT=.so
+endif
+
+ifneq ($(XWIN),)
+  CC=$(XWIN)-gcc
+  STRIP=$(XWIN)-strip
+  LV2LDFLAGS=-Wl,-Bstatic -Wl,-Bdynamic -Wl,--as-needed
+  LIB_EXT=.dll
+  override LDFLAGS += -static-libgcc -static-libstdc++
+endif
+
+targets+=$(BUILDDIR)$(LV2NAME)$(LIB_EXT)
+
+# check for build-dependencies
+ifeq ($(shell pkg-config --exists lv2 || echo no), no)
+  $(error "LV2 SDK was not found")
+endif
+
+override CXXFLAGS += -fPIC
+override CXXFLAGS += `pkg-config --cflags lv2`
+
+# build target definitions
+default: all
+
+all: $(BUILDDIR)manifest.ttl $(BUILDDIR)$(LV2NAME).ttl $(targets)
+
+$(BUILDDIR)manifest.ttl: lv2ttl/manifest.ttl.in Makefile
+	@mkdir -p $(BUILDDIR)
+	sed "s/@LV2NAME@/$(LV2NAME)/;s/@LIB_EXT@/$(LIB_EXT)/" \
+		lv2ttl/manifest.ttl.in > $(BUILDDIR)manifest.ttl
+
+$(BUILDDIR)$(LV2NAME).ttl: lv2ttl/$(LV2NAME).ttl.in Makefile
+	@mkdir -p $(BUILDDIR)
+	cat lv2ttl/$(LV2NAME).ttl.in > $(BUILDDIR)$(LV2NAME).ttl
+
+DSP_SRC = src/lv2.c
+DSP_DEPS = $(DSP_SRC) src/filters.h
+
+$(BUILDDIR)$(LV2NAME)$(LIB_EXT): $(DSP_DEPS) Makefile
+	@mkdir -p $(BUILDDIR)
+	$(CXX) $(CPPFLAGS) $(CXXFLAGS) \
+	  -o $(BUILDDIR)$(LV2NAME)$(LIB_EXT) $(DSP_SRC) \
+	  -shared $(LV2LDFLAGS) $(LDFLAGS) $(LOADLIBES)
 
 
-CPPFLAGS += -I. -fPIC -D_REENTRANT -Wall -O3
+# install/uninstall/clean target definitions
 
+install: all
+	install -d $(DESTDIR)$(LV2DIR)/$(BUNDLE)
+	install -m755 $(BUILDDIR)$(LV2NAME)$(LIB_EXT) $(DESTDIR)$(LV2DIR)/$(BUNDLE)
+	install -m644 $(BUILDDIR)manifest.ttl $(BUILDDIR)$(LV2NAME).ttl $(DESTDIR)$(LV2DIR)/$(BUNDLE)
 
-all:	filters.so
-
-
-filters.so:	filters.o filters_if.o exp2ap.o
-	g++ -shared filters.o filters_if.o exp2ap.o -o filters.so
-
-filters.o:	ladspaplugin.h filters.h
-filters_if.o:	ladspaplugin.h filters.h
-
-install:	all
-	cp  *.so /usr/lib/ladspa
+uninstall:
+	rm -f $(DESTDIR)$(LV2DIR)/$(BUNDLE)/manifest.ttl
+	rm -f $(DESTDIR)$(LV2DIR)/$(BUNDLE)/$(LV2NAME).ttl
+	rm -f $(DESTDIR)$(LV2DIR)/$(BUNDLE)/$(LV2NAME)$(LIB_EXT)
+	-rmdir $(DESTDIR)$(LV2DIR)/$(BUNDLE)
 
 clean:
-	/bin/rm -f *~ *.o *.so
+	rm -f $(BUILDDIR)manifest.ttl $(BUILDDIR)$(LV2NAME).ttl $(BUILDDIR)$(LV2NAME)$(LIB_EXT) lv2syms filters.c
+	-test -d $(BUILDDIR) && rmdir $(BUILDDIR) || true
 
+.PHONY: clean all install uninstall

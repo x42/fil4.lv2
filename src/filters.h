@@ -21,7 +21,15 @@
 #define __FILTERS_H
 
 #include <math.h>
-#include "ladspaplugin.h"
+
+static float exp2ap (float x)
+{
+    int i;
+
+    i = (int)(floorf (x));
+    x -= i;
+    return ldexpf (1 + x * (0.6930f + x * (0.2416f + x * (0.0517f + x * 0.0137f))), i);
+}
 
 
 class Paramsect
@@ -105,7 +113,7 @@ private:
     float  _z1, _z2;
 };
 
-
+#if 0
 class Ladspa_Paramfilt : public LadspaPlugin
 {
 public:
@@ -125,6 +133,7 @@ private:
     int        _fade;
     Paramsect  _sect [NSECT];
 };
+#endif
 
 
 #endif
