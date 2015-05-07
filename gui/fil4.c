@@ -65,7 +65,6 @@ typedef struct {
 	float m0_y0;
 	float m0_y1;
 
-	RobTkLbl *lbl_fp[3];
 	PangoFontDescription *font[2];
 
 	RobTkSep  *sep_v0;
@@ -195,58 +194,74 @@ static void prepare_faceplates(Fil4UI* ui) {
 	cairo_fill (cr); \
 	cairo_set_operator (cr, CAIRO_OPERATOR_OVER); \
 
+#define DIALDOTS(V, XADD, YADD) \
+	float ang = (-.75 * M_PI) + (1.5 * M_PI) * (V); \
+	xlp = GED_CX + XADD + sinf (ang) * (GED_RADIUS + 3.0); \
+	ylp = GED_CY + YADD - cosf (ang) * (GED_RADIUS + 3.0); \
+	cairo_set_line_cap(cr, CAIRO_LINE_CAP_ROUND); \
+	CairoSetSouerceRGBA(c_dlf); \
+	cairo_set_line_width(cr, 2.5); \
+	cairo_move_to(cr, rint(xlp)-.5, rint(ylp)-.5); \
+	cairo_close_path(cr); \
+	cairo_stroke(cr);
+
 #define RESPLABLEL(V) \
 	{ \
-		float ang = (-.75 * M_PI) + (1.5 * M_PI) * (V); \
-		xlp = GED_CX + 10.5 + sinf (ang) * (GED_RADIUS + 3.0); \
-		ylp = GED_CY + 15.5 - cosf (ang) * (GED_RADIUS + 3.0); \
-		cairo_set_line_cap(cr, CAIRO_LINE_CAP_ROUND); \
-		CairoSetSouerceRGBA(c_dlf); \
-		cairo_set_line_width(cr, 2.5); \
-		cairo_move_to(cr, rint(xlp)-.5, rint(ylp)-.5); \
-		cairo_close_path(cr); \
-		cairo_stroke(cr); \
-		xlp = GED_CX + 10.5 + sinf (ang) * (GED_RADIUS + 9.5); \
-		ylp = GED_CY + 15.5 - cosf (ang) * (GED_RADIUS + 9.5); \
+	DIALDOTS(V, 10.5, 15.5) \
+	xlp = GED_CX + 10.5 + sinf (ang) * (GED_RADIUS + 9.5); \
+	ylp = GED_CY + 15.5 - cosf (ang) * (GED_RADIUS + 9.5); \
 	}
 
 
 	INIT_DIAL_SF(ui->dial_bg[0], GED_WIDTH + 20, GED_HEIGHT + 25);
 	RESPLABLEL(0.00);
-	write_text_full(cr, "-20", ui->font[0], xlp, ylp,  0, 1, c_dlf);
-	RESPLABLEL(.25);
-	write_text_full(cr, "-10", ui->font[0], xlp, ylp,  0, 1, c_dlf);
+	write_text_full(cr, "-18", ui->font[0], xlp, ylp,  0, 1, c_dlf);
+	RESPLABLEL(.16);
+	write_text_full(cr, "-12", ui->font[0], xlp, ylp,  0, 1, c_dlf);
+	RESPLABLEL(.33);
+	write_text_full(cr,  "-6", ui->font[0], xlp, ylp,  0, 1, c_dlf);
 	RESPLABLEL(0.5);
 	write_text_full(cr,   "0", ui->font[0], xlp, ylp,  0, 2, c_dlf);
-	RESPLABLEL(.75);
-	write_text_full(cr, "+10", ui->font[0], xlp, ylp,  0, 3, c_dlf);
+	RESPLABLEL(.66);
+	write_text_full(cr,  "+6", ui->font[0], xlp-2, ylp,  0, 3, c_dlf);
+	RESPLABLEL(.83);
+	write_text_full(cr, "+12", ui->font[0], xlp-2, ylp,  0, 3, c_dlf);
 	RESPLABLEL(1.0);
-	write_text_full(cr, "+20", ui->font[0], xlp, ylp,  0, 3, c_dlf);
+	write_text_full(cr, "+18", ui->font[0], xlp-2, ylp,  0, 3, c_dlf);
 	cairo_destroy (cr);
 
+#define GZLINE (GED_HEIGHT - 1.5)
 
-	INIT_DIAL_SF(ui->dial_bg[1], GED_WIDTH, GED_HEIGHT);
+	INIT_DIAL_SF(ui->dial_bg[1], GED_WIDTH, GED_HEIGHT + 4);
 	CairoSetSouerceRGBA(c_dlf);
 	cairo_set_line_width(cr, 1.0);
-	cairo_move_to (cr,  1, GED_HEIGHT - 5.5);
-	cairo_line_to (cr,  8, GED_HEIGHT - 5.5);
-	cairo_line_to (cr, 10, GED_HEIGHT - 9.5);
-	cairo_line_to (cr, 12, GED_HEIGHT - 5.5);
-	cairo_line_to (cr, 19, GED_HEIGHT - 5.5);
-	cairo_move_to (cr, 12, GED_HEIGHT - 5.5);
-	cairo_line_to (cr, 10, GED_HEIGHT - 1.5);
-	cairo_line_to (cr,  8, GED_HEIGHT - 5.5);
+	cairo_move_to (cr,  1, GZLINE);
+	cairo_line_to (cr,  8, GZLINE);
+	cairo_line_to (cr, 10, GZLINE - 4);
+	cairo_line_to (cr, 12, GZLINE);
+	cairo_line_to (cr, 19, GZLINE);
+	cairo_move_to (cr, 12, GZLINE);
+	cairo_line_to (cr, 10, GZLINE + 4);
+	cairo_line_to (cr,  8, GZLINE);
 	cairo_stroke (cr);
 
-	cairo_move_to (cr, GED_WIDTH -  1, GED_HEIGHT - 5.5);
-	cairo_line_to (cr, GED_WIDTH -  4, GED_HEIGHT - 5.5);
-	cairo_line_to (cr, GED_WIDTH - 10, GED_HEIGHT - 9.5);
-	cairo_line_to (cr, GED_WIDTH - 16, GED_HEIGHT - 5.5);
-	cairo_line_to (cr, GED_WIDTH - 19, GED_HEIGHT - 5.5);
-	cairo_move_to (cr, GED_WIDTH - 16, GED_HEIGHT - 5.5);
-	cairo_line_to (cr, GED_WIDTH - 10, GED_HEIGHT - 1.5);
-	cairo_line_to (cr, GED_WIDTH -  4, GED_HEIGHT - 5.5);
+	cairo_move_to (cr, GED_WIDTH -  1, GZLINE);
+	cairo_line_to (cr, GED_WIDTH -  4, GZLINE);
+	cairo_line_to (cr, GED_WIDTH - 10, GZLINE - 4);
+	cairo_line_to (cr, GED_WIDTH - 16, GZLINE);
+	cairo_line_to (cr, GED_WIDTH - 19, GZLINE);
+	cairo_move_to (cr, GED_WIDTH - 16, GZLINE);
+	cairo_line_to (cr, GED_WIDTH - 10, GZLINE + 4);
+	cairo_line_to (cr, GED_WIDTH -  4, GZLINE);
 	cairo_stroke (cr);
+
+	{ DIALDOTS(0.00, .5, 3.5) }
+	{ DIALDOTS(0.16, .5, 3.5) }
+	{ DIALDOTS(0.33, .5, 3.5) }
+	{ DIALDOTS(0.50, .5, 3.5) }
+	{ DIALDOTS(0.66, .5, 3.5) }
+	{ DIALDOTS(0.83, .5, 3.5) }
+	{ DIALDOTS(1.00, .5, 3.5) }
 
 	cairo_destroy (cr);
 
@@ -266,10 +281,10 @@ static void prepare_faceplates(Fil4UI* ui) {
 		RESPLABLEL(0.50); write_text_full(cr, tfq, ui->font[0], xlp, ylp, 0, 2, c_dlf);
 
 		print_hz(tfq, dial_to_freq(&freqs[i], .75));
-		RESPLABLEL(0.75); write_text_full(cr, tfq, ui->font[0], xlp, ylp, 0, 3, c_dlf);
+		RESPLABLEL(0.75); write_text_full(cr, tfq, ui->font[0], xlp-2, ylp, 0, 3, c_dlf);
 
 		print_hz(tfq, dial_to_freq(&freqs[i], 1.0));
-		RESPLABLEL(1.00); write_text_full(cr, tfq, ui->font[0], xlp, ylp, 0, 3, c_dlf);
+		RESPLABLEL(1.00); write_text_full(cr, tfq, ui->font[0], xlp-2, ylp, 0, 3, c_dlf);
 
 		cairo_destroy (cr);
 	}
@@ -690,7 +705,7 @@ static RobWidget * toplevel(Fil4UI* ui, void * const top) {
 
 	prepare_faceplates (ui);
 
-	ui->ctbl = rob_table_new (/*rows*/4, /*cols*/ 2 * NSECT + 3, FALSE);
+	ui->ctbl = rob_table_new (/*rows*/4, /*cols*/ 2 * NSECT + 2, FALSE);
 
 #define GBT_W(PTR) robtk_cbtn_widget(PTR)
 #define GSP_W(PTR) robtk_dial_widget(PTR)
@@ -698,19 +713,6 @@ static RobWidget * toplevel(Fil4UI* ui, void * const top) {
 
 	int col = 0;
 
-	ui->lbl_fp[0] = robtk_lbl_new("Freq [Hz]");
-	ui->lbl_fp[1] = robtk_lbl_new("Bandwidth");
-	ui->lbl_fp[2] = robtk_lbl_new("Gain [dB]");
-
-	robtk_lbl_set_alignment(ui->lbl_fp[0], 1.0, 0.5);
-	robtk_lbl_set_alignment(ui->lbl_fp[1], 1.0, 0.5);
-	robtk_lbl_set_alignment(ui->lbl_fp[2], 1.0, 0.5);
-
-	rob_table_attach (ui->ctbl, GLB_W(ui->lbl_fp[0]), col, col+1, 1, 2, 2, 0, RTK_SHRINK, RTK_SHRINK);
-	rob_table_attach (ui->ctbl, GLB_W(ui->lbl_fp[1]), col, col+1, 2, 3, 2, 0, RTK_SHRINK, RTK_SHRINK);
-	rob_table_attach (ui->ctbl, GLB_W(ui->lbl_fp[2]), col, col+1, 3, 4, 2, 0, RTK_SHRINK, RTK_SHRINK);
-
-	++col;
 	for (int i = 0; i < NSECT; ++i, col +=2) {
 		char tmp[16];
 		sprintf (tmp, "Band %d", i+1);
@@ -718,10 +720,10 @@ static RobWidget * toplevel(Fil4UI* ui, void * const top) {
 
 		ui->spn_freq[i] = robtk_dial_new_with_size (0, 1, .001,
 				GED_WIDTH + 20, GED_HEIGHT + 25, GED_CX + 10, GED_CY + 15, GED_RADIUS);
-		ui->spn_gain[i] = robtk_dial_new_with_size (-20, 20, .2,
+		ui->spn_gain[i] = robtk_dial_new_with_size (-18, 18, .2,
 				GED_WIDTH + 20, GED_HEIGHT + 25, GED_CX + 10, GED_CY + 15, GED_RADIUS);
 		ui->spn_bw[i]   = robtk_dial_new_with_size (0, 2.0, .05,
-				GED_WIDTH, GED_HEIGHT, GED_CX, GED_CY, GED_RADIUS);
+				GED_WIDTH, GED_HEIGHT + 4, GED_CX, GED_CY + 3, GED_RADIUS);
 
 
 		ui->lbl_freq[i] = robtk_lbl_new("1000 [Hz]");
@@ -813,13 +815,13 @@ static RobWidget * toplevel(Fil4UI* ui, void * const top) {
 
 	++col;
 	ui->btn_g_enable = robtk_cbtn_new ("Enable", GBT_LED_LEFT, false);
-	ui->spn_g_gain   = robtk_dial_new_with_size (-20, 20, .2,
+	ui->spn_g_gain   = robtk_dial_new_with_size (-18, 18, .2,
 				GED_WIDTH + 20, GED_HEIGHT + 25, GED_CX + 10, GED_CY + 15, GED_RADIUS);
 	ui->lbl_g_gain   = robtk_lbl_new ("1000 [dB]");
 
-	rob_table_attach (ui->ctbl, GBT_W(ui->btn_g_enable), col  , col+2, 0, 1, 5, 0, RTK_EXANDF, RTK_SHRINK);
-	rob_table_attach (ui->ctbl, GSP_W(ui->spn_g_gain),   col  , col+1, 3, 4, 5, 0, RTK_EXANDF, RTK_SHRINK);
-	rob_table_attach (ui->ctbl, GLB_W(ui->lbl_g_gain),   col+1, col+2, 3, 4, 5, 0, RTK_EXANDF, RTK_SHRINK);
+	rob_table_attach (ui->ctbl, GBT_W(ui->btn_g_enable), col, col+1, 0, 1, 5, 0, RTK_EXANDF, RTK_SHRINK);
+	rob_table_attach (ui->ctbl, GSP_W(ui->spn_g_gain),   col, col+1, 1, 3, 5, 0, RTK_EXANDF, RTK_SHRINK);
+	rob_table_attach (ui->ctbl, GLB_W(ui->lbl_g_gain),   col, col+1, 3, 4, 5, 0, RTK_EXANDF, RTK_SHRINK);
 
 	robtk_cbtn_set_callback (ui->btn_g_enable, cb_btn_g_en, ui);
 	robtk_dial_set_callback (ui->spn_g_gain,   cb_spn_g_gain, ui);
@@ -859,10 +861,6 @@ static void gui_cleanup(Fil4UI* ui) {
 	robtk_cbtn_destroy (ui->btn_g_enable);
 	robtk_dial_destroy (ui->spn_g_gain);
 	robtk_lbl_destroy (ui->lbl_g_gain);
-
-	robtk_lbl_destroy (ui->lbl_fp[0]);
-	robtk_lbl_destroy (ui->lbl_fp[1]);
-	robtk_lbl_destroy (ui->lbl_fp[2]);
 
 	robtk_sep_destroy (ui->sep_v0);
 
