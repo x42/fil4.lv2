@@ -23,7 +23,7 @@
 
 #include "lv2/lv2plug.in/ns/lv2core/lv2.h"
 
-#define FIL4_URI "http://gareus.org/oss/lv2/fil4"
+#define FIL4_URI "http://gareus.org/oss/lv2/fil4#mono"
 
 #define NSECT (4)
 

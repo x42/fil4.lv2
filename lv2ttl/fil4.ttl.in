@@ -5,6 +5,9 @@
 @prefix rdfs: <http://www.w3.org/2000/01/rdf-schema#> .
 @prefix units: <http://lv2plug.in/ns/extensions/units#> .
 @prefix pprop: <http://lv2plug.in/ns/ext/port-props#> .
+@prefix ui:    <http://lv2plug.in/ns/extensions/ui#> .
+@prefix kx:    <http://kxstudio.sf.net/ns/lv2ext/external-ui#> .
+@prefix @LV2NAME@: <http://gareus.org/oss/lv2/@LV2NAME@#> .
 
 <http://gareus.org/rgareus#me>
 	a foaf:Person ;
@@ -12,12 +15,13 @@
 	foaf:mbox <mailto:robin@gareus.org> ;
 	foaf:homepage <http://gareus.org/> .
 
-<http://gareus.org/oss/lv2/fil4>
-	a lv2:Plugin, doap:Project;
+@LV2NAME@:mono
+	a lv2:Plugin, doap:Project, lv2:ParaEQPlugin;
 	doap:license <http://usefulinc.com/doap/licenses/gpl> ;
 	doap:maintainer <http://gareus.org/rgareus#me> ;
 	doap:name "4 Band Parametric Filter";
 	lv2:optionalFeature lv2:hardRTCapable ;
+  ui:ui @LV2NAME@:ui_gl ;
 	lv2:port [
 		a lv2:AudioPort ,
 			lv2:InputPort ;
@@ -211,3 +215,9 @@
 		lv2:maximum 20;
 		units:unit units:db ;
 	] .
+
+
+@LV2NAME@:ui_gl
+  a @UI_TYPE@ ;
+  @UI_REQ@
+  .
