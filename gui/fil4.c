@@ -84,6 +84,7 @@ typedef struct {
 	FilterSection flt[NSECT];
 	int dragging;
 
+	cairo_surface_t* m0_grid;
 	cairo_surface_t* dial_bg[2];
 	cairo_surface_t* dial_fq[NSECT];
 
@@ -435,8 +436,14 @@ static float x_at_freq (const float f, const int m0_width) {
 	return rintf(m0_width * logf (f / 20.0) / logf (1000.0));
 }
 
-static void draw_grid (Fil4UI* ui, cairo_t* cr) {
-	// TODO cache faceplate as image surface
+static void draw_grid (Fil4UI* ui) {
+	assert(!ui->m0_grid);
+	ui->m0_grid = cairo_image_surface_create (CAIRO_FORMAT_ARGB32, ui->m0_width, ui->m0_height);
+	cairo_t* cr = cairo_create (ui->m0_grid);
+
+	cairo_set_operator (cr, CAIRO_OPERATOR_CLEAR);
+	cairo_paint (cr);
+	cairo_set_operator (cr, CAIRO_OPERATOR_OVER);
 
 	const float x0 = 30;
 	const float x1 = x0 + ui->m0_xw;
@@ -508,6 +515,7 @@ static void draw_grid (Fil4UI* ui, cairo_t* cr) {
 	GRID_LINE(12500);
 	GRID_LINE(16000);
 	GRID_FREQ(20000, "20K");
+	cairo_destroy (cr);
 }
 
 static void
@@ -522,6 +530,10 @@ m0_size_allocate (RobWidget* handle, int w, int h) {
 	ui->m0_width = w;
 	ui->m0_height = h;
 	robwidget_set_size(ui->m0, w, h);
+	if (ui->m0_grid) {
+		cairo_surface_destroy (ui->m0_grid);
+		ui->m0_grid = NULL;
+	}
 
 	const int m0h = h & ~1;
 	ui->m0_xw = ui->m0_width - 44;
@@ -629,7 +641,11 @@ static bool m0_expose_event (RobWidget* handle, cairo_t* cr, cairo_rectangle_t *
 	const float x0 = 30;
 	const float x1 = x0 + xw;
 
-	draw_grid (ui, cr);
+	if (!ui->m0_grid) {
+		draw_grid (ui);
+	}
+	cairo_set_source_surface(cr, ui->m0_grid, 0, 0);
+	cairo_paint(cr);
 
 	write_text_full (cr,
 			ui->nfo ? ui->nfo : "x42 fil4.LV2",
@@ -884,6 +900,9 @@ static void gui_cleanup(Fil4UI* ui) {
 
 	cairo_surface_destroy (ui->dial_bg[0]);
 	cairo_surface_destroy (ui->dial_bg[1]);
+	if (ui->m0_grid) {
+		cairo_surface_destroy (ui->m0_grid);
+	}
 
 	robwidget_destroy (ui->m0);
 	rob_table_destroy (ui->ctbl);
