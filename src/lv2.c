@@ -43,11 +43,11 @@ typedef enum {
 } PortIndex;
 
 typedef struct {
-	float     *_port [FIL_LAST];
-	float      _gain;
-	int        _fade;
-	Paramsect  _sect [NSECT];
-	float      _fsam;
+	float        *_port [FIL_LAST];
+	float         _gain;
+	int           _fade;
+	Fil4Paramsect _sect [NSECT];
+	float         _fsam;
 } Fil4;
 
 static LV2_Handle
@@ -79,79 +79,100 @@ connect_port(LV2_Handle instance,
 	}
 }
 
+static float exp2ap (float x) {
+	int i;
+
+	i = (int)(floorf (x));
+	x -= i;
+	return ldexpf (1 + x * (0.6930f + x * (0.2416f + x * (0.0517f + x * 0.0137f))), i);
+}
+
 static void
-run(LV2_Handle instance, uint32_t len)
+run(LV2_Handle instance, uint32_t n_samples)
 {
 	Fil4* self = (Fil4*)instance;
 
-	int   i, j, k;
 	float *aip = self->_port [FIL_INPUT];
 	float *aop = self->_port [FIL_OUTPUT];
-	float *p, sig [48];
-	float t, g, d;
-	float fgain;
+
 	float sfreq [NSECT];
 	float sband [NSECT];
 	float sgain [NSECT];
 
-  fgain = exp2ap (0.1661 * self->_port [FIL_GAIN][0]);
-  for (j = 0; j < NSECT; j++)
-  {
-		t = self->_port [FIL_SEC1 + 4 * j + Paramsect::FREQ][0] / self->_fsam; 
-    if (t < 0.0002) t = 0.0002;
-    if (t > 0.4998) t = 0.4998;
-    sfreq [j] = t;        
-    sband [j] = self->_port [FIL_SEC1 + 4 * j + Paramsect::BAND][0];
-    if (self->_port [FIL_SEC1 + 4 * j + Paramsect::SECT][0] > 0) sgain [j] = exp2ap (0.1661 * self->_port [FIL_SEC1 + 4 * j + Paramsect::GAIN][0]);
-    else sgain [j] = 1.0;
-  }
+	/* calculate target values, parameter smoothing */
+	const float fgain = exp2ap (0.1661 * self->_port [FIL_GAIN][0]);
 
-  while (len)
-  {
-    k = (len > 48) ? 32 : len;
+	for (int j = 0; j < NSECT; ++j) {
+		float t = self->_port [FIL_SEC1 + 4 * j + Fil4Paramsect::FREQ][0] / self->_fsam;
+		if (t < 0.0002) t = 0.0002;
+		if (t > 0.4998) t = 0.4998;
 
-    t = fgain;
-    g = self->_gain;
-    if      (t > 1.25 * g) t = 1.25 * g;
-    else if (t < 0.80 * g) t = 0.80 * g;
-    self->_gain = t;
-    d = (t - g) / k;
-    for (i = 0; i < k; i++) 
-		{
-	    g += d;
-      sig [i] = g * aip [i];
+		sfreq [j] = t;
+		sband [j] = self->_port [FIL_SEC1 + 4 * j + Fil4Paramsect::BAND][0];
+
+		if (self->_port [FIL_SEC1 + 4 * j + Fil4Paramsect::SECT][0] > 0) {
+			sgain [j] = exp2ap (0.1661 * self->_port [FIL_SEC1 + 4 * j + Fil4Paramsect::GAIN][0]);
+		} else {
+			sgain [j] = 1.0;
+		}
+	}
+
+	while (n_samples) {
+		uint32_t i;
+		float sig [48];
+		const uint32_t k = (n_samples > 48) ? 32 : n_samples;
+
+		float t = fgain;
+		float g = self->_gain;
+		if      (t > 1.25 * g) t = 1.25 * g;
+		else if (t < 0.80 * g) t = 0.80 * g;
+		self->_gain = t;
+		float d = (t - g) / k;
+
+		/* apply gain */
+		for (i = 0; i < k; i++) {
+			g += d;
+			sig [i] = g * aip [i];
 		}
 
-    for (j = 0; j < NSECT; j++) self->_sect [j].proc (k, sig, sfreq [j], sband [j], sgain [j]);
+		/* run filters */
+		for (int j = 0; j < NSECT; ++j) {
+			self->_sect [j].proc (k, sig, sfreq [j], sband [j], sgain [j]);
+		}
 
-    j = self->_fade;
-    g = j / 16.0;
-		p = 0;
-		if (self->_port [FIL_ENABLE][0] > 0)
-		{
-	    if (j == 16) p = sig;
-	    else ++j;
+		/* fade 16 * 32 samples when enable changes */
+		int j = self->_fade;
+		g = j / 16.0;
+
+		float *p = NULL;
+
+		if (self->_port [FIL_ENABLE][0] > 0) {
+			if (j == 16) p = sig;
+			else ++j;
 		}
 		else
 		{
-	    if (j == 0) p = aip;
-	    else --j;
+			if (j == 0) p = aip;
+			else --j;
 		}
-		self->_fade = j;  
-		if (p) memcpy (aop, p, k * sizeof (float));
-		else
-		{
-	    d = (j / 16.0 - g) / k;
-	    for (i = 0; i < k; i++)
-	    {
+		self->_fade = j;
+
+		if (p) {
+			/* active or bypassed */
+			memcpy (aop, p, k * sizeof (float));
+		} else {
+			/* fade in/out */
+			d = (j / 16.0 - g) / k;
+			for (uint32_t i = 0; i < k; ++i) {
 				g += d;
 				aop [i] = g * sig [i] + (1 - g) * aip [i];
-	    }
+			}
 		}
+
 		aip += k;
 		aop += k;
-		len -= k;
-  }
+		n_samples -= k;
+	}
 }
 
 static void
