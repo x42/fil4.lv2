@@ -26,20 +26,21 @@
 #define MTR_URI "http://gareus.org/oss/lv2/fil4#"
 #define MTR_GUI "ui"
 
-#define NSECT (4)
+#define NSECT (6)
 
-enum {
+enum { /* see src/lv2.c and lv2ttl/fil4.ttl.in */
 	FIL_ENABLE = 2,
 	FIL_GAIN = 3,
 	FIL_SEC1, FIL_FREQ1, FIL_Q1, FIL_GAIN1,
-	FIL_LAST = 20
+	FIL_LAST = 28
 };
 
 typedef struct {
 	float rate;
 	float gain_db;
 	float s1, s2;
-	float x0, y0;
+	double A, B, C, D, A1, B1; // IIR
+	float x0, y0; // mouse position
 } FilterSection;
 
 typedef struct {
@@ -78,14 +79,19 @@ typedef struct {
 	RobTkDial *spn_freq[NSECT];
 	RobTkDial *spn_gain[NSECT];
 	RobTkDial *spn_bw[NSECT];
-
 	RobTkLbl  *lbl_freq[NSECT];
+
+	// shelf section
+	RobTkCBtn *btn_s_enable[2];
+	RobTkDial *spn_s_freq[2];
+	RobTkDial *spn_s_gain[2];
+	RobTkDial *spn_s_bw[2];
 
 	FilterSection flt[NSECT];
 	int dragging;
 
 	cairo_surface_t* m0_grid;
-	cairo_surface_t* dial_bg[2];
+	cairo_surface_t* dial_bg[4];
 	cairo_surface_t* dial_fq[NSECT];
 
 	bool disable_signals;
@@ -94,23 +100,28 @@ typedef struct {
 
 /* frequency mapping */
 static FilterFreq freqs[NSECT] = {
+	{  25,   400,    50}, // LS
+
 	{  20,  2000,   200},
 	{  40,  4000,   400},
 	{ 100, 10000,  1000},
 	{ 200, 20000, 10000},
+
+	{1000, 16000,  8000}, // HS
 };
 
 /* color for every filter */
 static const float c_fil[NSECT][4] = {
+	{0.5, 0.6, 0.7, 0.8},
 	{1.0, 0.2, 0.2, 0.8},
 	{0.2, 1.0, 0.2, 0.8},
 	{0.2, 0.2, 1.0, 0.8},
 	{0.8, 0.7, 0.4, 0.8},
+	{0.7, 0.4, 0.7, 0.8},
 };
 
 static const float c_ann[4] = {0.5, 0.5, 0.5, 1.0}; // text annotation color on screen
 static const float c_dlf[4] = {0.8, 0.8, 0.8, 1.0}; // dial faceplate
-
 
 /**** dial value mapping ****/
 
@@ -143,6 +154,82 @@ static float freq_to_dial (FilterFreq *m, float f) {
 
 static float dial_to_freq (FilterFreq *m, float f) {
 	return m->min + (m->max - m->min) * (pow((1. + WARP), f) - 1.) / WARP;
+}
+
+/*** detents for freq knobs ****/
+static void experimental_freq_detents (Fil4UI* ui) {
+	float dt[10];
+	dt[0] = freq_to_dial(&freqs[0],   30);
+	dt[1] = freq_to_dial(&freqs[0],   40);
+	dt[2] = freq_to_dial(&freqs[0],   60);
+	dt[3] = freq_to_dial(&freqs[0],   80);
+	dt[4] = freq_to_dial(&freqs[0],  100);
+	dt[5] = freq_to_dial(&freqs[0],  125);
+	dt[6] = freq_to_dial(&freqs[0],  160);
+	dt[7] = freq_to_dial(&freqs[0],  100);
+	dt[8] = freq_to_dial(&freqs[0],  250);
+	dt[9] = freq_to_dial(&freqs[0],  315);
+	robtk_dial_set_detents (ui->spn_freq[0], 10, dt);
+
+	dt[0] = freq_to_dial(&freqs[1],   40);
+	dt[1] = freq_to_dial(&freqs[1],   63);
+	dt[2] = freq_to_dial(&freqs[1],  100);
+	dt[3] = freq_to_dial(&freqs[1],  160);
+	dt[4] = freq_to_dial(&freqs[1],  200);
+	dt[5] = freq_to_dial(&freqs[1],  250);
+	dt[6] = freq_to_dial(&freqs[1],  400);
+	dt[7] = freq_to_dial(&freqs[1],  630);
+	dt[8] = freq_to_dial(&freqs[1], 1000);
+	dt[9] = freq_to_dial(&freqs[1], 1600);
+	robtk_dial_set_detents (ui->spn_freq[1], 10, dt);
+
+	dt[0] = freq_to_dial(&freqs[2],   80);
+	dt[1] = freq_to_dial(&freqs[2],  125);
+	dt[2] = freq_to_dial(&freqs[2],  200);
+	dt[3] = freq_to_dial(&freqs[2],  315);
+	dt[4] = freq_to_dial(&freqs[2],  400);
+	dt[5] = freq_to_dial(&freqs[2],  500);
+	dt[6] = freq_to_dial(&freqs[2],  800);
+	dt[7] = freq_to_dial(&freqs[2], 1250);
+	dt[8] = freq_to_dial(&freqs[2], 2000);
+	dt[9] = freq_to_dial(&freqs[2], 3150);
+	robtk_dial_set_detents (ui->spn_freq[2], 10, dt);
+
+	dt[0] = freq_to_dial(&freqs[3],  125);
+	dt[1] = freq_to_dial(&freqs[3],  200);
+	dt[2] = freq_to_dial(&freqs[3],  315);
+	dt[3] = freq_to_dial(&freqs[3],  500);
+	dt[4] = freq_to_dial(&freqs[3],  800);
+	dt[5] = freq_to_dial(&freqs[3], 1000);
+	dt[6] = freq_to_dial(&freqs[3], 1250);
+	dt[7] = freq_to_dial(&freqs[3], 2000);
+	dt[8] = freq_to_dial(&freqs[3], 3150);
+	dt[9] = freq_to_dial(&freqs[3], 5000);
+	robtk_dial_set_detents (ui->spn_freq[3], 10, dt);
+
+	dt[0] = freq_to_dial(&freqs[4],   400);
+	dt[1] = freq_to_dial(&freqs[4],   630);
+	dt[2] = freq_to_dial(&freqs[4],  1000);
+	dt[3] = freq_to_dial(&freqs[4],  1600);
+	dt[4] = freq_to_dial(&freqs[4],  2000);
+	dt[5] = freq_to_dial(&freqs[4],  2500);
+	dt[6] = freq_to_dial(&freqs[4],  4000);
+	dt[7] = freq_to_dial(&freqs[4],  6300);
+	dt[8] = freq_to_dial(&freqs[4], 10000);
+	dt[9] = freq_to_dial(&freqs[4], 16000);
+	robtk_dial_set_detents (ui->spn_freq[4], 10, dt);
+
+	dt[0] = freq_to_dial(&freqs[5],  1250);
+	dt[1] = freq_to_dial(&freqs[5],  1325);
+	dt[2] = freq_to_dial(&freqs[5],  2500);
+	dt[3] = freq_to_dial(&freqs[5],  3150);
+	dt[4] = freq_to_dial(&freqs[5],  5000);
+	dt[5] = freq_to_dial(&freqs[5],  6300);
+	dt[6] = freq_to_dial(&freqs[5],  8000);
+	dt[7] = freq_to_dial(&freqs[5], 10300);
+	dt[8] = freq_to_dial(&freqs[5], 12000);
+	dt[9] = freq_to_dial(&freqs[5], 14000);
+	robtk_dial_set_detents (ui->spn_freq[5], 10, dt);
 }
 
 
@@ -189,7 +276,7 @@ static void print_hz (char *t, float hz) {
 	if (hz >= 990) {
 		int dec = ((int)rintf (hz / 100.f)) % 10;
 		if (dec != 0) {
-			snprintf(t, 8, "%.0fK%d", hz / 1000.f, dec);
+			snprintf(t, 8, "%.0fK%d", floor(hz / 1000.f), dec);
 		} else {
 			snprintf(t, 8, "%.0fK", hz / 1000.f);
 		}
@@ -249,7 +336,7 @@ static void prepare_faceplates(Fil4UI* ui) {
 	write_text_full(cr, "+18", ui->font[0], xlp-2, ylp,  0, 3, c_dlf);
 	cairo_destroy (cr);
 
-#define GZLINE (GED_HEIGHT - 1.5)
+#define GZLINE (GED_HEIGHT - 0.5)
 
 	INIT_DIAL_SF(ui->dial_bg[1], GED_WIDTH, GED_HEIGHT + 4);
 	CairoSetSouerceRGBA(c_dlf);
@@ -281,7 +368,68 @@ static void prepare_faceplates(Fil4UI* ui) {
 	{ DIALDOTS(0.66, .5, 3.5) }
 	{ DIALDOTS(0.83, .5, 3.5) }
 	{ DIALDOTS(1.00, .5, 3.5) }
+	cairo_destroy (cr);
 
+	// low shelf
+	INIT_DIAL_SF(ui->dial_bg[2], GED_WIDTH, GED_HEIGHT + 4);
+	CairoSetSouerceRGBA(c_dlf);
+	cairo_set_line_width(cr, 1.0);
+	cairo_move_to (cr,  1, GZLINE - 3);
+	cairo_line_to (cr,  4, GZLINE - 3);
+	cairo_line_to (cr, 14, GZLINE);
+	cairo_line_to (cr, 18, GZLINE);
+	cairo_move_to (cr, 14, GZLINE);
+	cairo_line_to (cr,  4, GZLINE + 3);
+	cairo_line_to (cr,  1, GZLINE + 3);
+	cairo_stroke (cr);
+
+	cairo_move_to (cr, GED_WIDTH -  1, GZLINE);
+	cairo_line_to (cr, GED_WIDTH -  7, GZLINE);
+	cairo_line_to (cr, GED_WIDTH - 10, GZLINE - 3);
+	cairo_line_to (cr, GED_WIDTH - 18, GZLINE - 3);
+	cairo_move_to (cr, GED_WIDTH -  7, GZLINE);
+	cairo_line_to (cr, GED_WIDTH - 10, GZLINE + 3);
+	cairo_line_to (cr, GED_WIDTH - 18, GZLINE + 3);
+	cairo_stroke (cr);
+
+	{ DIALDOTS(0.00, .5, 3.5) }
+	{ DIALDOTS(0.16, .5, 3.5) }
+	{ DIALDOTS(0.33, .5, 3.5) }
+	{ DIALDOTS(0.50, .5, 3.5) }
+	{ DIALDOTS(0.66, .5, 3.5) }
+	{ DIALDOTS(0.83, .5, 3.5) }
+	{ DIALDOTS(1.00, .5, 3.5) }
+	cairo_destroy (cr);
+
+	// high shelf
+	INIT_DIAL_SF(ui->dial_bg[3], GED_WIDTH, GED_HEIGHT + 4);
+	CairoSetSouerceRGBA(c_dlf);
+	cairo_set_line_width(cr, 1.0);
+	cairo_move_to (cr, 18, GZLINE - 3);
+	cairo_line_to (cr, 15, GZLINE - 3);
+	cairo_line_to (cr,  5, GZLINE);
+	cairo_line_to (cr,  1, GZLINE);
+	cairo_move_to (cr,  5, GZLINE);
+	cairo_line_to (cr, 15, GZLINE + 3);
+	cairo_line_to (cr, 18, GZLINE + 3);
+	cairo_stroke (cr);
+
+	cairo_move_to (cr, GED_WIDTH - 18, GZLINE);
+	cairo_line_to (cr, GED_WIDTH - 12, GZLINE);
+	cairo_line_to (cr, GED_WIDTH -  8, GZLINE - 3);
+	cairo_line_to (cr, GED_WIDTH -  1, GZLINE - 3);
+	cairo_move_to (cr, GED_WIDTH - 12, GZLINE);
+	cairo_line_to (cr, GED_WIDTH -  9, GZLINE + 3);
+	cairo_line_to (cr, GED_WIDTH -  1, GZLINE + 3);
+	cairo_stroke (cr);
+
+	{ DIALDOTS(0.00, .5, 3.5) }
+	{ DIALDOTS(0.16, .5, 3.5) }
+	{ DIALDOTS(0.33, .5, 3.5) }
+	{ DIALDOTS(0.50, .5, 3.5) }
+	{ DIALDOTS(0.66, .5, 3.5) }
+	{ DIALDOTS(0.83, .5, 3.5) }
+	{ DIALDOTS(1.00, .5, 3.5) }
 	cairo_destroy (cr);
 
 
@@ -312,7 +460,6 @@ static void prepare_faceplates(Fil4UI* ui) {
 /*** prepare filter drawing ***/
 
 static void update_filter (FilterSection *flt, const float freq, const float bw, const float gain) {
-	flt->rate = 48000; // XXX
 	// see src/lv2.c  run()
 	float freq_ratio = freq / flt->rate;
 	if (freq_ratio < 0.0002) freq_ratio = 0.0002;
@@ -327,15 +474,81 @@ static void update_filter (FilterSection *flt, const float freq, const float bw,
 
 	flt->gain_db = .5f * (g - 1.f) * (1.f - flt->s2);
 }
+static void update_iir (FilterSection *flt, const int hs, const float freq, const float bw, const float gain) {
+	float freq_ratio = freq / flt->rate;
+	float q = .35f + bw / 20.0;
+	if (freq_ratio < 0.0002) freq_ratio = 0.0002;
+	if (freq_ratio > 0.4998) freq_ratio = 0.4998;
+	if (q < .35f) { q = .35; }
+	if (q > 1.f)  { q = 1.f; }
+
+	// TODO check if double precision is needed here
+	// compare to src/iir.h
+	const double w0 = 2. * M_PI * (freq_ratio);
+	const double _cosW = cosf (w0);
+
+	const double A  = pow(10., .025 * gain); // sqrt(gain_as_coeff)
+	const double As = sqrt (A);
+	const double a  = sinf (w0) / 2 * (1 / q);
+
+	if (hs ) {
+		const double b0 =  A *      ((A + 1) + (A - 1) * _cosW + 2 * As * a);
+		const double b1 = -2 * A *  ((A - 1) + (A + 1) * _cosW);
+		const double b2 =  A *      ((A + 1) + (A - 1) * _cosW - 2 * As * a);
+		const double a0 = (A + 1) -  (A - 1) * _cosW + 2 * As * a;
+		const double a1 =  2 *      ((A - 1) - (A + 1) * _cosW);
+		const double a2 = (A + 1) -  (A - 1) * _cosW - 2 * As * a;
+
+		const double _b0 = b0 / a0;
+		const double _b2 = b2 / a0;
+		const double _a2 = a2 / a0;
+
+		flt->A = _b0 + _b2;
+		flt->B = _b0 - _b2;
+		flt->C = 1.0 + _a2;
+		flt->D = 1.0 - _a2;
+		flt->A1 = (a1 / a0);
+		flt->B1 = (b1 / a0);
+	} else {
+		const double b0 =  A *      ((A + 1) - (A - 1) * _cosW + 2 * As * a);
+		const double b1 =  2 * A  * ((A - 1) - (A + 1) * _cosW);
+		const double b2 =  A *      ((A + 1) - (A - 1) * _cosW - 2 * As * a);
+		const double a0 = (A + 1) +  (A - 1) * _cosW + 2 * As * a;
+		const double a1 = -2 *      ((A - 1) + (A + 1) * _cosW);
+		const double a2 = (A + 1) +  (A - 1) * _cosW - 2 * As * a;
+
+		const double _b0 = b0 / a0;
+		const double _b2 = b2 / a0;
+		const double _a2 = a2 / a0;
+
+		flt->A = _b0 + _b2;
+		flt->B = _b0 - _b2;
+		flt->C = 1.0 + _a2;
+		flt->D = 1.0 - _a2;
+		flt->A1 = (a1 / a0);
+		flt->B1 = (b1 / a0);
+	}
+}
 
 static void update_filters (Fil4UI *ui) {
-	for (uint32_t i = 0; i < NSECT; ++i) {
+	for (uint32_t i = 1; i < NSECT -1; ++i) {
 		update_filter (&ui->flt[i],
 				dial_to_freq(&freqs[i], robtk_dial_get_value (ui->spn_freq[i])),
 				dial_to_bw (robtk_dial_get_value (ui->spn_bw[i])),
 				robtk_dial_get_value (ui->spn_gain[i])
 				);
 	}
+
+	update_iir (&ui->flt[0], 0,
+			dial_to_freq(&freqs[0], robtk_dial_get_value (ui->spn_freq[0])),
+			dial_to_bw (robtk_dial_get_value (ui->spn_bw[0])),
+			robtk_dial_get_value (ui->spn_gain[0])
+			);
+	update_iir (&ui->flt[NSECT-1], 1,
+			dial_to_freq(&freqs[NSECT-1], robtk_dial_get_value (ui->spn_freq[NSECT-1])),
+			dial_to_bw (robtk_dial_get_value (ui->spn_bw[NSECT-1])),
+			robtk_dial_get_value (ui->spn_gain[NSECT-1])
+			);
 	queue_draw(ui->m0);
 }
 
@@ -408,7 +621,7 @@ static bool cb_spn_g_gain (RobWidget *w, void* handle) {
 ///////////////////////////////////////////////////////////////////////////////
 
 static float get_filter_resonse (FilterSection *flt, const float freq) {
-	const float w = 2.f * M_PI * (freq / flt->rate);
+	const float w = 2.f * M_PI * freq / flt->rate;
 	const float c1 = cosf (w);
 	const float s1 = sinf (w);
 	const float c2 = cosf (2.f * w);
@@ -425,6 +638,18 @@ static float get_filter_resonse (FilterSection *flt, const float freq) {
 	const float t2 = hypot (x, y);
 
 	return 20.f * log10f (t2 / t1);
+}
+
+static float get_shelf_resonse (FilterSection *flt, const float freq) {
+	const float w = 2.f * M_PI * freq / flt->rate;
+	const float c1 = cosf(w);
+	const float s1 = sinf(w);
+	const float A = flt->A * c1 + flt->B1;
+	const float B = flt->B * s1;
+	const float C = flt->C * c1 + flt->A1;
+	const float D = flt->D * s1;
+#define SQUARE(X) ( (X) * (X) )
+	return 20.f * log10f (sqrt ((SQUARE(A) + SQUARE(B)) * (SQUARE(C) + SQUARE(D))) / (SQUARE(C) + SQUARE(D)));
 }
 
 /* log-scale mapping */
@@ -520,7 +745,7 @@ static void draw_grid (Fil4UI* ui) {
 
 static void
 m0_size_request (RobWidget* handle, int *w, int *h) {
-	*w = 520;
+	*w = 600;
 	*h = 200;
 }
 
@@ -588,6 +813,11 @@ static RobWidget* m0_mouse_scroll (RobWidget* handle, RobTkBtnEvent *ev) {
 
 static RobWidget* m0_mouse_down (RobWidget* handle, RobTkBtnEvent *ev) {
 	Fil4UI* ui = (Fil4UI*)GET_HANDLE(handle);
+	// TODO handle shift+click -> reset,
+	// right-click - toggle default
+	if (ev->button != 1) {
+		return NULL;
+	}
 	assert (ui->dragging == -1);
 
 	for (int i = 0; i < NSECT; ++i) {
@@ -597,12 +827,16 @@ static RobWidget* m0_mouse_down (RobWidget* handle, RobTkBtnEvent *ev) {
 			break;
 		}
 	}
-	return handle;
+	if (ui->dragging < 0) {
+		return NULL;
+	} else {
+		return handle;
+	}
 }
 
 static RobWidget* m0_mouse_move (RobWidget* handle, RobTkBtnEvent *ev) {
 	Fil4UI* ui = (Fil4UI*)GET_HANDLE(handle);
-	if (ui->dragging < 0) return handle;
+	if (ui->dragging < 0) return NULL;
 
 	const float x0 = 30;
 	const float x1 = x0 + ui->m0_xw;
@@ -610,13 +844,14 @@ static RobWidget* m0_mouse_move (RobWidget* handle, RobTkBtnEvent *ev) {
 	const float y1 = ui->m0_y1;
 
 	float g_gain = robtk_dial_get_value (ui->spn_g_gain);
+	const int sect = ui->dragging;
 
-	if (ev->x >= x0 && ev->x <= x1 && ev->y >= y0 && ev->y <= y1) {
-		const int sect = ui->dragging;
-		const float db = (ui->m0_ym - ev->y) / ui->m0_yr;
+	if (ev->x >= x0 && ev->x <= x1) {
 		const float hz = freq_at_x (ev->x - x0, ui->m0_xw);
-
 		robtk_dial_set_value (ui->spn_freq[sect], freq_to_dial (&freqs[sect], hz));
+	}
+	if (ev->y >= y0 && ev->y <= y1) {
+		const float db = (ui->m0_ym - ev->y) / ui->m0_yr;
 		robtk_dial_set_value (ui->spn_gain[sect], db - g_gain);
 	}
 	return handle;
@@ -673,7 +908,13 @@ static bool m0_expose_event (RobWidget* handle, cairo_t* cr, cairo_rectangle_t *
 		float y = yr * g_gain;
 		for (int j = 0 ; j < NSECT; ++j) {
 			if (!robtk_cbtn_get_active(ui->btn_enable[j])) continue;
-			y += yr * get_filter_resonse (&ui->flt[j], xf);
+			if (j == 0) {
+				y += yr * get_shelf_resonse (&ui->flt[j], xf);
+			} else if (j == NSECT -1) {
+				y += yr * get_shelf_resonse (&ui->flt[j], xf);
+			} else {
+				y += yr * get_filter_resonse (&ui->flt[j], xf);
+			}
 		}
 		if (i == 0) {
 			cairo_move_to (cr, x0 + i, ym - y);
@@ -712,8 +953,14 @@ static bool m0_expose_event (RobWidget* handle, cairo_t* cr, cairo_rectangle_t *
 
 		for (int i = 0 ; i < xw; ++i) {
 			const float xf = freq_at_x(i, xw);
-
-			float y = yr * (g_gain + get_filter_resonse (&ui->flt[j], xf));
+			float y = yr;
+			if (j == 0) {
+				y *= get_shelf_resonse (&ui->flt[j], xf);
+			} else if (j == NSECT -1) {
+				y *= get_shelf_resonse (&ui->flt[j], xf);
+			} else {
+				y *= get_filter_resonse (&ui->flt[j], xf);
+			}
 			if (i == 0) {
 				cairo_move_to (cr, x0 + i, ym - y);
 			} else {
@@ -747,7 +994,13 @@ static RobWidget * toplevel(Fil4UI* ui, void * const top) {
 
 	for (int i = 0; i < NSECT; ++i, ++col) {
 		char tmp[16];
-		sprintf (tmp, "Band %d", i+1);
+		if (i == 0) {
+			sprintf (tmp, "Shelf");
+		} else if (i == NSECT -1) {
+			sprintf (tmp, "Shelf");
+		} else {
+			sprintf (tmp, "Band %d", i);
+		}
 		ui->btn_enable[i] = robtk_cbtn_new(tmp, GBT_LED_LEFT, false);
 
 		ui->spn_freq[i] = robtk_dial_new_with_size (0, 1, .001,
@@ -785,8 +1038,14 @@ static RobWidget * toplevel(Fil4UI* ui, void * const top) {
 		robtk_cbtn_set_color_off (ui->btn_enable[i], c_fil[i][0] * .3, c_fil[i][1] * .3, c_fil[i][2] * .3);
 
 		robtk_dial_set_surface (ui->spn_gain[i], ui->dial_bg[0]);
-		robtk_dial_set_surface (ui->spn_bw[i],   ui->dial_bg[1]);
 		robtk_dial_set_surface (ui->spn_freq[i], ui->dial_fq[i]);
+		if (i == 0) {
+			robtk_dial_set_surface (ui->spn_bw[i],   ui->dial_bg[2]);
+		} else if (i == NSECT -1) {
+			robtk_dial_set_surface (ui->spn_bw[i],   ui->dial_bg[3]);
+		} else {
+			robtk_dial_set_surface (ui->spn_bw[i],   ui->dial_bg[1]);
+		}
 
 		robtk_dial_set_detent_default (ui->spn_gain[i], true);
 		//robtk_dial_set_detent_default (ui->spn_bw[i],   true);
@@ -794,55 +1053,9 @@ static RobWidget * toplevel(Fil4UI* ui, void * const top) {
 		robtk_dial_set_scroll_mult (ui->spn_gain[i], 5.f);
 	}
 
-	/* detents for freq. */
-	float dt[10];
-	dt[0] = freq_to_dial(&freqs[0],   40);
-	dt[1] = freq_to_dial(&freqs[0],   63);
-	dt[2] = freq_to_dial(&freqs[0],  100);
-	dt[3] = freq_to_dial(&freqs[0],  160);
-	dt[4] = freq_to_dial(&freqs[0],  200);
-	dt[5] = freq_to_dial(&freqs[0],  250);
-	dt[6] = freq_to_dial(&freqs[0],  400);
-	dt[7] = freq_to_dial(&freqs[0],  630);
-	dt[8] = freq_to_dial(&freqs[0], 1000);
-	dt[9] = freq_to_dial(&freqs[0], 1600);
-	robtk_dial_set_detents (ui->spn_freq[0], 10, dt);
-
-	dt[0] = freq_to_dial(&freqs[1],   80);
-	dt[1] = freq_to_dial(&freqs[1],  125);
-	dt[2] = freq_to_dial(&freqs[1],  200);
-	dt[3] = freq_to_dial(&freqs[1],  315);
-	dt[4] = freq_to_dial(&freqs[1],  400);
-	dt[5] = freq_to_dial(&freqs[1],  500);
-	dt[6] = freq_to_dial(&freqs[1],  800);
-	dt[7] = freq_to_dial(&freqs[1], 1250);
-	dt[8] = freq_to_dial(&freqs[1], 2000);
-	dt[9] = freq_to_dial(&freqs[1], 3150);
-	robtk_dial_set_detents (ui->spn_freq[1], 10, dt);
-
-	dt[0] = freq_to_dial(&freqs[2],  125);
-	dt[1] = freq_to_dial(&freqs[2],  200);
-	dt[2] = freq_to_dial(&freqs[2],  315);
-	dt[3] = freq_to_dial(&freqs[2],  500);
-	dt[4] = freq_to_dial(&freqs[2],  800);
-	dt[5] = freq_to_dial(&freqs[2], 1000);
-	dt[6] = freq_to_dial(&freqs[2], 1250);
-	dt[7] = freq_to_dial(&freqs[2], 2000);
-	dt[8] = freq_to_dial(&freqs[2], 3150);
-	dt[9] = freq_to_dial(&freqs[2], 5000);
-	robtk_dial_set_detents (ui->spn_freq[2], 10, dt);
-
-	dt[0] = freq_to_dial(&freqs[3],   400);
-	dt[1] = freq_to_dial(&freqs[3],   630);
-	dt[2] = freq_to_dial(&freqs[3],  1000);
-	dt[3] = freq_to_dial(&freqs[3],  1600);
-	dt[4] = freq_to_dial(&freqs[3],  2000);
-	dt[5] = freq_to_dial(&freqs[3],  2500);
-	dt[6] = freq_to_dial(&freqs[3],  4000);
-	dt[7] = freq_to_dial(&freqs[3],  6300);
-	dt[8] = freq_to_dial(&freqs[3], 10000);
-	dt[9] = freq_to_dial(&freqs[3], 16000);
-	robtk_dial_set_detents (ui->spn_freq[3], 10, dt);
+#if 0
+	experimental_freq_detents (ui);
+#endif
 
 	ui->sep_v0 = robtk_sep_new(FALSE);
 	rob_table_attach_defaults (ui->ctbl, robtk_sep_widget(ui->sep_v0), col, col+1, 0, 5);
@@ -859,11 +1072,11 @@ static RobWidget * toplevel(Fil4UI* ui, void * const top) {
 	robtk_cbtn_set_callback (ui->btn_g_enable, cb_btn_g_en, ui);
 	robtk_dial_set_callback (ui->spn_g_gain,   cb_spn_g_gain, ui);
 	robtk_dial_set_surface (ui->spn_g_gain, ui->dial_bg[0]);
-	robtk_dial_set_detent_default (ui->spn_g_gain, true);
 
 	robtk_cbtn_set_color_on(ui->btn_g_enable,  1.0, 1.0, 1.0);
 	robtk_cbtn_set_color_off(ui->btn_g_enable, .2, .2, .2);
 	robtk_dial_set_default(ui->spn_g_gain, 0.0);
+	robtk_dial_set_detent_default (ui->spn_g_gain, true);
 
 	ui->m0 = robwidget_new (ui);
 	robwidget_set_alignment (ui->m0, .5, .5);
@@ -900,6 +1113,8 @@ static void gui_cleanup(Fil4UI* ui) {
 
 	cairo_surface_destroy (ui->dial_bg[0]);
 	cairo_surface_destroy (ui->dial_bg[1]);
+	cairo_surface_destroy (ui->dial_bg[2]);
+	cairo_surface_destroy (ui->dial_bg[3]);
 	if (ui->m0_grid) {
 		cairo_surface_destroy (ui->m0_grid);
 	}
@@ -937,6 +1152,12 @@ instantiate(
 	ui->write      = write_function;
 	ui->controller = controller;
 	ui->dragging   = -1;
+
+	for (int i = 0; i < NSECT; ++i) {
+		/* used for analysis only, but should match
+		 * actual rate (rails at bounrary) */
+		ui->flt[i].rate = 48000;
+	}
 
 	*widget = toplevel(ui, ui_toplevel);
 	return ui;
