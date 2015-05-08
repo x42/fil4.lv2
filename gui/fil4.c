@@ -156,83 +156,6 @@ static float dial_to_freq (FilterFreq *m, float f) {
 	return m->min + (m->max - m->min) * (pow((1. + WARP), f) - 1.) / WARP;
 }
 
-/*** detents for freq knobs ****/
-static void experimental_freq_detents (Fil4UI* ui) {
-	float dt[10];
-	dt[0] = freq_to_dial(&freqs[0],   30);
-	dt[1] = freq_to_dial(&freqs[0],   40);
-	dt[2] = freq_to_dial(&freqs[0],   60);
-	dt[3] = freq_to_dial(&freqs[0],   80);
-	dt[4] = freq_to_dial(&freqs[0],  100);
-	dt[5] = freq_to_dial(&freqs[0],  125);
-	dt[6] = freq_to_dial(&freqs[0],  160);
-	dt[7] = freq_to_dial(&freqs[0],  100);
-	dt[8] = freq_to_dial(&freqs[0],  250);
-	dt[9] = freq_to_dial(&freqs[0],  315);
-	robtk_dial_set_detents (ui->spn_freq[0], 10, dt);
-
-	dt[0] = freq_to_dial(&freqs[1],   40);
-	dt[1] = freq_to_dial(&freqs[1],   63);
-	dt[2] = freq_to_dial(&freqs[1],  100);
-	dt[3] = freq_to_dial(&freqs[1],  160);
-	dt[4] = freq_to_dial(&freqs[1],  200);
-	dt[5] = freq_to_dial(&freqs[1],  250);
-	dt[6] = freq_to_dial(&freqs[1],  400);
-	dt[7] = freq_to_dial(&freqs[1],  630);
-	dt[8] = freq_to_dial(&freqs[1], 1000);
-	dt[9] = freq_to_dial(&freqs[1], 1600);
-	robtk_dial_set_detents (ui->spn_freq[1], 10, dt);
-
-	dt[0] = freq_to_dial(&freqs[2],   80);
-	dt[1] = freq_to_dial(&freqs[2],  125);
-	dt[2] = freq_to_dial(&freqs[2],  200);
-	dt[3] = freq_to_dial(&freqs[2],  315);
-	dt[4] = freq_to_dial(&freqs[2],  400);
-	dt[5] = freq_to_dial(&freqs[2],  500);
-	dt[6] = freq_to_dial(&freqs[2],  800);
-	dt[7] = freq_to_dial(&freqs[2], 1250);
-	dt[8] = freq_to_dial(&freqs[2], 2000);
-	dt[9] = freq_to_dial(&freqs[2], 3150);
-	robtk_dial_set_detents (ui->spn_freq[2], 10, dt);
-
-	dt[0] = freq_to_dial(&freqs[3],  125);
-	dt[1] = freq_to_dial(&freqs[3],  200);
-	dt[2] = freq_to_dial(&freqs[3],  315);
-	dt[3] = freq_to_dial(&freqs[3],  500);
-	dt[4] = freq_to_dial(&freqs[3],  800);
-	dt[5] = freq_to_dial(&freqs[3], 1000);
-	dt[6] = freq_to_dial(&freqs[3], 1250);
-	dt[7] = freq_to_dial(&freqs[3], 2000);
-	dt[8] = freq_to_dial(&freqs[3], 3150);
-	dt[9] = freq_to_dial(&freqs[3], 5000);
-	robtk_dial_set_detents (ui->spn_freq[3], 10, dt);
-
-	dt[0] = freq_to_dial(&freqs[4],   400);
-	dt[1] = freq_to_dial(&freqs[4],   630);
-	dt[2] = freq_to_dial(&freqs[4],  1000);
-	dt[3] = freq_to_dial(&freqs[4],  1600);
-	dt[4] = freq_to_dial(&freqs[4],  2000);
-	dt[5] = freq_to_dial(&freqs[4],  2500);
-	dt[6] = freq_to_dial(&freqs[4],  4000);
-	dt[7] = freq_to_dial(&freqs[4],  6300);
-	dt[8] = freq_to_dial(&freqs[4], 10000);
-	dt[9] = freq_to_dial(&freqs[4], 16000);
-	robtk_dial_set_detents (ui->spn_freq[4], 10, dt);
-
-	dt[0] = freq_to_dial(&freqs[5],  1250);
-	dt[1] = freq_to_dial(&freqs[5],  1325);
-	dt[2] = freq_to_dial(&freqs[5],  2500);
-	dt[3] = freq_to_dial(&freqs[5],  3150);
-	dt[4] = freq_to_dial(&freqs[5],  5000);
-	dt[5] = freq_to_dial(&freqs[5],  6300);
-	dt[6] = freq_to_dial(&freqs[5],  8000);
-	dt[7] = freq_to_dial(&freqs[5], 10300);
-	dt[8] = freq_to_dial(&freqs[5], 12000);
-	dt[9] = freq_to_dial(&freqs[5], 14000);
-	robtk_dial_set_detents (ui->spn_freq[5], 10, dt);
-}
-
-
 /**** faceplates and annotation ****/
 
 static void dial_annotation_db (RobTkDial * d, cairo_t *cr, void *data) {
@@ -1062,10 +985,6 @@ static RobWidget * toplevel(Fil4UI* ui, void * const top) {
 		robtk_dial_set_scroll_mult (ui->spn_freq[i], 10.f);
 		robtk_dial_set_scroll_mult (ui->spn_gain[i], 5.f);
 	}
-
-#if 0
-	experimental_freq_detents (ui);
-#endif
 
 	ui->sep_v0 = robtk_sep_new(FALSE);
 	rob_table_attach_defaults (ui->ctbl, robtk_sep_widget(ui->sep_v0), col, col+1, 0, 5);
