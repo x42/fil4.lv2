@@ -818,6 +818,7 @@ static RobWidget* m0_mouse_down (RobWidget* handle, RobTkBtnEvent *ev) {
 	if (ev->button != 1) {
 		return NULL;
 	}
+
 	assert (ui->dragging == -1);
 
 	for (int i = 0; i < NSECT; ++i) {
@@ -827,6 +828,15 @@ static RobWidget* m0_mouse_down (RobWidget* handle, RobTkBtnEvent *ev) {
 			break;
 		}
 	}
+	if (ev->state & ROBTK_MOD_SHIFT && ui->dragging >= 0) {
+		// XXX dial needs an API for this
+		robtk_dial_set_value (ui->spn_freq[ui->dragging], ui->spn_freq[ui->dragging]->dfl);
+		robtk_dial_set_value (ui->spn_gain[ui->dragging], ui->spn_gain[ui->dragging]->dfl);
+		robtk_dial_set_value (ui->spn_bw[ui->dragging], ui->spn_bw[ui->dragging]->dfl);
+		ui->dragging = -1;
+		return NULL;
+	}
+
 	if (ui->dragging < 0) {
 		return NULL;
 	} else {
