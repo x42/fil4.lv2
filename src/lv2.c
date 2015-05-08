@@ -20,6 +20,7 @@
 #include <stdlib.h>
 #include <string.h>
 #include "filters.h"
+#include "iir.h"
 
 #include "lv2/lv2plug.in/ns/lv2core/lv2.h"
 
@@ -34,10 +35,14 @@ typedef enum {
 	FIL_ENABLE,
 	FIL_GAIN,
 
+	IIR_LS_EN, IIR_LS_FREQ, IIR_LS_Q, IIR_LS_GAIN,
+
 	FIL_SEC1, FIL_FREQ1, FIL_Q1, FIL_GAIN1,
 	FIL_SEC2, FIL_FREQ2, FIL_Q2, FIL_GAIN2,
 	FIL_SEC3, FIL_FREQ3, FIL_Q3, FIL_GAIN3,
 	FIL_SEC4, FIL_FREQ4, FIL_Q4, FIL_GAIN4,
+
+	IIR_HS_EN, IIR_HS_FREQ, IIR_HS_Q, IIR_HS_GAIN,
 
 	FIL_LAST
 } PortIndex;
@@ -48,6 +53,9 @@ typedef struct {
 	int           _fade;
 	Fil4Paramsect _sect [NSECT];
 	float         _fsam;
+
+	IIRProc       iir_lowshelf;
+	IIRProc       iir_highshelf;
 } Fil4;
 
 static LV2_Handle
@@ -64,6 +72,15 @@ instantiate(const LV2_Descriptor*     descriptor,
 	for (int j = 0; j < NSECT; ++j) {
 		self->_sect [j].init ();
 	}
+
+	iir_init (&self->iir_lowshelf, rate);
+	iir_init (&self->iir_highshelf, rate);
+
+	self->iir_lowshelf.freq = 50;
+	self->iir_highshelf.freq = 8000;
+
+	iir_calc_lowshelf (&self->iir_lowshelf);
+	iir_calc_highshelf (&self->iir_highshelf);
 
 	return (LV2_Handle)self;
 }
@@ -91,6 +108,14 @@ static void
 run(LV2_Handle instance, uint32_t n_samples)
 {
 	Fil4* self = (Fil4*)instance;
+
+	/* localize variables */
+	const float ls_gain = *self->_port[IIR_LS_EN] > 0 ? powf (10.f, .05f * self->_port[IIR_LS_GAIN][0]) : 1.f;
+	const float hs_gain = *self->_port[IIR_HS_EN] > 0 ? powf (10.f, .05f * self->_port[IIR_HS_GAIN][0]) : 1.f;
+	const float ls_freq = *self->_port[IIR_LS_FREQ];
+	const float hs_freq = *self->_port[IIR_HS_FREQ];
+	const float ls_q    = .347f + self->_port[IIR_LS_Q][0] / 22.27; // map to 2..4 octaves
+	const float hs_q    = .347f + self->_port[IIR_HS_Q][0] / 22.27;
 
 	float *aip = self->_port [FIL_INPUT];
 	float *aop = self->_port [FIL_OUTPUT];
@@ -135,10 +160,21 @@ run(LV2_Handle instance, uint32_t n_samples)
 			sig [i] = g * aip [i];
 		}
 
+		/* update IIR */
+		if (iir_interpolate (&self->iir_lowshelf,  ls_gain, ls_freq, ls_q)) {
+			iir_calc_lowshelf (&self->iir_lowshelf);
+		}
+		if (iir_interpolate (&self->iir_highshelf, hs_gain, hs_freq, hs_q)) {
+			iir_calc_highshelf (&self->iir_highshelf);
+		}
+
 		/* run filters */
 		for (int j = 0; j < NSECT; ++j) {
 			self->_sect [j].proc (k, sig, sfreq [j], sband [j], sgain [j]);
 		}
+
+		iir_compute (&self->iir_lowshelf, k, sig);
+		iir_compute (&self->iir_highshelf, k, sig);
 
 		/* fade 16 * 32 samples when enable changes */
 		int j = self->_fade;
