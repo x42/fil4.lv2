@@ -506,6 +506,8 @@ static void update_filters (Fil4UI *ui) {
 	queue_draw(ui->m0);
 }
 
+#define SQUARE(X) ( (X) * (X) )
+#define HYPOTF(X,Y) (sqrtf (SQUARE(X) + SQUARE(Y)))
 
 /* drawing helpers, calculate respone for given frequency */
 static float get_filter_response (FilterSection *flt, const float freq) {
@@ -518,12 +520,12 @@ static float get_filter_response (FilterSection *flt, const float freq) {
 	float x = c2 + flt->s1 * c1 + flt->s2;
 	float y = s2 + flt->s1 * s1;
 
-	const float t1 = hypot (x, y);
+	const float t1 = HYPOTF (x, y);
 
 	x += flt->gain_db * (c2 - 1.f);
 	y += flt->gain_db * s2;
 
-	const float t2 = hypot (x, y);
+	const float t2 = HYPOTF (x, y);
 
 	return 20.f * log10f (t2 / t1);
 }
@@ -537,14 +539,13 @@ static float get_shelf_response (FilterSection *flt, const float freq) {
 	const float B = flt->B * s1;
 	const float C = flt->C * c1 + flt->A1;
 	const float D = flt->D * s1;
-#define SQUARE(X) ( (X) * (X) )
-	return 20.f * log10f (sqrt ((SQUARE(A) + SQUARE(B)) * (SQUARE(C) + SQUARE(D))) / (SQUARE(C) + SQUARE(D)));
+	return 20.f * log10f (sqrtf ((SQUARE(A) + SQUARE(B)) * (SQUARE(C) + SQUARE(D))) / (SQUARE(C) + SQUARE(D)));
 }
 
 static float get_highpass_response (const float freq) {
 	const float w = freq / 20.f; // see lv2.c hip_setup()
 	const float v = (w / sqrtf (1 + w * w));
-	return 20.f * log10f (v * v);
+	return 40.f * log10f (v); // 20 * log(v^2);
 }
 
 ///////////////////////////////////////////////////////////////////////////////
