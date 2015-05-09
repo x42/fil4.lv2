@@ -799,6 +799,7 @@ m0_size_allocate (RobWidget* handle, int w, int h) {
 static RobWidget* m0_mouse_up (RobWidget* handle, RobTkBtnEvent *ev) {
 	Fil4UI* ui = (Fil4UI*)GET_HANDLE(handle);
 	ui->dragging = -1;
+	queue_draw(ui->m0);
 	return NULL;
 }
 
@@ -807,7 +808,6 @@ static RobWidget* m0_mouse_scroll (RobWidget* handle, RobTkBtnEvent *ev) {
 	int sect = -1;
 
 	for (int i = 0; i < NSECT; ++i) {
-		if (!robtk_cbtn_get_active(ui->btn_enable[i])) continue;
 		if (abs(ev->x - ui->flt[i].x0) <= DOTRADIUS && abs(ev->y - ui->flt[i].y0) <= DOTRADIUS) {
 			sect = i;
 			break;
@@ -847,9 +847,9 @@ static RobWidget* m0_mouse_down (RobWidget* handle, RobTkBtnEvent *ev) {
 	assert (ui->dragging == -1);
 
 	for (int i = 0; i < NSECT; ++i) {
-		if (!robtk_cbtn_get_active(ui->btn_enable[i])) continue;
 		if (fabsf(ev->x - ui->flt[i].x0) <= DOTRADIUS && fabsf(ev->y - ui->flt[i].y0) <= DOTRADIUS) {
 			ui->dragging = i;
+			queue_draw(ui->m0);
 			break;
 		}
 	}
@@ -859,6 +859,7 @@ static RobWidget* m0_mouse_down (RobWidget* handle, RobTkBtnEvent *ev) {
 		robtk_dial_set_value (ui->spn_gain[ui->dragging], ui->spn_gain[ui->dragging]->dfl);
 		robtk_dial_set_value (ui->spn_bw[ui->dragging], ui->spn_bw[ui->dragging]->dfl);
 		ui->dragging = -1;
+		queue_draw(ui->m0);
 		return NULL;
 	}
 
@@ -964,21 +965,24 @@ static bool m0_expose_event (RobWidget* handle, cairo_t* cr, cairo_rectangle_t *
 		}
 	}
 	cairo_stroke_preserve(cr);
-	cairo_line_to (cr, x0 + xw, ym);
-	cairo_line_to (cr, x0, ym);
+	cairo_line_to (cr, x0 + xw, ym - yr * g_gain);
+	cairo_line_to (cr, x0, ym - yr * g_gain);
 	cairo_set_source_rgba (cr, 0.5, 0.5, 0.5, 0.4 * shade);
 	cairo_fill (cr);
 
 	cairo_set_operator (cr, CAIRO_OPERATOR_ADD);
 	cairo_set_line_width(cr, 1.0);
 	for (int j = 0 ; j < NSECT; ++j) {
-		if (!robtk_cbtn_get_active(ui->btn_enable[j])) continue;
+		float fshade = shade;
+		if (!robtk_cbtn_get_active(ui->btn_enable[j])) {
+			fshade = .5;
+		}
 		const float fq = dial_to_freq(&freqs[j], robtk_dial_get_value (ui->spn_freq[j]));
 		const float db = robtk_dial_get_value (ui->spn_gain[j]);
 
 		const float xx = x0 + x_at_freq(fq, xw) - .5f;
 		const float yy = rintf(ym + .5 - yr * (db + g_gain)) - .5;
-		cairo_set_source_rgba (cr, c_fil[j][0], c_fil[j][1], c_fil[j][2], .5 * shade);
+		cairo_set_source_rgba (cr, c_fil[j][0], c_fil[j][1], c_fil[j][2], .5 * fshade);
 		cairo_arc (cr, xx, yy, DOTRADIUS, 0, 2 * M_PI);
 		cairo_fill (cr);
 		// cache position (for drag)
@@ -988,9 +992,12 @@ static bool m0_expose_event (RobWidget* handle, cairo_t* cr, cairo_rectangle_t *
 
 	/* draw filters */
 	for (int j = 0 ; j < NSECT; ++j) {
-		if (!robtk_cbtn_get_active(ui->btn_enable[j])) continue;
+		float fshade = shade;
+		if (!robtk_cbtn_get_active(ui->btn_enable[j])) {
+			fshade = .5;
+		}
 
-		cairo_set_source_rgba (cr, c_fil[j][0], c_fil[j][1], c_fil[j][2], shade);
+		cairo_set_source_rgba (cr, c_fil[j][0], c_fil[j][1], c_fil[j][2], fshade);
 
 		for (int i = 0 ; i < xw; ++i) {
 			const float xf = freq_at_x(i, xw);
@@ -1002,13 +1009,25 @@ static bool m0_expose_event (RobWidget* handle, cairo_t* cr, cairo_rectangle_t *
 			} else {
 				y *= get_filter_response (&ui->flt[j], xf);
 			}
+			y += yr * g_gain;
 			if (i == 0) {
 				cairo_move_to (cr, x0 + i, ym - y);
 			} else {
 				cairo_line_to (cr, x0 + i, ym - y);
 			}
 		}
-		cairo_stroke(cr);
+		if (ui->dragging == j) {
+			cairo_set_operator (cr, CAIRO_OPERATOR_ADD);
+			cairo_stroke_preserve(cr);
+			cairo_line_to (cr, x0 + xw, ym - yr * g_gain);
+			cairo_line_to (cr, x0, ym - yr * g_gain);
+			cairo_set_operator (cr, CAIRO_OPERATOR_OVER);
+			cairo_set_source_rgba (cr, c_fil[j][0], c_fil[j][1], c_fil[j][2], 0.4 * fshade);
+			cairo_fill (cr);
+		} else {
+			cairo_set_operator (cr, CAIRO_OPERATOR_ADD);
+			cairo_stroke(cr);
+		}
 	}
 	return TRUE;
 }
