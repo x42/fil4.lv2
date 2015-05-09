@@ -113,10 +113,10 @@ typedef struct {
 static FilterFreq freqs[NSECT] = {
 	/*min    max   dflt*/
 	{  25,   400,    50}, // LS
-	{  20,  2000,   200},
-	{  40,  4000,   400},
-	{ 100, 10000,  1000},
-	{ 200, 20000, 10000},
+	{  20,  2000,    80},
+	{  40,  4000,   315},
+	{ 100, 10000,   630},
+	{ 200, 20000,  1250},
 	{1000, 16000,  8000}, // HS
 };
 
@@ -1080,7 +1080,7 @@ static RobWidget * toplevel(Fil4UI* ui, void * const top) {
 		robtk_dial_set_constained (ui->spn_freq[i], false);
 		robtk_dial_set_default(ui->spn_freq[i], freq_to_dial (&freqs[i], freqs[i].dflt));
 		robtk_dial_set_default(ui->spn_gain[i], 0.0);
-		robtk_dial_set_default(ui->spn_bw[i], bw_to_dial(1.0));
+		robtk_dial_set_default(ui->spn_bw[i], bw_to_dial(0.6));
 
 		robtk_cbtn_set_callback (ui->btn_enable[i], cb_btn_en, ui);
 		robtk_dial_set_callback (ui->spn_freq[i],   cb_spn_freq, ui);

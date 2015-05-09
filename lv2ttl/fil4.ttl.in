@@ -120,7 +120,7 @@
 		lv2:index 10 ;
 		lv2:symbol "freq1" ;
 		lv2:name "Frequency 1" ;
-		lv2:default 200 ;
+		lv2:default 80 ;
 		lv2:minimum 20 ;
 		lv2:maximum 2000 ;
 		units:unit units:hz ;
@@ -131,7 +131,7 @@
 		lv2:index 11 ;
 		lv2:symbol "q1" ;
 		lv2:name "Bandwidth 1" ;
-		lv2:default 1.0 ;
+		lv2:default 0.6 ;
 		lv2:minimum 0.125;
 		lv2:maximum 8.0;
 	] , [
@@ -160,7 +160,7 @@
 		lv2:index 14 ;
 		lv2:symbol "freq2" ;
 		lv2:name "Frequency 2" ;
-		lv2:default 400 ;
+		lv2:default 315 ;
 		lv2:minimum 40 ;
 		lv2:maximum 4000 ;
 		units:unit units:hz ;
@@ -171,7 +171,7 @@
 		lv2:index 15 ;
 		lv2:symbol "q2" ;
 		lv2:name "Bandwidth 2" ;
-		lv2:default 1.0 ;
+		lv2:default 0.6 ;
 		lv2:minimum 0.125;
 		lv2:maximum 8.0;
 	] , [
@@ -200,7 +200,7 @@
 		lv2:index 18 ;
 		lv2:symbol "freq3" ;
 		lv2:name "Frequency 3" ;
-		lv2:default 1000 ;
+		lv2:default 630 ;
 		lv2:minimum 100 ;
 		lv2:maximum 10000 ;
 		units:unit units:hz ;
@@ -211,7 +211,7 @@
 		lv2:index 19 ;
 		lv2:symbol "q3" ;
 		lv2:name "Bandwidth 3" ;
-		lv2:default 1.0 ;
+		lv2:default 0.6 ;
 		lv2:minimum 0.125;
 		lv2:maximum 8.0;
 	] , [
@@ -240,7 +240,7 @@
 		lv2:index 22 ;
 		lv2:symbol "freq4" ;
 		lv2:name "Frequency 4" ;
-		lv2:default 10000 ;
+		lv2:default 1250 ;
 		lv2:minimum 200 ;
 		lv2:maximum 20000 ;
 		units:unit units:hz ;
@@ -251,7 +251,7 @@
 		lv2:index 23 ;
 		lv2:symbol "q4" ;
 		lv2:name "Bandwidth 4" ;
-		lv2:default 1.0 ;
+		lv2:default 0.6 ;
 		lv2:minimum 0.125;
 		lv2:maximum 8.0;
 	] , [
