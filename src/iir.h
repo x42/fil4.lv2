@@ -48,6 +48,12 @@ static int iir_interpolate (IIRProc *f, const float gain, float freq, float q) {
 	if (freq < f->f_l) { freq = f->f_l; }
 	if (freq > f->f_u) { freq = f->f_u; }
 
+#ifndef NO_NAN_PROTECTION
+	if (isnan(f->y0)) f->y0 = 0;
+	if (isnan(f->y1)) f->y1 = 0;
+	if (isnan(f->y2)) f->y2 = 0;
+#endif
+
 	if (f->freq == freq && f->gain == gain && f->q == q) {
 		return 0;
 	}

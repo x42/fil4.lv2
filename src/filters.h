@@ -94,6 +94,10 @@ class Fil4Paramsect
 			_z2 = _z1 + s1 * y;
 			_z1 = y + 1e-10f;
 		}
+#ifndef NO_NAN_PROTECTION
+		if (isnan(_z1)) _z1 = 0;
+		if (isnan(_z2)) _z2 = 0;
+#endif
 	}
 
 	private:

@@ -42,6 +42,12 @@ static void hip_interpolate (HighPass *f, bool en) {
 		f->z1 += .01 * (f->y1 - f->z1);
 		f->z2 += .01 * (f->y2 - f->z2);
 	}
+#ifndef NO_NAN_PROTECTION
+	if (isnan(f->z1)) f->z1 = 0;
+	if (isnan(f->z2)) f->z2 = 0;
+	if (isnan(f->y1)) f->y1 = 0;
+	if (isnan(f->y2)) f->y2 = 0;
+#endif
 }
 
 static void hip_compute (HighPass *f, uint32_t n_samples, float *buf) {
