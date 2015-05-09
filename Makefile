@@ -60,9 +60,14 @@ ifneq ($(XWIN),)
 endif
 
 
-UI_TYPE=kx:Widget
-LV2UIREQ+=lv2:requiredFeature kx:Widget;
-override CFLAGS += -DXTERNAL_UI
+ifeq ($(UI_TYPE),)
+  UI_TYPE=kx:Widget
+  UI_TYPE=ui:X11UI
+  LV2UIREQ+=lv2:requiredFeature kx:Widget;
+  override CFLAGS += -DXTERNAL_UI
+else
+  UI_TYPE=ui:X11UI
+endif
 
 targets+=$(BUILDDIR)$(LV2NAME)$(LIB_EXT)
 targets+=$(BUILDDIR)$(LV2GUI)$(LIB_EXT)
