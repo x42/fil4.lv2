@@ -622,6 +622,18 @@ static void draw_grid (Fil4UI* ui) {
 	cairo_stroke(cr); \
 }
 
+#define GRID_DB_DOT(db) { \
+	double dash = 4; \
+	const float yy = rintf(ui->m0_ym + .5 - ui->m0_yr * db) - .5; \
+	cairo_save (cr); \
+	cairo_set_line_cap(cr, CAIRO_LINE_CAP_BUTT); \
+	cairo_set_dash (cr, &dash, 1, 0); \
+	cairo_move_to (cr, x0, yy); \
+	cairo_line_to (cr, x1, yy); \
+	cairo_stroke(cr); \
+	cairo_restore (cr); \
+}
+
 #define GRID_DB(db, tx) { \
 	const float yy = rintf(ui->m0_ym + .5 - ui->m0_yr * db) - .5; \
 	cairo_move_to (cr, x0, yy); \
@@ -632,16 +644,38 @@ static void draw_grid (Fil4UI* ui) {
 
 	write_text_full(cr, "dB", ui->font[0], x0 - 22, ui->m0_ym, M_PI * -.5, 8, c_ann);
 
-	CairoSetSouerceRGBA(c_g30);
+	if (ui->m0_height > 300 ) {
+		cairo_set_line_width(cr, .75);
+		CairoSetSouerceRGBA(c_g20);
+		GRID_DB_DOT(24);
+		GRID_DB_DOT(21);
+		GRID_DB_DOT(15);
+		GRID_DB_DOT(12);
+		GRID_DB_DOT(6);
+		GRID_DB_DOT(3);
+		GRID_DB_DOT(-24);
+		GRID_DB_DOT(-21);
+		GRID_DB_DOT(-15);
+		GRID_DB_DOT(-12);
+		GRID_DB_DOT(-6);
+		GRID_DB_DOT(-3);
+	}
+
 	cairo_set_line_width(cr, 1.0);
+	CairoSetSouerceRGBA(c_g30);
+
+	GRID_DB_DOT(27);
+	GRID_DB_DOT(-27);
 
 	GRID_DB(30, "+30");
-	GRID_DB(20, "+20");
-	GRID_DB(10, "+10");
+	GRID_DB(18, "+18");
+	GRID_DB(9, "+9");
 	GRID_DB(0, "0");
-	GRID_DB(-9, "-10");
-	GRID_DB(-20, "-20");
+	GRID_DB(-9, "-9");
+	GRID_DB(-18, "-18");
 	GRID_DB(-30, "-30");
+
+	CairoSetSouerceRGBA(c_g30);
 
 	GRID_FREQ(20, "20");
 	GRID_LINE(25);
