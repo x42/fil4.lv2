@@ -26,15 +26,19 @@
 #define MTR_URI "http://gareus.org/oss/lv2/fil4#"
 #define MTR_GUI "ui"
 
-#define NSECT (6)
+#define DOTRADIUS (9) // radius of draggable nodes on the plot
 
-enum { /* see src/lv2.c and lv2ttl/fil4.ttl.in */
+#define NSECT (6) // number of filter-bands + 2 (lo,hi-shelf)
+
+/* plugin port mapping - see src/lv2.c and lv2ttl/fil4.ttl.in */
+enum {
 	FIL_ENABLE = 2,
 	FIL_GAIN = 3,
 	FIL_SEC1, FIL_FREQ1, FIL_Q1, FIL_GAIN1,
 	FIL_LAST = 28
 };
 
+/* cached filter state */
 typedef struct {
 	float rate;
 	float gain_db;
@@ -43,6 +47,7 @@ typedef struct {
 	float x0, y0; // mouse position
 } FilterSection;
 
+/* filter parameters */
 typedef struct {
 	float min;
 	float max;
@@ -53,9 +58,12 @@ typedef struct {
 	LV2UI_Write_Function write;
 	LV2UI_Controller controller;
 
-	RobWidget *rw;
-	RobWidget *ctbl;
+	PangoFontDescription *font[2];
 
+	RobWidget *rw; // top-level container
+	RobWidget *ctbl; // control element table
+
+	/* main drawing area */
 	RobWidget *m0;
 	int m0_width;
 	int m0_height;
@@ -65,8 +73,6 @@ typedef struct {
 	float m0_yr;
 	float m0_y0;
 	float m0_y1;
-
-	PangoFontDescription *font[2];
 
 	RobTkSep  *sep_v0;
 
@@ -87,30 +93,32 @@ typedef struct {
 	RobTkDial *spn_s_gain[2];
 	RobTkDial *spn_s_bw[2];
 
-	FilterSection flt[NSECT];
-	int dragging;
-
+	// misc other stuff
 	cairo_surface_t* m0_grid;
 	cairo_surface_t* dial_bg[4];
 	cairo_surface_t* dial_fq[NSECT];
+
+	FilterSection flt[NSECT];
+	int dragging;
 
 	bool disable_signals;
 	const char *nfo;
 } Fil4UI;
 
+///////////////////////////////////////////////////////////////////////////////
+
 /* frequency mapping */
 static FilterFreq freqs[NSECT] = {
+	/*min    max   dflt*/
 	{  25,   400,    50}, // LS
-
 	{  20,  2000,   200},
 	{  40,  4000,   400},
 	{ 100, 10000,  1000},
 	{ 200, 20000, 10000},
-
 	{1000, 16000,  8000}, // HS
 };
 
-/* color for every filter */
+/* vidual filter colors */
 static const float c_fil[NSECT][4] = {
 	{0.5, 0.6, 0.7, 0.8},
 	{1.0, 0.2, 0.2, 0.8},
@@ -120,11 +128,12 @@ static const float c_fil[NSECT][4] = {
 	{0.7, 0.4, 0.7, 0.8},
 };
 
-static const float c_ann[4] = {0.5, 0.5, 0.5, 1.0}; // text annotation color on screen
-static const float c_dlf[4] = {0.8, 0.8, 0.8, 1.0}; // dial faceplate
+static const float c_ann[4] = {0.5, 0.5, 0.5, 1.0}; // text annotation color
+static const float c_dlf[4] = {0.8, 0.8, 0.8, 1.0}; // dial faceplate fg
 
-/**** dial value mapping ****/
+///////////////////////////////////////////////////////////////////////////////
 
+/**** dial value mappings ****/
 /* bandwidth [1/8 .. 8] <> dial [0..2] */
 static float bw_to_dial (float v) {
 	if (v < 1.0) {
@@ -156,35 +165,34 @@ static float dial_to_freq (FilterFreq *m, float f) {
 	return m->min + (m->max - m->min) * (pow((1. + WARP), f) - 1.) / WARP;
 }
 
-/**** faceplates and annotation ****/
+/*** faceplates and annotation ***/
 
 static void dial_annotation_db (RobTkDial * d, cairo_t *cr, void *data) {
-  Fil4UI* ui = (Fil4UI*) (data);
-  char txt[16];
+	Fil4UI* ui = (Fil4UI*) (data);
+	char txt[16];
 	snprintf(txt, 16, "%+5.1fdB", d->cur);
 
-  int tw, th;
-  cairo_save(cr);
-  PangoLayout * pl = pango_cairo_create_layout(cr);
-  pango_layout_set_font_description(pl, ui->font[0]);
-  pango_layout_set_text(pl, txt, -1);
-  pango_layout_get_pixel_size(pl, &tw, &th);
-  cairo_translate (cr, d->w_width / 2, d->w_height - 3);
-  cairo_translate (cr, -tw / 2.0 , -th);
-  cairo_set_source_rgba (cr, .0, .0, .0, .5);
-  rounded_rectangle(cr, -1, -1, tw+3, th+1, 3);
-  cairo_fill(cr);
-  CairoSetSouerceRGBA(c_wht);
-  pango_cairo_layout_path(cr, pl);
-  pango_cairo_show_layout(cr, pl);
-  g_object_unref(pl);
-  cairo_restore(cr);
-  cairo_new_path(cr);
+	int tw, th;
+	cairo_save(cr);
+	PangoLayout * pl = pango_cairo_create_layout(cr);
+	pango_layout_set_font_description(pl, ui->font[0]);
+	pango_layout_set_text(pl, txt, -1);
+	pango_layout_get_pixel_size(pl, &tw, &th);
+	cairo_translate (cr, d->w_width / 2, d->w_height - 3);
+	cairo_translate (cr, -tw / 2.0 , -th);
+	cairo_set_source_rgba (cr, .0, .0, .0, .5);
+	rounded_rectangle(cr, -1, -1, tw+3, th+1, 3);
+	cairo_fill(cr);
+	CairoSetSouerceRGBA(c_wht);
+	pango_cairo_layout_path(cr, pl);
+	pango_cairo_show_layout(cr, pl);
+	g_object_unref(pl);
+	cairo_restore(cr);
+	cairo_new_path(cr);
 }
 
-
 static void dial_annotation_hz (RobTkLbl *l, const float hz) {
-  char txt[16];
+	char txt[16];
 	if (hz > 5000) {
 		snprintf(txt, 16, "%.1fKHz", hz / 1000.f);
 	} else {
@@ -241,7 +249,7 @@ static void prepare_faceplates(Fil4UI* ui) {
 	ylp = GED_CY + 15.5 - cosf (ang) * (GED_RADIUS + 9.5); \
 	}
 
-
+	/* gain knob */
 	INIT_DIAL_SF(ui->dial_bg[0], GED_WIDTH + 12, GED_HEIGHT + 20);
 	RESPLABLEL(0.00);
 	write_text_full(cr, "-18", ui->font[0], xlp, ylp,  0, 1, c_dlf);
@@ -259,8 +267,8 @@ static void prepare_faceplates(Fil4UI* ui) {
 	write_text_full(cr, "+18", ui->font[0], xlp-2, ylp,  0, 3, c_dlf);
 	cairo_destroy (cr);
 
+	/* bandwidth */
 #define GZLINE (GED_HEIGHT - 0.5)
-
 	INIT_DIAL_SF(ui->dial_bg[1], GED_WIDTH, GED_HEIGHT + 4);
 	CairoSetSouerceRGBA(c_dlf);
 	cairo_set_line_width(cr, 1.0);
@@ -293,7 +301,7 @@ static void prepare_faceplates(Fil4UI* ui) {
 	{ DIALDOTS(1.00, .5, 3.5) }
 	cairo_destroy (cr);
 
-	// low shelf
+	/* low shelf */
 	INIT_DIAL_SF(ui->dial_bg[2], GED_WIDTH, GED_HEIGHT + 4);
 	CairoSetSouerceRGBA(c_dlf);
 	cairo_set_line_width(cr, 1.0);
@@ -324,7 +332,7 @@ static void prepare_faceplates(Fil4UI* ui) {
 	{ DIALDOTS(1.00, .5, 3.5) }
 	cairo_destroy (cr);
 
-	// high shelf
+	/* high shelf */
 	INIT_DIAL_SF(ui->dial_bg[3], GED_WIDTH, GED_HEIGHT + 4);
 	CairoSetSouerceRGBA(c_dlf);
 	cairo_set_line_width(cr, 1.0);
@@ -356,7 +364,7 @@ static void prepare_faceplates(Fil4UI* ui) {
 	cairo_destroy (cr);
 
 
-	// FilterFreq freqs
+	/* frequency knob faceplate */
 	for (int i = 0; i < NSECT; ++i) {
 		INIT_DIAL_SF(ui->dial_fq[i], GED_WIDTH + 12, GED_HEIGHT + 20);
 		char tfq[8];
@@ -380,8 +388,9 @@ static void prepare_faceplates(Fil4UI* ui) {
 	}
 }
 
-/*** prepare filter drawing ***/
+///////////////////////////////////////////////////////////////////////////////
 
+/*** calculate filter parameter constants for plotting ***/
 static void update_filter (FilterSection *flt, const float freq, const float bw, const float gain) {
 	// see src/lv2.c  run()
 	float freq_ratio = freq / flt->rate;
@@ -397,6 +406,7 @@ static void update_filter (FilterSection *flt, const float freq, const float bw,
 
 	flt->gain_db = .5f * (g - 1.f) * (1.f - flt->s2);
 }
+
 static void update_iir (FilterSection *flt, const int hs, const float freq, const float bw, const float gain) {
 	float freq_ratio = freq / flt->rate;
 	float q = .35f + bw / 20.0;
@@ -405,7 +415,7 @@ static void update_iir (FilterSection *flt, const int hs, const float freq, cons
 	if (q < .35f) { q = .35; }
 	if (q > 1.f)  { q = 1.f; }
 
-	// TODO check if double precision is needed here
+	// TODO check if double precision is needed here & simplify maths
 	// compare to src/iir.h
 	const double w0 = 2. * M_PI * (freq_ratio);
 	const double _cosW = cosf (w0);
@@ -414,7 +424,7 @@ static void update_iir (FilterSection *flt, const int hs, const float freq, cons
 	const double As = sqrt (A);
 	const double a  = sinf (w0) / 2 * (1 / q);
 
-	if (hs ) {
+	if (hs) { // high shelf
 		const double b0 =  A *      ((A + 1) + (A - 1) * _cosW + 2 * As * a);
 		const double b1 = -2 * A *  ((A - 1) + (A + 1) * _cosW);
 		const double b2 =  A *      ((A + 1) + (A - 1) * _cosW - 2 * As * a);
@@ -432,7 +442,7 @@ static void update_iir (FilterSection *flt, const int hs, const float freq, cons
 		flt->D = 1.0 - _a2;
 		flt->A1 = (a1 / a0);
 		flt->B1 = (b1 / a0);
-	} else {
+	} else { // low shelf
 		const double b0 =  A *      ((A + 1) - (A - 1) * _cosW + 2 * As * a);
 		const double b1 =  2 * A  * ((A - 1) - (A + 1) * _cosW);
 		const double b2 =  A *      ((A + 1) - (A - 1) * _cosW - 2 * As * a);
@@ -461,7 +471,6 @@ static void update_filters (Fil4UI *ui) {
 				robtk_dial_get_value (ui->spn_gain[i])
 				);
 	}
-
 	update_iir (&ui->flt[0], 0,
 			dial_to_freq(&freqs[0], robtk_dial_get_value (ui->spn_freq[0])),
 			dial_to_bw (robtk_dial_get_value (ui->spn_bw[0])),
@@ -476,7 +485,49 @@ static void update_filters (Fil4UI *ui) {
 }
 
 
-/*** knob & button callbacks, TODO separate handle and data ****/
+/* drawing helpers, calculate respone for given frequency */
+static float get_filter_response (FilterSection *flt, const float freq) {
+	const float w = 2.f * M_PI * freq / flt->rate;
+	const float c1 = cosf (w);
+	const float s1 = sinf (w);
+	const float c2 = cosf (2.f * w);
+	const float s2 = sinf (2.f * w);
+
+	float x = c2 + flt->s1 * c1 + flt->s2;
+	float y = s2 + flt->s1 * s1;
+
+	const float t1 = hypot (x, y);
+
+	x += flt->gain_db * (c2 - 1.f);
+	y += flt->gain_db * s2;
+
+	const float t2 = hypot (x, y);
+
+	return 20.f * log10f (t2 / t1);
+}
+
+/* ditto for IIR */
+static float get_shelf_response (FilterSection *flt, const float freq) {
+	const float w = 2.f * M_PI * freq / flt->rate;
+	const float c1 = cosf(w);
+	const float s1 = sinf(w);
+	const float A = flt->A * c1 + flt->B1;
+	const float B = flt->B * s1;
+	const float C = flt->C * c1 + flt->A1;
+	const float D = flt->D * s1;
+#define SQUARE(X) ( (X) * (X) )
+	return 20.f * log10f (sqrt ((SQUARE(A) + SQUARE(B)) * (SQUARE(C) + SQUARE(D))) / (SQUARE(C) + SQUARE(D)));
+}
+
+
+///////////////////////////////////////////////////////////////////////////////
+
+
+/*** knob & button callbacks ****/
+
+// TODO separate handle and data, update single value only
+// (no big deal, LV2 hosts ignore values if not changed, DSP backend does not care either)
+
 static bool cb_btn_en (RobWidget *w, void* handle) {
 	Fil4UI* ui = (Fil4UI*)handle;
 	update_filters(ui);
@@ -543,39 +594,7 @@ static bool cb_spn_g_gain (RobWidget *w, void* handle) {
 
 ///////////////////////////////////////////////////////////////////////////////
 
-static float get_filter_resonse (FilterSection *flt, const float freq) {
-	const float w = 2.f * M_PI * freq / flt->rate;
-	const float c1 = cosf (w);
-	const float s1 = sinf (w);
-	const float c2 = cosf (2.f * w);
-	const float s2 = sinf (2.f * w);
-
-	float x = c2 + flt->s1 * c1 + flt->s2;
-	float y = s2 + flt->s1 * s1;
-
-	const float t1 = hypot (x, y);
-
-	x += flt->gain_db * (c2 - 1.f);
-	y += flt->gain_db * s2;
-
-	const float t2 = hypot (x, y);
-
-	return 20.f * log10f (t2 / t1);
-}
-
-static float get_shelf_resonse (FilterSection *flt, const float freq) {
-	const float w = 2.f * M_PI * freq / flt->rate;
-	const float c1 = cosf(w);
-	const float s1 = sinf(w);
-	const float A = flt->A * c1 + flt->B1;
-	const float B = flt->B * s1;
-	const float C = flt->C * c1 + flt->A1;
-	const float D = flt->D * s1;
-#define SQUARE(X) ( (X) * (X) )
-	return 20.f * log10f (sqrt ((SQUARE(A) + SQUARE(B)) * (SQUARE(C) + SQUARE(D))) / (SQUARE(C) + SQUARE(D)));
-}
-
-/* log-scale mapping */
+/* graph log-scale mapping */
 static float freq_at_x (const int x, const int m0_width) {
 	return 20.f * powf (1000.f, x / (float) m0_width);
 }
@@ -584,6 +603,7 @@ static float x_at_freq (const float f, const int m0_width) {
 	return rintf(m0_width * logf (f / 20.0) / logf (1000.0));
 }
 
+/* cache grid as image surface */
 static void draw_grid (Fil4UI* ui) {
 	assert(!ui->m0_grid);
 	ui->m0_grid = cairo_image_surface_create (CAIRO_FORMAT_ARGB32, ui->m0_width, ui->m0_height);
@@ -666,6 +686,8 @@ static void draw_grid (Fil4UI* ui) {
 	cairo_destroy (cr);
 }
 
+/* callbacks and iteraction related to graph */
+
 static void
 m0_size_request (RobWidget* handle, int *w, int *h) {
 	*w = 600;
@@ -690,8 +712,6 @@ m0_size_allocate (RobWidget* handle, int w, int h) {
 	ui->m0_y0 = floor (ui->m0_ym - 30.f * ui->m0_yr);
 	ui->m0_y1 = ceil  (ui->m0_ym + 30.f * ui->m0_yr);
 }
-
-#define DOTRADIUS (9)
 
 static RobWidget* m0_mouse_up (RobWidget* handle, RobTkBtnEvent *ev) {
 	Fil4UI* ui = (Fil4UI*)GET_HANDLE(handle);
@@ -736,8 +756,6 @@ static RobWidget* m0_mouse_scroll (RobWidget* handle, RobTkBtnEvent *ev) {
 
 static RobWidget* m0_mouse_down (RobWidget* handle, RobTkBtnEvent *ev) {
 	Fil4UI* ui = (Fil4UI*)GET_HANDLE(handle);
-	// TODO handle shift+click -> reset,
-	// right-click - toggle default
 	if (ev->button != 1) {
 		return NULL;
 	}
@@ -790,6 +808,7 @@ static RobWidget* m0_mouse_move (RobWidget* handle, RobTkBtnEvent *ev) {
 	return handle;
 }
 
+/*** main drawing function ***/
 static bool m0_expose_event (RobWidget* handle, cairo_t* cr, cairo_rectangle_t *ev) {
 	Fil4UI* ui = (Fil4UI*)GET_HANDLE(handle);
 
@@ -800,8 +819,7 @@ static bool m0_expose_event (RobWidget* handle, cairo_t* cr, cairo_rectangle_t *
 
 	rounded_rectangle (cr, 4, 4, ui->m0_width - 8 , ui->m0_height - 8, 8);
 	CairoSetSouerceRGBA(c_blk);
-	cairo_fill_preserve (cr);
-	cairo_clip (cr);
+	cairo_fill (cr);
 
 	const float xw = ui->m0_xw;
 	const float ym = ui->m0_ym;
@@ -818,6 +836,9 @@ static bool m0_expose_event (RobWidget* handle, cairo_t* cr, cairo_rectangle_t *
 	write_text_full (cr,
 			ui->nfo ? ui->nfo : "x42 fil4.LV2",
 			ui->font[0], x1, 10, 1.5 * M_PI, 7, c_g30);
+
+	cairo_rectangle (cr, x0, ui->m0_y0, xw, ui->m0_y1 - ui->m0_y0);
+	cairo_clip (cr);
 
 	float shade = 1.0;
 	cairo_set_line_cap(cr, CAIRO_LINE_CAP_BUTT);
@@ -842,11 +863,11 @@ static bool m0_expose_event (RobWidget* handle, cairo_t* cr, cairo_rectangle_t *
 		for (int j = 0 ; j < NSECT; ++j) {
 			if (!robtk_cbtn_get_active(ui->btn_enable[j])) continue;
 			if (j == 0) {
-				y += yr * get_shelf_resonse (&ui->flt[j], xf);
+				y += yr * get_shelf_response (&ui->flt[j], xf);
 			} else if (j == NSECT -1) {
-				y += yr * get_shelf_resonse (&ui->flt[j], xf);
+				y += yr * get_shelf_response (&ui->flt[j], xf);
 			} else {
-				y += yr * get_filter_resonse (&ui->flt[j], xf);
+				y += yr * get_filter_response (&ui->flt[j], xf);
 			}
 		}
 		if (i == 0) {
@@ -888,11 +909,11 @@ static bool m0_expose_event (RobWidget* handle, cairo_t* cr, cairo_rectangle_t *
 			const float xf = freq_at_x(i, xw);
 			float y = yr;
 			if (j == 0) {
-				y *= get_shelf_resonse (&ui->flt[j], xf);
+				y *= get_shelf_response (&ui->flt[j], xf);
 			} else if (j == NSECT -1) {
-				y *= get_shelf_resonse (&ui->flt[j], xf);
+				y *= get_shelf_response (&ui->flt[j], xf);
 			} else {
-				y *= get_filter_resonse (&ui->flt[j], xf);
+				y *= get_filter_response (&ui->flt[j], xf);
 			}
 			if (i == 0) {
 				cairo_move_to (cr, x0 + i, ym - y);
@@ -1083,8 +1104,8 @@ instantiate(
 	ui->dragging   = -1;
 
 	for (int i = 0; i < NSECT; ++i) {
-		/* used for analysis only, but should match
-		 * actual rate (rails at bounrary) */
+		/* used for analysis only, but should eventually
+		 * match actual rate (rails at bounrary) */
 		ui->flt[i].rate = 48000;
 	}
 
@@ -1106,6 +1127,7 @@ cleanup(LV2UI_Handle handle)
 	free(ui);
 }
 
+/* receive information from DSP */
 static void
 port_event(LV2UI_Handle handle,
 		uint32_t     port_index,
