@@ -120,8 +120,8 @@ run(LV2_Handle instance, uint32_t n_samples)
 	const float hs_gain = *self->_port[IIR_HS_EN] > 0 ? powf (10.f, .05f * self->_port[IIR_HS_GAIN][0]) : 1.f;
 	const float ls_freq = *self->_port[IIR_LS_FREQ];
 	const float hs_freq = *self->_port[IIR_HS_FREQ];
-	const float ls_q    = .347f + self->_port[IIR_LS_Q][0] / 22.27; // map to 2..4 octaves
-	const float hs_q    = .347f + self->_port[IIR_HS_Q][0] / 22.27;
+	const float ls_q    = .337f + self->_port[IIR_LS_Q][0] / 7.425; // map [.125 .. 8] to [2^(-3/2) .. 2^(1/2)]
+	const float hs_q    = .337f + self->_port[IIR_HS_Q][0] / 7.425;
 	const bool  hipass  = *self->_port[FIL_HIPASS] > 0 ? true : false;
 
 	float *aip = self->_port [FIL_INPUT];

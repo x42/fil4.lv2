@@ -91,7 +91,7 @@
 		lv2:index 7 ;
 		lv2:symbol "LSq" ;
 		lv2:name "Lowshelf Bandwidth" ;
-		lv2:default 1.0 ;
+		lv2:default 2.8;
 		lv2:minimum 0.125;
 		lv2:maximum 8.0;
 	] , [
@@ -291,7 +291,7 @@
 		lv2:index 27 ;
 		lv2:symbol "HSq" ;
 		lv2:name "Highshelf Bandwidth" ;
-		lv2:default 1.0 ;
+		lv2:default 2.8;
 		lv2:minimum 0.125;
 		lv2:maximum 8.0;
 	] , [

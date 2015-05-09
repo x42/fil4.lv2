@@ -19,7 +19,7 @@ static const RtkLv2Description _plugin = {
 		{ "HighPass", CONTROL_IN, 0.000000},
 		{ "LSsec", CONTROL_IN, 1.000000},
 		{ "LSfreq", CONTROL_IN, 50.000000},
-		{ "LSq", CONTROL_IN, 1.000000},
+		{ "LSq", CONTROL_IN, 2.800000},
 		{ "LSgain", CONTROL_IN, 0.000000},
 		{ "sec1", CONTROL_IN, 1.000000},
 		{ "freq1", CONTROL_IN, 200.000000},
@@ -39,7 +39,7 @@ static const RtkLv2Description _plugin = {
 		{ "gain4", CONTROL_IN, 0.000000},
 		{ "HSsec", CONTROL_IN, 1.000000},
 		{ "HSfreq", CONTROL_IN, 8000.000000},
-		{ "HSq", CONTROL_IN, 1.000000},
+		{ "HSq", CONTROL_IN, 2.800000},
 		{ "HSgain", CONTROL_IN, 0.000000},
 	}
 	, 29 // uint32_t nports_total
