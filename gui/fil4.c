@@ -555,7 +555,7 @@ static float get_shelf_response (FilterSection *flt, const float freq) {
 }
 
 static float get_highpass_response (const float freq) {
-	const float w = freq / 20.f; // see lv2.c hip_setup()
+	const float w = freq / 13.f; // see lv2.c hip_setup()
 	const float v = (w / sqrtf (1 + w * w));
 	return 40.f * log10f (v); // 20 * log(v^2);
 }

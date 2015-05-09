@@ -86,7 +86,7 @@ instantiate(const LV2_Descriptor*     descriptor,
 	iir_calc_lowshelf (&self->iir_lowshelf);
 	iir_calc_highshelf (&self->iir_highshelf);
 
-	hip_setup (&self->hip, rate, 20);
+	hip_setup (&self->hip, rate, 13);
 
 	return (LV2_Handle)self;
 }

@@ -66,6 +66,4 @@ style lattice filter, which has the nice property of being stable
 even while parameters are being changed.
 
 The high/low-shelf filters are standard 2nd order biquad/IIR filters.
-The shelf filter control values are low-pass filtered at around 65Hz.
-
-The DC-offset filter has a fixed roll-off of -12dB/oct with -6dB at 20Hz.
+The DC-offset filter has a fixed roll-off of -12dB/oct with -3dB at 20Hz.
