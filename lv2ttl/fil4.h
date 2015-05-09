@@ -9,7 +9,7 @@ static const RtkLv2Description _plugin = {
 	&lv2ui_descriptor
 	, 0 // uint32_t dsp_descriptor_id
 	, 0 // uint32_t gui_descriptor_id
-	, "4 Band Parametric Filter" // const char *plugin_human_id
+	, "4 Band Parametric EQ" // const char *plugin_human_id
 	, (const struct LV2Port[28])
 	{
 		{ "in", AUDIO_IN, nan},

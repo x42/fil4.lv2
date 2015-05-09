@@ -19,7 +19,7 @@
 	a lv2:Plugin, doap:Project, lv2:ParaEQPlugin;
 	doap:license <http://usefulinc.com/doap/licenses/gpl> ;
 	doap:maintainer <http://gareus.org/rgareus#me> ;
-	doap:name "4 Band Parametric Filter";
+	doap:name "4 Band Parametric EQ";
 	lv2:optionalFeature lv2:hardRTCapable ;
   ui:ui @LV2NAME@:ui_gl ;
 	lv2:port [
