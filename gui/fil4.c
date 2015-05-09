@@ -1021,6 +1021,33 @@ static RobWidget * toplevel(Fil4UI* ui, void * const top) {
 
 	int col = 0;
 
+	/* Global section */
+	ui->btn_g_enable = robtk_cbtn_new ("Enable", GBT_LED_LEFT, false);
+	ui->btn_g_hipass = robtk_ibtn_new (ui->hpf_btn[0], ui->hpf_btn[1]);
+	ui->spn_g_gain   = robtk_dial_new_with_size (-18, 18, .2,
+				GED_WIDTH + 12, GED_HEIGHT + 20, GED_CX + 6, GED_CY + 15, GED_RADIUS);
+
+	rob_table_attach (ui->ctbl, GBT_W(ui->btn_g_enable), col, col+1, 0, 1, 5, 0, RTK_EXANDF, RTK_SHRINK);
+	rob_table_attach (ui->ctbl, GBI_W(ui->btn_g_hipass), col, col+1, 3, 4, 5, 0, RTK_EXANDF, RTK_SHRINK);
+	rob_table_attach (ui->ctbl, GSP_W(ui->spn_g_gain),   col, col+1, 4, 5, 5, 0, RTK_EXANDF, RTK_SHRINK);
+
+	robtk_dial_annotation_callback(ui->spn_g_gain, dial_annotation_db, ui);
+	robtk_cbtn_set_callback (ui->btn_g_enable, cb_btn_g_en, ui);
+	robtk_ibtn_set_callback (ui->btn_g_hipass, cb_btn_g_hi, ui);
+	robtk_dial_set_callback (ui->spn_g_gain,   cb_spn_g_gain, ui);
+	robtk_dial_set_surface (ui->spn_g_gain, ui->dial_bg[0]);
+
+	robtk_cbtn_set_color_on(ui->btn_g_enable,  1.0, 1.0, 1.0);
+	robtk_cbtn_set_color_off(ui->btn_g_enable, .2, .2, .2);
+	robtk_dial_set_default(ui->spn_g_gain, 0.0);
+	robtk_dial_set_detent_default (ui->spn_g_gain, true);
+
+	++col;
+	ui->sep_v0 = robtk_sep_new(FALSE);
+	rob_table_attach_defaults (ui->ctbl, robtk_sep_widget(ui->sep_v0), col, col+1, 0, 5);
+
+	/* Filter bands */
+	++col;
 	for (int i = 0; i < NSECT; ++i, ++col) {
 		char tmp[16];
 		if (i == 0) {
@@ -1086,30 +1113,7 @@ static RobWidget * toplevel(Fil4UI* ui, void * const top) {
 	robtk_dial_set_default(ui->spn_bw[0], bw_to_dial(3.66));
 	robtk_dial_set_default(ui->spn_bw[NSECT -1], bw_to_dial(3.66));
 
-	ui->sep_v0 = robtk_sep_new(FALSE);
-	rob_table_attach_defaults (ui->ctbl, robtk_sep_widget(ui->sep_v0), col, col+1, 0, 5);
-
-	++col;
-	ui->btn_g_enable = robtk_cbtn_new ("Enable", GBT_LED_LEFT, false);
-	ui->btn_g_hipass = robtk_ibtn_new (ui->hpf_btn[0], ui->hpf_btn[1]);
-	ui->spn_g_gain   = robtk_dial_new_with_size (-18, 18, .2,
-				GED_WIDTH + 12, GED_HEIGHT + 20, GED_CX + 6, GED_CY + 15, GED_RADIUS);
-
-	rob_table_attach (ui->ctbl, GBT_W(ui->btn_g_enable), col, col+1, 0, 1, 5, 0, RTK_EXANDF, RTK_SHRINK);
-	rob_table_attach (ui->ctbl, GBI_W(ui->btn_g_hipass), col, col+1, 1, 2, 5, 0, RTK_EXANDF, RTK_SHRINK);
-	rob_table_attach (ui->ctbl, GSP_W(ui->spn_g_gain),   col, col+1, 2, 5, 5, 0, RTK_EXANDF, RTK_SHRINK);
-
-	robtk_dial_annotation_callback(ui->spn_g_gain, dial_annotation_db, ui);
-	robtk_cbtn_set_callback (ui->btn_g_enable, cb_btn_g_en, ui);
-	robtk_ibtn_set_callback (ui->btn_g_hipass, cb_btn_g_hi, ui);
-	robtk_dial_set_callback (ui->spn_g_gain,   cb_spn_g_gain, ui);
-	robtk_dial_set_surface (ui->spn_g_gain, ui->dial_bg[0]);
-
-	robtk_cbtn_set_color_on(ui->btn_g_enable,  1.0, 1.0, 1.0);
-	robtk_cbtn_set_color_off(ui->btn_g_enable, .2, .2, .2);
-	robtk_dial_set_default(ui->spn_g_gain, 0.0);
-	robtk_dial_set_detent_default (ui->spn_g_gain, true);
-
+	/* graph display */
 	ui->m0 = robwidget_new (ui);
 	robwidget_set_alignment (ui->m0, .5, .5);
 	robwidget_set_expose_event (ui->m0, m0_expose_event);
@@ -1120,6 +1124,7 @@ static RobWidget * toplevel(Fil4UI* ui, void * const top) {
 	robwidget_set_mousedown (ui->m0, m0_mouse_down);
 	robwidget_set_mousescroll (ui->m0, m0_mouse_scroll);
 
+	/* top-level packing */
 	rob_vbox_child_pack(ui->rw, ui->m0, TRUE, TRUE);
 	rob_vbox_child_pack(ui->rw, ui->ctbl, FALSE, TRUE);
 	return ui->rw;
