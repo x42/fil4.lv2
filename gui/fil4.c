@@ -79,6 +79,7 @@ typedef struct {
 
 	// global section
 	RobTkCBtn *btn_g_enable;
+	RobTkCBtn *btn_g_hipass;
 	RobTkDial *spn_g_gain;
 
 	// filter section
@@ -511,6 +512,11 @@ static float get_shelf_response (FilterSection *flt, const float freq) {
 	return 20.f * log10f (sqrt ((SQUARE(A) + SQUARE(B)) * (SQUARE(C) + SQUARE(D))) / (SQUARE(C) + SQUARE(D)));
 }
 
+static float get_highpass_response (const float freq) {
+	const float w = freq / 20.f; // see lv2.c hip_setup()
+	const float v = (w / sqrtf (1 + w * w));
+	return 20.f * log10f (v * v);
+}
 
 ///////////////////////////////////////////////////////////////////////////////
 
@@ -571,6 +577,15 @@ static bool cb_btn_g_en (RobWidget *w, void* handle) {
 	if (ui->disable_signals) return TRUE;
 	const float val = robtk_cbtn_get_active(ui->btn_g_enable) ? 1.f : 0.f;
 	ui->write(ui->controller, FIL_ENABLE, sizeof(float), 0, (const void*) &val);
+	queue_draw(ui->m0);
+	return TRUE;
+}
+
+static bool cb_btn_g_hi (RobWidget *w, void* handle) {
+	Fil4UI* ui = (Fil4UI*)handle;
+	if (ui->disable_signals) return TRUE;
+	const float val = robtk_cbtn_get_active(ui->btn_g_hipass) ? 1.f : 0.f;
+	ui->write(ui->controller, FIL_HIPASS, sizeof(float), 0, (const void*) &val);
 	queue_draw(ui->m0);
 	return TRUE;
 }
@@ -897,6 +912,9 @@ static bool m0_expose_event (RobWidget* handle, cairo_t* cr, cairo_rectangle_t *
 				y += yr * get_filter_response (&ui->flt[j], xf);
 			}
 		}
+		if (robtk_cbtn_get_active(ui->btn_g_hipass)) {
+			y += yr * get_highpass_response (xf);
+		}
 		if (i == 0) {
 			cairo_move_to (cr, x0 + i, ym - y);
 		} else {
@@ -1043,14 +1061,17 @@ static RobWidget * toplevel(Fil4UI* ui, void * const top) {
 
 	++col;
 	ui->btn_g_enable = robtk_cbtn_new ("Enable", GBT_LED_LEFT, false);
+	ui->btn_g_hipass = robtk_cbtn_new ("HiPass", GBT_LED_LEFT, false);
 	ui->spn_g_gain   = robtk_dial_new_with_size (-18, 18, .2,
 				GED_WIDTH + 12, GED_HEIGHT + 20, GED_CX + 6, GED_CY + 15, GED_RADIUS);
 
 	rob_table_attach (ui->ctbl, GBT_W(ui->btn_g_enable), col, col+1, 0, 1, 5, 0, RTK_EXANDF, RTK_SHRINK);
-	rob_table_attach (ui->ctbl, GSP_W(ui->spn_g_gain),   col, col+1, 1, 5, 5, 0, RTK_EXANDF, RTK_SHRINK);
+	rob_table_attach (ui->ctbl, GBT_W(ui->btn_g_hipass), col, col+1, 1, 2, 5, 0, RTK_EXANDF, RTK_SHRINK);
+	rob_table_attach (ui->ctbl, GSP_W(ui->spn_g_gain),   col, col+1, 2, 5, 5, 0, RTK_EXANDF, RTK_SHRINK);
 
 	robtk_dial_annotation_callback(ui->spn_g_gain, dial_annotation_db, ui);
 	robtk_cbtn_set_callback (ui->btn_g_enable, cb_btn_g_en, ui);
+	robtk_cbtn_set_callback (ui->btn_g_hipass, cb_btn_g_hi, ui);
 	robtk_dial_set_callback (ui->spn_g_gain,   cb_spn_g_gain, ui);
 	robtk_dial_set_surface (ui->spn_g_gain, ui->dial_bg[0]);
 
@@ -1176,6 +1197,9 @@ port_event(LV2UI_Handle handle,
 	}
 	else if (port_index == FIL_GAIN) {
 		robtk_dial_set_value (ui->spn_g_gain, v);
+	}
+	else if (port_index == FIL_HIPASS) {
+		robtk_cbtn_set_active (ui->btn_g_hipass, v > 0 ? true : false);
 	}
 	else if (port_index >= FIL_SEC1 && port_index < FIL_LAST) {
 		const int param = (port_index - FIL_SEC1) % 4;
