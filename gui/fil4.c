@@ -34,8 +34,9 @@
 enum {
 	FIL_ENABLE = 2,
 	FIL_GAIN = 3,
+	FIL_HIPASS = 4,
 	FIL_SEC1, FIL_FREQ1, FIL_Q1, FIL_GAIN1,
-	FIL_LAST = 28
+	FIL_LAST = 29
 };
 
 /* cached filter state */

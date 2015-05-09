@@ -21,6 +21,7 @@
 #include <string.h>
 #include "filters.h"
 #include "iir.h"
+#include "hip.h"
 
 #include "lv2/lv2plug.in/ns/lv2core/lv2.h"
 
@@ -34,6 +35,7 @@ typedef enum {
 
 	FIL_ENABLE,
 	FIL_GAIN,
+	FIL_HIPASS,
 
 	IIR_LS_EN, IIR_LS_FREQ, IIR_LS_Q, IIR_LS_GAIN,
 
@@ -53,6 +55,8 @@ typedef struct {
 	int           _fade;
 	Fil4Paramsect _sect [NSECT];
 	float         _fsam;
+
+	HighPass      hip;
 
 	IIRProc       iir_lowshelf;
 	IIRProc       iir_highshelf;
@@ -81,6 +85,8 @@ instantiate(const LV2_Descriptor*     descriptor,
 
 	iir_calc_lowshelf (&self->iir_lowshelf);
 	iir_calc_highshelf (&self->iir_highshelf);
+
+	hip_setup (&self->hip, rate, 20);
 
 	return (LV2_Handle)self;
 }
@@ -116,6 +122,7 @@ run(LV2_Handle instance, uint32_t n_samples)
 	const float hs_freq = *self->_port[IIR_HS_FREQ];
 	const float ls_q    = .347f + self->_port[IIR_LS_Q][0] / 22.27; // map to 2..4 octaves
 	const float hs_q    = .347f + self->_port[IIR_HS_Q][0] / 22.27;
+	const bool  hipass  = *self->_port[FIL_HIPASS] > 0 ? true : false;
 
 	float *aip = self->_port [FIL_INPUT];
 	float *aop = self->_port [FIL_OUTPUT];
@@ -168,7 +175,12 @@ run(LV2_Handle instance, uint32_t n_samples)
 			iir_calc_highshelf (&self->iir_highshelf);
 		}
 
+		hip_interpolate (&self->hip, hipass);
+
 		/* run filters */
+
+		hip_compute (&self->hip, k, sig);
+
 		for (int j = 0; j < NSECT; ++j) {
 			self->_sect [j].proc (k, sig, sfreq [j], sband [j], sgain [j]);
 		}
