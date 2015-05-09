@@ -44,7 +44,7 @@ typedef struct {
 	float rate;
 	float gain_db;
 	float s1, s2;
-	double A, B, C, D, A1, B1; // IIR
+	float A, B, C, D, A1, B1; // IIR
 	float x0, y0; // mouse position
 } FilterSection;
 
@@ -439,49 +439,49 @@ static void update_iir (FilterSection *flt, const int hs, const float freq, cons
 
 	// TODO check if double precision is needed here & simplify maths
 	// compare to src/iir.h
-	const double w0 = 2. * M_PI * (freq_ratio);
-	const double _cosW = cosf (w0);
+	const float w0 = 2. * M_PI * (freq_ratio);
+	const float _cosW = cosf (w0);
 
-	const double A  = pow(10., .025 * gain); // sqrt(gain_as_coeff)
-	const double As = sqrt (A);
-	const double a  = sinf (w0) / 2 * (1 / q);
+	const float A  = powf (10., .025 * gain); // sqrt(gain_as_coeff)
+	const float As = sqrtf (A);
+	const float a  = sinf (w0) / 2 * (1 / q);
 
 	if (hs) { // high shelf
-		const double b0 =  A *      ((A + 1) + (A - 1) * _cosW + 2 * As * a);
-		const double b1 = -2 * A *  ((A - 1) + (A + 1) * _cosW);
-		const double b2 =  A *      ((A + 1) + (A - 1) * _cosW - 2 * As * a);
-		const double a0 = (A + 1) -  (A - 1) * _cosW + 2 * As * a;
-		const double a1 =  2 *      ((A - 1) - (A + 1) * _cosW);
-		const double a2 = (A + 1) -  (A - 1) * _cosW - 2 * As * a;
+		const float b0 =  A *      ((A + 1) + (A - 1) * _cosW + 2 * As * a);
+		const float b1 = -2 * A  * ((A - 1) + (A + 1) * _cosW);
+		const float b2 =  A *      ((A + 1) + (A - 1) * _cosW - 2 * As * a);
+		const float a0 = (A + 1) -  (A - 1) * _cosW + 2 * As * a;
+		const float a1 =  2 *      ((A - 1) - (A + 1) * _cosW);
+		const float a2 = (A + 1) -  (A - 1) * _cosW - 2 * As * a;
 
-		const double _b0 = b0 / a0;
-		const double _b2 = b2 / a0;
-		const double _a2 = a2 / a0;
+		const float _b0 = b0 / a0;
+		const float _b2 = b2 / a0;
+		const float _a2 = a2 / a0;
 
-		flt->A = _b0 + _b2;
-		flt->B = _b0 - _b2;
-		flt->C = 1.0 + _a2;
-		flt->D = 1.0 - _a2;
-		flt->A1 = (a1 / a0);
-		flt->B1 = (b1 / a0);
+		flt->A  = _b0 + _b2;
+		flt->B  = _b0 - _b2;
+		flt->C  = 1.0 + _a2;
+		flt->D  = 1.0 - _a2;
+		flt->A1 = a1 / a0;
+		flt->B1 = b1 / a0;
 	} else { // low shelf
-		const double b0 =  A *      ((A + 1) - (A - 1) * _cosW + 2 * As * a);
-		const double b1 =  2 * A  * ((A - 1) - (A + 1) * _cosW);
-		const double b2 =  A *      ((A + 1) - (A - 1) * _cosW - 2 * As * a);
-		const double a0 = (A + 1) +  (A - 1) * _cosW + 2 * As * a;
-		const double a1 = -2 *      ((A - 1) + (A + 1) * _cosW);
-		const double a2 = (A + 1) +  (A - 1) * _cosW - 2 * As * a;
+		const float b0 =  A *      ((A + 1) - (A - 1) * _cosW + 2 * As * a);
+		const float b1 =  2 * A  * ((A - 1) - (A + 1) * _cosW);
+		const float b2 =  A *      ((A + 1) - (A - 1) * _cosW - 2 * As * a);
+		const float a0 = (A + 1) +  (A - 1) * _cosW + 2 * As * a;
+		const float a1 = -2 *      ((A - 1) + (A + 1) * _cosW);
+		const float a2 = (A + 1) +  (A - 1) * _cosW - 2 * As * a;
 
-		const double _b0 = b0 / a0;
-		const double _b2 = b2 / a0;
-		const double _a2 = a2 / a0;
+		const float _b0 = b0 / a0;
+		const float _b2 = b2 / a0;
+		const float _a2 = a2 / a0;
 
-		flt->A = _b0 + _b2;
-		flt->B = _b0 - _b2;
-		flt->C = 1.0 + _a2;
-		flt->D = 1.0 - _a2;
-		flt->A1 = (a1 / a0);
-		flt->B1 = (b1 / a0);
+		flt->A  = _b0 + _b2;
+		flt->B  = _b0 - _b2;
+		flt->C  = 1.0 + _a2;
+		flt->D  = 1.0 - _a2;
+		flt->A1 = a1 / a0;
+		flt->B1 = b1 / a0;
 	}
 }
 
