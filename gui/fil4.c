@@ -87,7 +87,6 @@ typedef struct {
 	RobTkDial *spn_freq[NSECT];
 	RobTkDial *spn_gain[NSECT];
 	RobTkDial *spn_bw[NSECT];
-	RobTkLbl  *lbl_freq[NSECT];
 
 	// shelf section
 	RobTkCBtn *btn_s_enable[2];
@@ -187,14 +186,15 @@ static void dial_annotation_db (RobTkDial * d, cairo_t *cr, void *data) {
 	cairo_new_path(cr);
 }
 
-static void dial_annotation_hz (RobTkLbl *l, const float hz) {
-	char txt[16];
+static void dial_annotation_hz (RobTkCBtn *l, const int which, const float hz) {
+	char txt[24];
+	const char *pfx = (which == 0) ? "\u2abc" : ((which == NSECT -1) ? "\u2abb" : "");
 	if (hz > 5000) {
-		snprintf(txt, 16, "%.1fKHz", hz / 1000.f);
+		snprintf(txt, 16, "%s%.1fKHz", pfx, hz / 1000.f);
 	} else {
-		snprintf(txt, 16, "%.0fHz", hz);
+		snprintf(txt, 16, "%s%.0fHz", pfx, hz);
 	}
-	robtk_lbl_set_text(l, txt);
+	robtk_cbtn_set_text(l, txt);
 }
 
 static void print_hz (char *t, float hz) {
@@ -573,7 +573,7 @@ static bool cb_spn_freq (RobWidget *w, void* handle) {
 	update_filters(ui);
 	for (uint32_t i = 0; i < NSECT; ++i) {
 		const float val = dial_to_freq(&freqs[i], robtk_dial_get_value (ui->spn_freq[i]));
-		dial_annotation_hz (ui->lbl_freq[i], val);
+		dial_annotation_hz (ui->btn_enable[i], i, val);
 		if (ui->disable_signals) continue;
 		ui->write(ui->controller, FIL_FREQ1 + i * 4, sizeof(float), 0, (const void*) &val);
 	}
@@ -1013,7 +1013,7 @@ static RobWidget * toplevel(Fil4UI* ui, void * const top) {
 
 	prepare_faceplates (ui);
 
-	ui->ctbl = rob_table_new (/*rows*/5, /*cols*/ 2 * NSECT + 2, FALSE);
+	ui->ctbl = rob_table_new (/*rows*/4, /*cols*/ 2 * NSECT + 2, FALSE);
 
 #define GBT_W(PTR) robtk_cbtn_widget(PTR)
 #define GBI_W(PTR) robtk_ibtn_widget(PTR)
@@ -1029,8 +1029,8 @@ static RobWidget * toplevel(Fil4UI* ui, void * const top) {
 				GED_WIDTH + 12, GED_HEIGHT + 20, GED_CX + 6, GED_CY + 15, GED_RADIUS);
 
 	rob_table_attach (ui->ctbl, GBT_W(ui->btn_g_enable), col, col+1, 0, 1, 5, 0, RTK_EXANDF, RTK_SHRINK);
-	rob_table_attach (ui->ctbl, GBI_W(ui->btn_g_hipass), col, col+1, 3, 4, 5, 0, RTK_EXANDF, RTK_SHRINK);
-	rob_table_attach (ui->ctbl, GSP_W(ui->spn_g_gain),   col, col+1, 4, 5, 5, 0, RTK_EXANDF, RTK_SHRINK);
+	rob_table_attach (ui->ctbl, GBI_W(ui->btn_g_hipass), col, col+1, 2, 3, 5, 0, RTK_EXANDF, RTK_SHRINK);
+	rob_table_attach (ui->ctbl, GSP_W(ui->spn_g_gain),   col, col+1, 3, 4, 5, 0, RTK_EXANDF, RTK_SHRINK);
 
 	robtk_dial_annotation_callback(ui->spn_g_gain, dial_annotation_db, ui);
 	robtk_cbtn_set_callback (ui->btn_g_enable, cb_btn_g_en, ui);
@@ -1050,15 +1050,7 @@ static RobWidget * toplevel(Fil4UI* ui, void * const top) {
 	/* Filter bands */
 	++col;
 	for (int i = 0; i < NSECT; ++i, ++col) {
-		char tmp[16];
-		if (i == 0) {
-			sprintf (tmp, "Shelf");
-		} else if (i == NSECT -1) {
-			sprintf (tmp, "Shelf");
-		} else {
-			sprintf (tmp, "Band %d", i);
-		}
-		ui->btn_enable[i] = robtk_cbtn_new(tmp, GBT_LED_LEFT, false);
+		ui->btn_enable[i] = robtk_cbtn_new("\u2abc88.8KHz", GBT_LED_LEFT, false);
 
 		ui->spn_freq[i] = robtk_dial_new_with_size (0, 1, .00625,
 				GED_WIDTH + 12, GED_HEIGHT + 20, GED_CX + 6, GED_CY + 15, GED_RADIUS);
@@ -1067,13 +1059,10 @@ static RobWidget * toplevel(Fil4UI* ui, void * const top) {
 		ui->spn_bw[i]   = robtk_dial_new_with_size (0, 1.0, 1./120, // 8 [octaves] * 3 [clicks/oct] * 5 [fine grained]
 				GED_WIDTH, GED_HEIGHT + 4, GED_CX, GED_CY + 3, GED_RADIUS);
 
-		ui->lbl_freq[i] = robtk_lbl_new("8888KHz");
-
 		rob_table_attach (ui->ctbl, GBT_W(ui->btn_enable[i]), col, col+1, 0, 1, 0, 0, RTK_EXANDF, RTK_SHRINK);
 		rob_table_attach (ui->ctbl, GSP_W(ui->spn_freq[i]),   col, col+1, 1, 2, 0, 0, RTK_EXANDF, RTK_SHRINK);
-		rob_table_attach (ui->ctbl, GLB_W(ui->lbl_freq[i]),   col, col+1, 2, 3, 0, 0, RTK_EXANDF, RTK_SHRINK);
-		rob_table_attach (ui->ctbl, GSP_W(ui->spn_bw[i]),     col, col+1, 3, 4, 0, 0, RTK_EXANDF, RTK_SHRINK);
-		rob_table_attach (ui->ctbl, GSP_W(ui->spn_gain[i]),   col, col+1, 4, 5, 0, 0, RTK_EXANDF, RTK_SHRINK);
+		rob_table_attach (ui->ctbl, GSP_W(ui->spn_bw[i]),     col, col+1, 2, 3, 0, 0, RTK_EXANDF, RTK_SHRINK);
+		rob_table_attach (ui->ctbl, GSP_W(ui->spn_gain[i]),   col, col+1, 3, 4, 0, 0, RTK_EXANDF, RTK_SHRINK);
 
 		robtk_dial_annotation_callback(ui->spn_gain[i], dial_annotation_db, ui);
 		robtk_dial_set_constained (ui->spn_freq[i], false);
@@ -1086,7 +1075,6 @@ static RobWidget * toplevel(Fil4UI* ui, void * const top) {
 		robtk_dial_set_callback (ui->spn_bw[i],     cb_spn_bw, ui);
 		robtk_dial_set_callback (ui->spn_gain[i],   cb_spn_gain, ui);
 
-		robtk_lbl_set_alignment (ui->lbl_freq[i], .2, .1);
 		robtk_dial_set_alignment (ui->spn_freq[i], 0.0, .5);
 		robtk_dial_set_alignment (ui->spn_bw[i], 1.0, .5);
 		robtk_dial_set_alignment (ui->spn_gain[i], 0.0, .5);
@@ -1137,7 +1125,6 @@ static void gui_cleanup(Fil4UI* ui) {
 		robtk_dial_destroy (ui->spn_bw[i]);
 		robtk_dial_destroy (ui->spn_gain[i]);
 		robtk_dial_destroy (ui->spn_freq[i]);
-		robtk_lbl_destroy (ui->lbl_freq[i]);
 		cairo_surface_destroy (ui->dial_fq[i]);
 	}
 
