@@ -54,7 +54,7 @@ Additionally there is `OPTIMIZATIONS` (custom additions to both `CFLAGS` and `CX
 Screenshots
 -----------
 
-![screenshot](https://raw.github.com/x42/fil4.lv2/master/doc/fil4_v2_win.png "Fil4 running inside Ardour4/Windows")
+![screenshot](https://raw.github.com/x42/fil4.lv2/master/img/fil4_v2.png "Fil4 GUI")
 
 Details
 -------
