@@ -78,8 +78,8 @@ ifeq ($(shell pkg-config --exists lv2 || echo no), no)
 endif
 
 
-ifeq ($(shell pkg-config --atleast-version=1.4 lv2 || echo no), no)
-  $(error "LV2 SDK needs to be version 1.4 or later")
+ifeq ($(shell pkg-config --atleast-version=1.4.2 lv2 || echo no), no)
+  $(error "LV2 SDK needs to be version 1.4.2 or later")
 endif
 
 ifeq ($(shell pkg-config --exists pango cairo $(PKG_GL_LIBS) || echo no), no)
@@ -125,7 +125,7 @@ endif
 GLUICFLAGS+=$(LIC_CFLAGS)
 GLUILIBS+=$(LIC_LOADLIBES)
 
-GLUICFLAGS+=-DUSE_GUI_THREAD
+#GLUICFLAGS+=-DUSE_GUI_THREAD
 ifeq ($(GLTHREADSYNC), yes)
   GLUICFLAGS+=-DTHREADSYNC
 endif
