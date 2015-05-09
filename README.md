@@ -1,8 +1,8 @@
 fil4.lv2 - Parametric Equalizer
 ===============================
 
-fil4.lv2 is a 4 band parmatric equalizer with additional low+high shelf 
-filters and (optional) custom GUI.
+fil4.lv2 is a 4 band parametric equalizer with additional low+high shelf
+filters and a (optional) custom GUI displaying the transfer function.
 
 Usage
 -----
@@ -10,19 +10,19 @@ Usage
 The parameters can be set by moving the nodes in the graph or directly 
 via control knobs:
 
-* Shift + click: reset to default
-* right-click: toggle current value with default, 2nd click restore.
+*   Shift + click: reset to default
+*   right-click: toggle current value with default, 2nd click restore.
 
-The Ctrl key allows for fine grained control both when dragging or
+The Ctrl key allows for fine grained control when dragging or
 using the mouse-wheel on a knob.
 
 Mouse-wheel granularity:
-* Gain: 1dB (fine: 0.2dB)
-* Frequency: 1/6 octave (fine: 1/24 octave)
-* Bandwidth: 1/3 octave (fine: 15 steps for a ratio 1:2)
+*   Gain: 1dB (fine: 0.2dB)
+*   Frequency: 1/6 octave (fine: 1/24 octave)
+*   Bandwidth: 1/3 octave (fine: 15 steps for a ratio 1:2)
 
 All switches and controls are internally smoothed, so they can be
-used 'live' whithout any clicks or zipper noises. This should make
+used 'live' without any clicks or zipper noises. This should make
 this plugin a good candidate for use in systems that allow automation
 of plugin control ports, such as Ardour, or for stage use.
 
@@ -43,7 +43,7 @@ libpango, libcairo and openGL (sometimes called: glu, glx, mesa).
 Optionally compile a standalone jack app (not covered by `make install`)
 ```bash
   make jackapps
-	./x42/x42-fil
+  ./x42/x42-fil
 ```
 
 Note to packagers: The Makefile honors `PREFIX` and `DESTDIR` variables as well
@@ -67,3 +67,5 @@ even while parameters are being changed.
 
 The high/low-shelf filters are standard 2nd order biquad/IIR filters.
 The shelf filter control values are low-pass filtered at around 65Hz.
+
+The DC-offset filter has a fixed roll-off of -12dB/oct with -6dB at 20Hz.
