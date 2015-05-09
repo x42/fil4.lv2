@@ -71,7 +71,7 @@ static int iir_interpolate (IIRProc *f, const float gain, float freq, float q) {
 
 static void iir_calc_lowshelf (IIRProc *f) {
 	const double w0 = 2. * M_PI * (f->freq / f->rate);
-	const double _cosW = cosf (w0);
+	const double _cosW = cos (w0);
 
 	const double A  = sqrt (f->gain);
 	const double As = sqrt (A);
@@ -92,13 +92,13 @@ static void iir_calc_lowshelf (IIRProc *f) {
 
 static void iir_calc_highshelf (IIRProc *f) {
 	const double w0 = 2. * M_PI * (f->freq / f->rate);
-	const double _cosW = cosf (w0);
+	const double _cosW = cos (w0);
 
 	const double A  = sqrt (f->gain);
 	const double As = sqrt (A);
 	const double a  = sinf (w0) / 2 * (1 / f->q);
 	const double b0 =  A *      ((A + 1) + (A - 1) * _cosW + 2 * As * a);
-	const double b1 = -2 * A *  ((A - 1) + (A + 1) * _cosW);
+	const double b1 = -2 * A  * ((A - 1) + (A + 1) * _cosW);
 	const double b2 =  A *      ((A + 1) + (A - 1) * _cosW - 2 * As * a);
 	const double a0 = (A + 1) -  (A - 1) * _cosW + 2 * As * a;
 	const double a1 =  2 *      ((A - 1) - (A + 1) * _cosW);
