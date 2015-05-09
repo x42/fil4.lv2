@@ -79,7 +79,7 @@ typedef struct {
 
 	// global section
 	RobTkCBtn *btn_g_enable;
-	RobTkCBtn *btn_g_hipass;
+	RobTkIBtn *btn_g_hipass;
 	RobTkDial *spn_g_gain;
 
 	// filter section
@@ -97,6 +97,7 @@ typedef struct {
 
 	// misc other stuff
 	cairo_surface_t* m0_grid;
+	cairo_surface_t* hpf_btn[2];
 	cairo_surface_t* dial_bg[4];
 	cairo_surface_t* dial_fq[NSECT];
 
@@ -216,6 +217,34 @@ static void print_hz (char *t, float hz) {
 static void prepare_faceplates(Fil4UI* ui) {
 	cairo_t *cr;
 	float xlp, ylp;
+
+	ui->hpf_btn[0] = cairo_image_surface_create(CAIRO_FORMAT_ARGB32, 26, 20);
+	cr = cairo_create (ui->hpf_btn[0]);
+	cairo_move_to (cr,  4, 16);
+	cairo_line_to (cr,  9,  4);
+	cairo_line_to (cr, 22,  4);
+	cairo_set_line_cap (cr, CAIRO_LINE_CAP_ROUND);
+	CairoSetSouerceRGBA (c_blk);
+	cairo_set_line_width (cr, 3.0);
+	cairo_stroke_preserve (cr);
+	CairoSetSouerceRGBA (c_g80);
+	cairo_set_line_width (cr, 1.5);
+	cairo_stroke (cr);
+	cairo_destroy (cr);
+
+	ui->hpf_btn[1] = cairo_image_surface_create(CAIRO_FORMAT_ARGB32, 26, 20);
+	cr = cairo_create (ui->hpf_btn[1]);
+	cairo_move_to (cr,  4, 16);
+	cairo_line_to (cr,  9, 4);
+	cairo_line_to (cr, 22, 4);
+	cairo_set_line_cap (cr, CAIRO_LINE_CAP_ROUND);
+	CairoSetSouerceRGBA (c_blk);
+	cairo_set_line_width (cr, 3.0);
+	cairo_stroke_preserve (cr);
+	CairoSetSouerceRGBA (c_grn);
+	cairo_set_line_width (cr, 1.5);
+	cairo_stroke (cr);
+	cairo_destroy (cr);
 
 #define INIT_DIAL_SF(VAR, W, H) \
 	VAR = cairo_image_surface_create(CAIRO_FORMAT_ARGB32, W, H); \
@@ -584,7 +613,7 @@ static bool cb_btn_g_en (RobWidget *w, void* handle) {
 static bool cb_btn_g_hi (RobWidget *w, void* handle) {
 	Fil4UI* ui = (Fil4UI*)handle;
 	if (ui->disable_signals) return TRUE;
-	const float val = robtk_cbtn_get_active(ui->btn_g_hipass) ? 1.f : 0.f;
+	const float val = robtk_ibtn_get_active(ui->btn_g_hipass) ? 1.f : 0.f;
 	ui->write(ui->controller, FIL_HIPASS, sizeof(float), 0, (const void*) &val);
 	queue_draw(ui->m0);
 	return TRUE;
@@ -912,7 +941,7 @@ static bool m0_expose_event (RobWidget* handle, cairo_t* cr, cairo_rectangle_t *
 				y += yr * get_filter_response (&ui->flt[j], xf);
 			}
 		}
-		if (robtk_cbtn_get_active(ui->btn_g_hipass)) {
+		if (robtk_ibtn_get_active(ui->btn_g_hipass)) {
 			y += yr * get_highpass_response (xf);
 		}
 		if (i == 0) {
@@ -986,6 +1015,7 @@ static RobWidget * toplevel(Fil4UI* ui, void * const top) {
 	ui->ctbl = rob_table_new (/*rows*/5, /*cols*/ 2 * NSECT + 2, FALSE);
 
 #define GBT_W(PTR) robtk_cbtn_widget(PTR)
+#define GBI_W(PTR) robtk_ibtn_widget(PTR)
 #define GSP_W(PTR) robtk_dial_widget(PTR)
 #define GLB_W(PTR) robtk_lbl_widget(PTR)
 
@@ -1061,17 +1091,17 @@ static RobWidget * toplevel(Fil4UI* ui, void * const top) {
 
 	++col;
 	ui->btn_g_enable = robtk_cbtn_new ("Enable", GBT_LED_LEFT, false);
-	ui->btn_g_hipass = robtk_cbtn_new ("HiPass", GBT_LED_LEFT, false);
+	ui->btn_g_hipass = robtk_ibtn_new (ui->hpf_btn[0], ui->hpf_btn[1]);
 	ui->spn_g_gain   = robtk_dial_new_with_size (-18, 18, .2,
 				GED_WIDTH + 12, GED_HEIGHT + 20, GED_CX + 6, GED_CY + 15, GED_RADIUS);
 
 	rob_table_attach (ui->ctbl, GBT_W(ui->btn_g_enable), col, col+1, 0, 1, 5, 0, RTK_EXANDF, RTK_SHRINK);
-	rob_table_attach (ui->ctbl, GBT_W(ui->btn_g_hipass), col, col+1, 1, 2, 5, 0, RTK_EXANDF, RTK_SHRINK);
+	rob_table_attach (ui->ctbl, GBI_W(ui->btn_g_hipass), col, col+1, 1, 2, 5, 0, RTK_EXANDF, RTK_SHRINK);
 	rob_table_attach (ui->ctbl, GSP_W(ui->spn_g_gain),   col, col+1, 2, 5, 5, 0, RTK_EXANDF, RTK_SHRINK);
 
 	robtk_dial_annotation_callback(ui->spn_g_gain, dial_annotation_db, ui);
 	robtk_cbtn_set_callback (ui->btn_g_enable, cb_btn_g_en, ui);
-	robtk_cbtn_set_callback (ui->btn_g_hipass, cb_btn_g_hi, ui);
+	robtk_ibtn_set_callback (ui->btn_g_hipass, cb_btn_g_hi, ui);
 	robtk_dial_set_callback (ui->spn_g_gain,   cb_spn_g_gain, ui);
 	robtk_dial_set_surface (ui->spn_g_gain, ui->dial_bg[0]);
 
@@ -1117,6 +1147,8 @@ static void gui_cleanup(Fil4UI* ui) {
 	cairo_surface_destroy (ui->dial_bg[1]);
 	cairo_surface_destroy (ui->dial_bg[2]);
 	cairo_surface_destroy (ui->dial_bg[3]);
+	cairo_surface_destroy (ui->hpf_btn[0]);
+	cairo_surface_destroy (ui->hpf_btn[1]);
 	if (ui->m0_grid) {
 		cairo_surface_destroy (ui->m0_grid);
 	}
@@ -1199,7 +1231,7 @@ port_event(LV2UI_Handle handle,
 		robtk_dial_set_value (ui->spn_g_gain, v);
 	}
 	else if (port_index == FIL_HIPASS) {
-		robtk_cbtn_set_active (ui->btn_g_hipass, v > 0 ? true : false);
+		robtk_ibtn_set_active (ui->btn_g_hipass, v > 0 ? true : false);
 	}
 	else if (port_index >= FIL_SEC1 && port_index < FIL_LAST) {
 		const int param = (port_index - FIL_SEC1) % 4;
