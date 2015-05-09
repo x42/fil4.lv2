@@ -134,35 +134,28 @@ static const float c_dlf[4] = {0.8, 0.8, 0.8, 1.0}; // dial faceplate fg
 ///////////////////////////////////////////////////////////////////////////////
 
 /**** dial value mappings ****/
-/* bandwidth [1/8 .. 8] <> dial [0..2] */
+/* bandwidth [1/8 .. 8] <> dial [0..1] */
+#define WARPBW (18)
 static float bw_to_dial (float v) {
-	if (v < 1.0) {
-		if (v < .125) v = .125;
-		return (v - 0.125) / .875;
-	} else {
-		if (v > 8) v = 8;
-		return 1.f + (v - 1.f) / 7.f;
-	}
+	if (v < .125) return 0.f;
+	if (v >  8.0) return 1.f;
+	return log (1. + WARPBW * (v - .125) / 7.875) / log (1. + WARPBW);
 }
 
 static float dial_to_bw (const float v) {
-	if (v < 1.0) {
-		return (v * .875) + .125;
-	} else {
-		return 1.f + (v - 1.f) * 7.f;
-	}
+	return .125 + 7.875 * (pow((1. + WARPBW), v) - 1.) / WARPBW;
 }
 
 /* freq [min .. max] <> dial 0..1 */
-#define WARP (100.0)
+#define WARPFQ (100.0)
 static float freq_to_dial (FilterFreq *m, float f) {
 	if (f < m->min) return 0.f;
 	if (f > m->max) return 1.f;
-	return log (1. + WARP * (f - m->min) / (m->max - m->min)) / log (1. + WARP);
+	return log (1. + WARPFQ * (f - m->min) / (m->max - m->min)) / log (1. + WARPFQ);
 }
 
 static float dial_to_freq (FilterFreq *m, float f) {
-	return m->min + (m->max - m->min) * (pow((1. + WARP), f) - 1.) / WARP;
+	return m->min + (m->max - m->min) * (pow((1. + WARPFQ), f) - 1.) / WARPFQ;
 }
 
 /*** faceplates and annotation ***/
@@ -293,11 +286,13 @@ static void prepare_faceplates(Fil4UI* ui) {
 	cairo_stroke (cr);
 
 	{ DIALDOTS(0.00, .5, 3.5) }
-	{ DIALDOTS(0.16, .5, 3.5) }
-	{ DIALDOTS(0.33, .5, 3.5) }
-	{ DIALDOTS(0.50, .5, 3.5) }
-	{ DIALDOTS(0.66, .5, 3.5) }
-	{ DIALDOTS(0.83, .5, 3.5) }
+	{ DIALDOTS(1/8., .5, 3.5) }
+	{ DIALDOTS(2/8., .5, 3.5) }
+	{ DIALDOTS(3/8., .5, 3.5) }
+	{ DIALDOTS(4/8., .5, 3.5) }
+	{ DIALDOTS(5/8., .5, 3.5) }
+	{ DIALDOTS(6/8., .5, 3.5) }
+	{ DIALDOTS(7/8., .5, 3.5) }
 	{ DIALDOTS(1.00, .5, 3.5) }
 	cairo_destroy (cr);
 
@@ -323,13 +318,11 @@ static void prepare_faceplates(Fil4UI* ui) {
 	cairo_line_to (cr, GED_WIDTH - 18, GZLINE + 3);
 	cairo_stroke (cr);
 
-	{ DIALDOTS(0.00, .5, 3.5) }
-	{ DIALDOTS(0.16, .5, 3.5) }
-	{ DIALDOTS(0.33, .5, 3.5) }
-	{ DIALDOTS(0.50, .5, 3.5) }
-	{ DIALDOTS(0.66, .5, 3.5) }
-	{ DIALDOTS(0.83, .5, 3.5) }
-	{ DIALDOTS(1.00, .5, 3.5) }
+	{ DIALDOTS(0.0, .5, 3.5) }
+	{ DIALDOTS(.25, .5, 3.5) }
+	{ DIALDOTS(.50, .5, 3.5) }
+	{ DIALDOTS(.75, .5, 3.5) }
+	{ DIALDOTS(1.0, .5, 3.5) }
 	cairo_destroy (cr);
 
 	/* high shelf */
@@ -354,13 +347,11 @@ static void prepare_faceplates(Fil4UI* ui) {
 	cairo_line_to (cr, GED_WIDTH -  1, GZLINE + 3);
 	cairo_stroke (cr);
 
-	{ DIALDOTS(0.00, .5, 3.5) }
-	{ DIALDOTS(0.16, .5, 3.5) }
-	{ DIALDOTS(0.33, .5, 3.5) }
-	{ DIALDOTS(0.50, .5, 3.5) }
-	{ DIALDOTS(0.66, .5, 3.5) }
-	{ DIALDOTS(0.83, .5, 3.5) }
-	{ DIALDOTS(1.00, .5, 3.5) }
+	{ DIALDOTS(0.0, .5, 3.5) }
+	{ DIALDOTS(.25, .5, 3.5) }
+	{ DIALDOTS(.50, .5, 3.5) }
+	{ DIALDOTS(.75, .5, 3.5) }
+	{ DIALDOTS(1.0, .5, 3.5) }
 	cairo_destroy (cr);
 
 
@@ -409,10 +400,10 @@ static void update_filter (FilterSection *flt, const float freq, const float bw,
 
 static void update_iir (FilterSection *flt, const int hs, const float freq, const float bw, const float gain) {
 	float freq_ratio = freq / flt->rate;
-	float q = .35f + bw / 20.0;
+	float q = .347 + bw / 22.27; // map [.125 .. 8] to [2^(-3/2) .. 2^(-1/2)]
 	if (freq_ratio < 0.0002) freq_ratio = 0.0002;
 	if (freq_ratio > 0.4998) freq_ratio = 0.4998;
-	if (q < .35f) { q = .35; }
+	if (q < .25f) { q = .25f; }
 	if (q > 1.f)  { q = 1.f; }
 
 	// TODO check if double precision is needed here & simplify maths
@@ -648,7 +639,7 @@ static void draw_grid (Fil4UI* ui) {
 	GRID_DB(20, "+20");
 	GRID_DB(10, "+10");
 	GRID_DB(0, "0");
-	GRID_DB(-10, "-10");
+	GRID_DB(-9, "-10");
 	GRID_DB(-20, "-20");
 	GRID_DB(-30, "-30");
 
@@ -736,16 +727,17 @@ static RobWidget* m0_mouse_scroll (RobWidget* handle, RobTkBtnEvent *ev) {
 	}
 
 	float v = robtk_dial_get_value (ui->spn_bw[sect]);
+	const float delta = (ev->state & ROBTK_MOD_CTRL) ? ui->spn_bw[sect]->acc : ui->spn_bw[sect]->scroll_mult * ui->spn_bw[sect]->acc;
 
 	switch (ev->direction) {
 		case ROBTK_SCROLL_RIGHT:
 		case ROBTK_SCROLL_UP:
-			v += .05;
+			v += delta;
 			robtk_dial_set_value (ui->spn_bw[sect], v);
 			break;
 		case ROBTK_SCROLL_LEFT:
 		case ROBTK_SCROLL_DOWN:
-			v -= .05;
+			v -= delta;
 			robtk_dial_set_value (ui->spn_bw[sect], v);
 			break;
 		default:
@@ -957,11 +949,11 @@ static RobWidget * toplevel(Fil4UI* ui, void * const top) {
 		}
 		ui->btn_enable[i] = robtk_cbtn_new(tmp, GBT_LED_LEFT, false);
 
-		ui->spn_freq[i] = robtk_dial_new_with_size (0, 1, .001,
+		ui->spn_freq[i] = robtk_dial_new_with_size (0, 1, .00625,
 				GED_WIDTH + 12, GED_HEIGHT + 20, GED_CX + 6, GED_CY + 15, GED_RADIUS);
-		ui->spn_gain[i] = robtk_dial_new_with_size (-18, 18, .2,
+		ui->spn_gain[i] = robtk_dial_new_with_size (-18, 18, .2, // .2 dB steps
 				GED_WIDTH + 12, GED_HEIGHT + 20, GED_CX + 6, GED_CY + 15, GED_RADIUS);
-		ui->spn_bw[i]   = robtk_dial_new_with_size (0, 2.0, .05,
+		ui->spn_bw[i]   = robtk_dial_new_with_size (0, 1.0, 1./120, // 8 [octaves] * 3 [clicks/oct] * 5 [fine grained]
 				GED_WIDTH, GED_HEIGHT + 4, GED_CX, GED_CY + 3, GED_RADIUS);
 
 		ui->lbl_freq[i] = robtk_lbl_new("8888KHz");
@@ -976,7 +968,7 @@ static RobWidget * toplevel(Fil4UI* ui, void * const top) {
 		robtk_dial_set_constained (ui->spn_freq[i], false);
 		robtk_dial_set_default(ui->spn_freq[i], freq_to_dial (&freqs[i], freqs[i].dflt));
 		robtk_dial_set_default(ui->spn_gain[i], 0.0);
-		robtk_dial_set_default(ui->spn_bw[i], 1.0);
+		robtk_dial_set_default(ui->spn_bw[i], bw_to_dial(1.0));
 
 		robtk_cbtn_set_callback (ui->btn_enable[i], cb_btn_en, ui);
 		robtk_dial_set_callback (ui->spn_freq[i],   cb_spn_freq, ui);
@@ -1002,10 +994,14 @@ static RobWidget * toplevel(Fil4UI* ui, void * const top) {
 		}
 
 		robtk_dial_set_detent_default (ui->spn_gain[i], true);
-		//robtk_dial_set_detent_default (ui->spn_bw[i],   true);
-		robtk_dial_set_scroll_mult (ui->spn_freq[i], 10.f);
-		robtk_dial_set_scroll_mult (ui->spn_gain[i], 5.f);
+		robtk_dial_set_scroll_mult (ui->spn_freq[i], 4.f); // 24 clicks per octave
+		robtk_dial_set_scroll_mult (ui->spn_gain[i], 5.f); // 1dB per click
+		robtk_dial_set_scroll_mult (ui->spn_bw[i],   5.f); // 1/3 octave per click
 	}
+
+	/* shelf filter range */
+	robtk_dial_set_default(ui->spn_bw[0], bw_to_dial(3.66));
+	robtk_dial_set_default(ui->spn_bw[NSECT -1], bw_to_dial(3.66));
 
 	ui->sep_v0 = robtk_sep_new(FALSE);
 	rob_table_attach_defaults (ui->ctbl, robtk_sep_widget(ui->sep_v0), col, col+1, 0, 5);
