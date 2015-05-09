@@ -349,11 +349,17 @@ static void prepare_faceplates(Fil4UI* ui) {
 	cairo_line_to (cr, GED_WIDTH - 18, GZLINE + 3);
 	cairo_stroke (cr);
 
-	{ DIALDOTS(0.0, .5, 3.5) }
-	{ DIALDOTS(.25, .5, 3.5) }
-	{ DIALDOTS(.50, .5, 3.5) }
-	{ DIALDOTS(.75, .5, 3.5) }
-	{ DIALDOTS(1.0, .5, 3.5) }
+	cairo_set_line_width (cr, .5);
+	cairo_arc (cr, GED_CX + 1, GED_CY + 3, GED_RADIUS + 2.0, -.25 * M_PI, .25 * M_PI);
+	cairo_stroke (cr);
+
+	{ DIALDOTS(  0.0, .5, 3.5) }
+	{ DIALDOTS(1/6.f, .5, 3.5) }
+	{ DIALDOTS(2/6.f, .5, 3.5) }
+	{ DIALDOTS(3/6.f, .5, 3.5) }
+	{ DIALDOTS(4/6.f, .5, 3.5) }
+	{ DIALDOTS(5/6.f, .5, 3.5) }
+	{ DIALDOTS(  1.0, .5, 3.5) }
 	cairo_destroy (cr);
 
 	/* high shelf */
@@ -378,11 +384,17 @@ static void prepare_faceplates(Fil4UI* ui) {
 	cairo_line_to (cr, GED_WIDTH -  1, GZLINE + 3);
 	cairo_stroke (cr);
 
-	{ DIALDOTS(0.0, .5, 3.5) }
-	{ DIALDOTS(.25, .5, 3.5) }
-	{ DIALDOTS(.50, .5, 3.5) }
-	{ DIALDOTS(.75, .5, 3.5) }
-	{ DIALDOTS(1.0, .5, 3.5) }
+	cairo_set_line_width (cr, .5);
+	cairo_arc (cr, GED_CX + 1, GED_CY + 3, GED_RADIUS + 2.0, -.25 * M_PI, .25 * M_PI);
+	cairo_stroke (cr);
+
+	{ DIALDOTS(  0.0, .5, 3.5) }
+	{ DIALDOTS(1/6.f, .5, 3.5) }
+	{ DIALDOTS(2/6.f, .5, 3.5) }
+	{ DIALDOTS(3/6.f, .5, 3.5) }
+	{ DIALDOTS(4/6.f, .5, 3.5) }
+	{ DIALDOTS(5/6.f, .5, 3.5) }
+	{ DIALDOTS(  1.0, .5, 3.5) }
 	cairo_destroy (cr);
 
 
@@ -431,7 +443,7 @@ static void update_filter (FilterSection *flt, const float freq, const float bw,
 
 static void update_iir (FilterSection *flt, const int hs, const float freq, const float bw, const float gain) {
 	float freq_ratio = freq / flt->rate;
-	float q = .347 + bw / 22.27; // map [.125 .. 8] to [2^(-3/2) .. 2^(-1/2)]
+	float q = .337 + bw / 7.425; // map [.125 .. 8] to [2^(-3/2) .. 2^(1/2)]
 	if (freq_ratio < 0.0002) freq_ratio = 0.0002;
 	if (freq_ratio > 0.4998) freq_ratio = 0.4998;
 	if (q < .25f) { q = .25f; }
@@ -1099,8 +1111,10 @@ static RobWidget * toplevel(Fil4UI* ui, void * const top) {
 	}
 
 	/* shelf filter range */
-	robtk_dial_set_default(ui->spn_bw[0], bw_to_dial(3.66));
-	robtk_dial_set_default(ui->spn_bw[NSECT -1], bw_to_dial(3.66));
+	robtk_dial_update_range (ui->spn_bw[0], 0, 1, 1 / 90.f); // 3 clicks for 1:2
+	robtk_dial_update_range (ui->spn_bw[NSECT - 1], 0, 1, 1 / 90.f);
+	robtk_dial_set_default(ui->spn_bw[0], bw_to_dial(2.80));
+	robtk_dial_set_default(ui->spn_bw[NSECT -1], bw_to_dial(2.80));
 
 	/* graph display */
 	ui->m0 = robwidget_new (ui);
