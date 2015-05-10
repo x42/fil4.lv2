@@ -34,7 +34,7 @@ ifeq ($(UNAME),Darwin)
   GLUILIBS=-framework Cocoa -framework OpenGL -framework CoreFoundation
   STRIPFLAGS=-u -r -arch all -s $(RW)lv2syms
 else
-  LV2LDFLAGS=-Wl,-Bstatic -Wl,-Bdynamic
+  LV2LDFLAGS=-Wl,-Bstatic -Wl,-Bdynamic -Wl,--as-needed
   LIB_EXT=.so
   EXE_EXT=
   UI_TYPE=ui:X11UI
@@ -54,6 +54,7 @@ ifneq ($(XWIN),)
   EXE_EXT=.exe
   PUGL_SRC=$(RW)pugl/pugl_win.cpp
   PKG_GL_LIBS=
+  UI_TYPE=
   GLUILIBS=-lws2_32 -lwinmm -lopengl32 -lglu32 -lgdi32 -lcomdlg32 -lpthread
   GLUICFLAGS=-I.
   override LDFLAGS += -static-libgcc -static-libstdc++
