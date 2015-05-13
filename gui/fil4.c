@@ -260,7 +260,11 @@ static void dial_annotation_db (RobTkDial * d, cairo_t *cr, void *data) {
 
 static void dial_annotation_hz (RobTkCBtn *l, const int which, const float hz) {
 	char txt[24];
+#ifdef _WIN32
+	const char *pfx = (which == 0) ? "L " : ((which == NCTRL -1) ? "H " : "");
+#else
 	const char *pfx = (which == 0) ? "\u2abc" : ((which == NCTRL -1) ? "\u2abb" : "");
+#endif
 	if (hz > 5000) {
 		snprintf(txt, 16, "%s%.1fKHz", pfx, hz / 1000.f);
 	} else {
@@ -1804,7 +1808,11 @@ static RobWidget * toplevel(Fil4UI* ui, void * const top) {
 	/* Filter bands */
 	++col;
 	for (int i = 0; i < NCTRL; ++i, ++col) {
+#ifdef _WIN32
 		ui->btn_enable[i] = robtk_cbtn_new("\u2abc88.8KHz", GBT_LED_LEFT, false);
+#else
+		ui->btn_enable[i] = robtk_cbtn_new("H 88.8KHz", GBT_LED_LEFT, false);
+#endif
 
 		ui->spn_freq[i] = robtk_dial_new_with_size (0, 1, .00625,
 				GED_WIDTH + 12, GED_HEIGHT + 20, GED_CX + 6, GED_CY + 15, GED_RADIUS);
