@@ -108,12 +108,14 @@ typedef struct {
 	RobTkCBtn *btn_g_enable;
 	RobTkDial *spn_g_gain;
 	RobTkDial *spn_fftgain;
+	RobTkLbl  *lbl_fftgain;
 
 	RobTkIBtn *btn_g_hipass;
 	RobTkIBtn *btn_g_lopass;
 	RobTkDial *spn_g_hifreq;
 	RobTkDial *spn_g_lofreq;
-	RobTkLbl  *lbl_fftgain;
+
+	RobTkLbl  *lbl_hilo[2];
 
 	// filter section
 	RobTkCBtn *btn_enable[NSECT];
@@ -157,7 +159,10 @@ typedef struct {
 	cairo_surface_t* dial_hplp[2];
 
 	FilterSection flt[NSECT];
+	// TODO use struct for hilo
 	float hilo[2];
+	float hilo_y[2];
+
 	int dragging;
 	bool filter_redisplay;
 	bool disable_signals;
@@ -1267,6 +1272,7 @@ static RobWidget* m0_mouse_scroll (RobWidget* handle, RobTkBtnEvent *ev) {
 
 static RobWidget* m0_mouse_down (RobWidget* handle, RobTkBtnEvent *ev) {
 	Fil4UI* ui = (Fil4UI*)GET_HANDLE(handle);
+	// TODO right-click -> toggle ??
 	if (ev->button != 1) {
 		return NULL;
 	}
@@ -1280,7 +1286,36 @@ static RobWidget* m0_mouse_down (RobWidget* handle, RobTkBtnEvent *ev) {
 			break;
 		}
 	}
-	if (ev->state & ROBTK_MOD_SHIFT && ui->dragging >= 0) {
+
+	if (fabsf(ev->x - 30) <= DOTRADIUS && fabsf(ev->y - ui->hilo_y[0]) <= DOTRADIUS) {
+		if (robtk_ibtn_get_active(ui->btn_g_hipass)) {
+			ui->dragging = NSECT;
+			update_filter_display (ui);
+		}
+	}
+
+	if (fabsf(ev->x - (30 + ui->m0_xw)) <= DOTRADIUS && fabsf(ev->y - ui->hilo_y[1]) <= DOTRADIUS) {
+		if (robtk_ibtn_get_active(ui->btn_g_lopass)) {
+			ui->dragging = NSECT + 1;
+			update_filter_display (ui);
+		}
+	}
+
+	if (ev->state & ROBTK_MOD_SHIFT && ui->dragging == NSECT) {
+		robtk_dial_set_value (ui->spn_g_hifreq, ui->spn_g_hifreq->dfl);
+		ui->dragging = -1;
+		update_filter_display (ui);
+		return NULL;
+	}
+
+	if (ev->state & ROBTK_MOD_SHIFT && ui->dragging > NSECT) {
+		robtk_dial_set_value (ui->spn_g_lofreq, ui->spn_g_lofreq->dfl);
+		ui->dragging = -1;
+		update_filter_display (ui);
+		return NULL;
+	}
+
+	if (ev->state & ROBTK_MOD_SHIFT && ui->dragging >= 0 && ui->dragging < NSECT) {
 		// XXX dial needs an API for this
 		robtk_dial_set_value (ui->spn_freq[ui->dragging], ui->spn_freq[ui->dragging]->dfl);
 		robtk_dial_set_value (ui->spn_gain[ui->dragging], ui->spn_gain[ui->dragging]->dfl);
@@ -1308,6 +1343,28 @@ static RobWidget* m0_mouse_move (RobWidget* handle, RobTkBtnEvent *ev) {
 
 	float g_gain = robtk_dial_get_value (ui->spn_g_gain);
 	const int sect = ui->dragging;
+
+	if (sect == NSECT) {
+		//high pass special case
+		if (!robtk_ibtn_get_active(ui->btn_g_hipass)) {
+			return handle;
+		}
+		float delta = (ev->y - ui->hilo_y[0]) / ui->m0_yr;
+		robtk_dial_set_value (ui->spn_g_hifreq, robtk_dial_get_value (ui->spn_g_hifreq) + delta / 180.);
+		//robtk_dial_set_value (ui->spn_g_hifreq, freq_to_dial (&lphp[0], v));
+		return handle;
+	}
+
+	if (sect > NSECT) {
+		//low pass special case
+		if (!robtk_ibtn_get_active(ui->btn_g_lopass)) {
+			return handle;
+		}
+		float delta = (ui->hilo_y[1] - ev->y) / ui->m0_yr;
+		robtk_dial_set_value (ui->spn_g_lofreq, robtk_dial_get_value (ui->spn_g_lofreq) + delta / 90.);
+		//robtk_dial_set_value (ui->spn_g_hifreq, freq_to_dial (&lphp[1], v));
+		return handle;
+	}
 
 	if (ev->x >= x0 && ev->x <= x1) {
 		const float hz = freq_at_x (ev->x - x0, ui->m0_xw);
@@ -1441,8 +1498,13 @@ static void draw_filters (Fil4UI* ui) {
 		}
 		if (i == 0) {
 			cairo_move_to (cr, i, ym - y);
+			ui->hilo_y[0] = ym - y;
+			// cache HiP position
 		} else {
 			cairo_line_to (cr, i, ym - y);
+			if (i == xw - 1) {
+				ui->hilo_y[1] = ym - y;
+			}
 		}
 	}
 	cairo_set_operator (cr, CAIRO_OPERATOR_ADD);
@@ -1452,6 +1514,27 @@ static void draw_filters (Fil4UI* ui) {
 	cairo_line_to (cr, 0, ym - yr * g_gain);
 	cairo_set_source_rgba (cr, 0.5, 0.5, 0.5, 0.33 * shade);
 	cairo_fill (cr);
+
+	if (robtk_ibtn_get_active(ui->btn_g_hipass)) {
+		cairo_rectangle (cr, 0, ui->hilo_y[0] - DOTRADIUS, DOTRADIUS, 2 * DOTRADIUS);
+		if (ui->dragging == NSECT) {
+			cairo_set_source_rgba (cr, .5, .4, .3, 0.8 * shade);
+			cairo_fill_preserve (cr);
+		}
+		cairo_set_source_rgba (cr, .5, .4, .3, 0.6 * shade);
+		cairo_stroke (cr);
+	}
+
+	if (robtk_ibtn_get_active(ui->btn_g_lopass)) {
+		cairo_set_source_rgba (cr, .3, .5, .4, 0.6 * shade);
+		cairo_rectangle (cr, ui->m0_xw - DOTRADIUS, ui->hilo_y[1] - DOTRADIUS, DOTRADIUS, 2 * DOTRADIUS);
+		if (ui->dragging == NSECT + 1) {
+			cairo_set_source_rgba (cr, .5, .4, .3, 0.8 * shade);
+			cairo_fill_preserve (cr);
+		}
+		cairo_set_source_rgba (cr, .5, .4, .3, 0.6 * shade);
+		cairo_stroke (cr);
+	}
 
 	cairo_destroy (cr);
 }
@@ -1521,7 +1604,11 @@ static bool m0_expose_event (RobWidget* handle, cairo_t* cr, cairo_rectangle_t *
 	else if (fft_mode > 0 && fft_mode < 5) {
 		cairo_set_operator (cr, CAIRO_OPERATOR_OVER);
 		cairo_set_line_width(cr, 1.0);
-		cairo_set_source_rgba (cr, .5, .6, .7, .75);
+		if (fft_mode & 1) {
+			cairo_set_source_rgba (cr, .5, .6, .7, .75);
+		} else {
+			cairo_set_source_rgba (cr, .7, .6, .5, .75);
+		}
 		float *d = ui->japa->power ()->_data;
 		if (!ui->scale_cached) {
 			ui->scale_cached = true;
@@ -1629,6 +1716,8 @@ static RobWidget * toplevel(Fil4UI* ui, void * const top) {
 	++col;
 	ui->btn_g_hipass = robtk_ibtn_new (ui->hpf_btn[0], ui->hpf_btn[1]);
 	ui->btn_g_lopass = robtk_ibtn_new (ui->lpf_btn[0], ui->lpf_btn[1]); // XXX
+	ui->lbl_hilo[0]  = robtk_lbl_new (" DC-block\n-12dB/8ve");
+	ui->lbl_hilo[1]  = robtk_lbl_new ("-12dB/8ve");
 
 	robtk_ibtn_set_alignment(ui->btn_g_hipass, .5, 0);
 	robtk_ibtn_set_alignment(ui->btn_g_lopass, .5, 0);
@@ -1655,10 +1744,12 @@ static RobWidget * toplevel(Fil4UI* ui, void * const top) {
 	robtk_dial_set_surface (ui->spn_g_lofreq, ui->dial_hplp[1]);
 
 	rob_table_attach (ui->ctbl, GBI_W(ui->btn_g_hipass), col, col+1, 0, 2, 5, 0, RTK_EXANDF, RTK_SHRINK);
+	rob_table_attach (ui->ctbl, GLB_W(ui->lbl_hilo[0]),  col, col+1, 2, 3, 5, 0, RTK_EXANDF, RTK_SHRINK);
 	rob_table_attach (ui->ctbl, GSP_W(ui->spn_g_hifreq), col, col+1, 3, 5, 5, 0, RTK_EXANDF, RTK_SHRINK);
 
 	// LPF AT END
 	rob_table_attach (ui->ctbl, GBI_W(ui->btn_g_lopass), col + NSECT + 2, col + NSECT + 3, 0, 2, 5, 0, RTK_EXANDF, RTK_SHRINK);
+	rob_table_attach (ui->ctbl, GLB_W(ui->lbl_hilo[1]),  col + NSECT + 2, col + NSECT + 3, 2, 3, 5, 0, RTK_EXANDF, RTK_SHRINK);
 	rob_table_attach (ui->ctbl, GSP_W(ui->spn_g_lofreq), col + NSECT + 2, col + NSECT + 3, 3, 5, 5, 0, RTK_EXANDF, RTK_SHRINK);
 
 	/* Filter bands */
@@ -1756,6 +1847,9 @@ static void gui_cleanup(Fil4UI* ui) {
 	robtk_select_destroy(ui->sel_fft);
 
 	robtk_sep_destroy (ui->sep_v0);
+	robtk_lbl_destroy (ui->lbl_fftgain);
+	robtk_lbl_destroy (ui->lbl_hilo[0]);
+	robtk_lbl_destroy (ui->lbl_hilo[1]);
 
 	pango_font_description_free(ui->font[0]);
 	pango_font_description_free(ui->font[1]);
