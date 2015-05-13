@@ -74,6 +74,34 @@ ifeq ($(shell pkg-config --exists lv2 || echo no), no)
   $(error "LV2 SDK was not found")
 endif
 
+ifneq ($(shell test -f fftw-3.3.4/.libs/libfftw3f.a || echo no), no)
+  FFTW_CFLAGS=-Ifftw-3.3.4/api fftw-3.3.4/.libs/libfftw3f.a -lm
+  FFTW_LIBS=fftw-3.3.4/.libs/libfftw3f.a -lm
+else
+  ifeq ($(shell pkg-config --exists fftw3f || echo no), no)
+    $(error "fftw3f library was not found")
+  endif
+  FFTW_LIBS=`pkg-config --variable=libdir fftw3f`/libfftw3f.a
+  ifeq ($(shell test -f $(FFTWA) || echo no), no)
+    FFTW_LIBS=`pkg-config --libs fftw3f`
+  endif
+  $(warning "**********************************************************")
+  $(warning "           the fftw3 library is not thread-safe           ")
+  $(warning "**********************************************************")
+  $(info )
+  $(info see https://github.com/FFTW/fftw3/issues/16 for further info.)
+  $(info )
+  $(info   run    ./static_fft.sh)
+  $(info   prior to make to create compile static lib specific for this)
+  $(info   plugin to avoid the issue.)
+  $(info )
+  $(warning "**********************************************************")
+  $(info )
+  $(eval FFTW_CFLAGS=`pkg-config --cflags fftw3f`)
+  $(eval FFTW_LIB=$(FFTW_LIBS) -lm)
+endif
+export FFTW_CFLAGS
+export FFTW_LIBS
 
 ifeq ($(shell pkg-config --atleast-version=1.4.2 lv2 || echo no), no)
   $(error "LV2 SDK needs to be version 1.4.2 or later")
@@ -115,8 +143,8 @@ override CXXFLAGS += -fPIC $(OPTIMIZATIONS) -DVERSION="\"$(fil4_VERSION)\""
 override CXXFLAGS += `pkg-config --cflags lv2`
 
 
-GLUICFLAGS+=`pkg-config --cflags cairo pango`
-GLUILIBS+=`pkg-config $(PKG_UI_FLAGS) --libs cairo pango pangocairo $(PKG_GL_LIBS)`
+GLUICFLAGS+=`pkg-config --cflags cairo pango` $(value FFTW_CFLAGS) $(CXXFLAGS)
+GLUILIBS+=`pkg-config $(PKG_UI_FLAGS) --libs cairo pango pangocairo $(PKG_GL_LIBS)` $(value FFTW_LIBS)
 
 ifneq ($(XWIN),)
 GLUILIBS+=-lpthread -lusp10

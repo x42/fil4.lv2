@@ -1,4 +1,6 @@
 /build
+/x42
+/fftw-3.3.4
 *.dSYM
 
 *.swp

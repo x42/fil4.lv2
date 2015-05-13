@@ -24,6 +24,7 @@
 #include <assert.h>
 
 #include "../src/uris.h"
+#include "fft.c"
 
 #define MTR_URI "http://gareus.org/oss/lv2/fil4#"
 #define MTR_GUI "ui"
@@ -31,6 +32,18 @@
 #define DOTRADIUS (9) // radius of draggable nodes on the plot
 
 #define NSECT (6) // number of filter-bands + 2 (lo,hi-shelf)
+
+#ifndef MAX
+#define MAX(A,B) ((A) > (B)) ? (A) : (B)
+#endif
+
+#ifndef SQUARE
+#define SQUARE(X) ( (X) * (X) )
+#endif
+
+#ifndef HYPOTF
+#define HYPOTF(X,Y) (sqrtf (SQUARE(X) + SQUARE(Y)))
+#endif
 
 /* plugin port mapping - see src/lv2.c and lv2ttl/fil4.ttl.in */
 enum {
@@ -99,7 +112,13 @@ typedef struct {
 	RobTkDial *spn_s_bw[2];
 
 	// fft
+	float samplerate;
 	RobTkSelect* sel_fft;
+	struct FFTAnalysis *fa;
+	float *ffy;
+
+	cairo_surface_t* fft_history;
+	int fft_hist_line;
 
 	// misc other stuff
 	cairo_surface_t* m0_grid;
@@ -141,6 +160,15 @@ static const float c_ann[4] = {0.5, 0.5, 0.5, 1.0}; // text annotation color
 static const float c_dlf[4] = {0.8, 0.8, 0.8, 1.0}; // dial faceplate fg
 
 ///////////////////////////////////////////////////////////////////////////////
+
+/* graph log-scale mapping */
+static float freq_at_x (const int x, const int m0_width) {
+	return 20.f * powf (1000.f, x / (float) m0_width);
+}
+
+static float x_at_freq (const float f, const int m0_width) {
+	return rintf(m0_width * logf (f / 20.0) / logf (1000.0));
+}
 
 /**** dial value mappings ****/
 /* bandwidth [1/8 .. 8] <> dial [0..1] */
@@ -431,6 +459,116 @@ static void prepare_faceplates(Fil4UI* ui) {
 
 ///////////////////////////////////////////////////////////////////////////////
 
+static void reinitialize_fft(Fil4UI* ui) {
+	fftx_free(ui->fa);
+	ui->fa = (struct FFTAnalysis*) malloc(sizeof(struct FFTAnalysis));
+	fftx_init (ui->fa, 8192, ui->samplerate, 25);
+}
+
+static void hsl2rgb(float c[3], const float hue, const float sat, const float lum) {
+	const float cq = lum < 0.5 ? lum * (1 + sat) : lum + sat - lum * sat;
+	const float cp = 2.f * lum - cq;
+	c[0] = rtk_hue2rgb(cp, cq, hue + 1.f/3.f);
+	c[1] = rtk_hue2rgb(cp, cq, hue);
+	c[2] = rtk_hue2rgb(cp, cq, hue - 1.f/3.f);
+}
+
+#if 1
+static void update_spectrum (Fil4UI* ui, const size_t n_elem, float const * data) {
+	if (!ui->fft_history) {
+		return;
+	}
+	if (robtk_select_get_value(ui->sel_fft) == 0) {
+		if (ui->fft_hist_line >= 0) {
+			ui->fft_hist_line = -1;
+			cairo_t *cr = cairo_create (ui->fft_history);
+			cairo_set_operator (cr, CAIRO_OPERATOR_CLEAR);
+			cairo_paint (cr);
+			cairo_destroy (cr);
+		}
+		return;
+	}
+  if (!fftx_run(ui->fa, n_elem, data)) {
+		cairo_t *cr = cairo_create (ui->fft_history);
+		cairo_set_line_width (cr, 1.0);
+
+		// increase line
+		const int m0_h = ui->m0_y1 - ui->m0_y0;
+		ui->fft_hist_line = (ui->fft_hist_line + 1) % m0_h;
+
+    const uint32_t b = fftx_bins(ui->fa);
+		const float yy = ui->fft_hist_line;
+
+		// clear current line
+		cairo_set_operator (cr, CAIRO_OPERATOR_CLEAR);
+		cairo_rectangle (cr, 0, yy, ui->m0_xw, 1);
+		cairo_fill (cr);
+
+		cairo_set_operator (cr, CAIRO_OPERATOR_SOURCE);
+		for (uint32_t i = 1; i < b-1; ++i) {
+			const float freq = fftx_freq_at_bin (ui->fa, i);
+			const float f0 = x_at_freq (MAX (5, freq - 2 * ui->fa->freq_per_bin), ui->m0_xw);
+			const float f1 = x_at_freq (        freq + 2 * ui->fa->freq_per_bin,  ui->m0_xw);
+
+			const float level = 6. + fftx_power_to_dB (ui->fa->power[i]);
+			if (level < -80) continue;
+			const float pk = level > 0.0 ? 1.0 : (80 + level) / 80.0;
+			float clr[3];
+			hsl2rgb(clr, .70 - .72 * pk, .9, .3 + pk * .4);
+			cairo_set_source_rgba(cr, clr[0], clr[1], clr[2], .3 + pk * .2);
+
+			cairo_move_to (cr, f0, yy);
+			cairo_line_to (cr, f1, yy);
+			cairo_stroke (cr);
+
+		}
+		cairo_destroy (cr);
+		queue_draw(ui->m0);
+	}
+}
+
+#else
+static void update_spectrum (Fil4UI* ui, const size_t n_elem, float const * data) {
+  /* this callback runs in the "communication" thread of the LV2-host
+   * usually a g_timeout() at ~25fps
+	 *
+	 * TODO thread sync. this should never collide with exposure, but
+	 * there is no guarantee that all hosts will call port-event in the UI thread.
+   */
+	if (robtk_select_get_value(ui->sel_fft) == 0) {
+		// XXX clear
+		return;
+	}
+  if (!fftx_run(ui->fa, n_elem, data)) {
+    uint32_t b = fftx_bins(ui->fa);
+		for (uint32_t i = 1; i < b-1; ++i) {
+			// XXX integer rounding here is bad :(
+			// also use proportional 1/bw power scaling.
+			const float freq = fftx_freq_at_bin(ui->fa, i);
+			const int f0     = floorf (x_at_freq (MAX (5, freq - 6. * ui->fa->freq_per_bin), ui->m0_xw));
+			const int f1     = ceilf  (x_at_freq (        freq + 6. * ui->fa->freq_per_bin,  ui->m0_xw));
+
+			if (f0 >= f1) {
+				if (f0 > 0 && f0 < ui->m0_xw) {
+					ui->ffy[f0] = ui->fa->power[i];
+				}
+				continue;
+			}
+
+			for (int j = f0; j < f1; ++j) {
+				if (j < 0) continue;
+				if (j >= ui->m0_xw) continue;
+				const float dist = expf (-SQUARE ( .707 * (freq_at_x(j, ui->m0_xw) - freq) / ui->fa->freq_per_bin) );
+				ui->ffy[j] += (.07 + freq / ui->samplerate) * (ui->fa->power[i] * dist - ui->ffy[j]);
+			}
+		}
+		queue_draw(ui->m0);
+	}
+}
+#endif
+
+///////////////////////////////////////////////////////////////////////////////
+
 /*** calculate filter parameter constants for plotting ***/
 static void update_filter (FilterSection *flt, const float freq, const float bw, const float gain) {
 	// see src/lv2.c  run()
@@ -524,9 +662,6 @@ static void update_filters (Fil4UI *ui) {
 			);
 	queue_draw(ui->m0);
 }
-
-#define SQUARE(X) ( (X) * (X) )
-#define HYPOTF(X,Y) (sqrtf (SQUARE(X) + SQUARE(Y)))
 
 /* drawing helpers, calculate respone for given frequency */
 static float get_filter_response (FilterSection *flt, const float freq) {
@@ -659,15 +794,6 @@ static bool cb_set_fft (RobWidget* w, void *handle) {
 
 ///////////////////////////////////////////////////////////////////////////////
 
-/* graph log-scale mapping */
-static float freq_at_x (const int x, const int m0_width) {
-	return 20.f * powf (1000.f, x / (float) m0_width);
-}
-
-static float x_at_freq (const float f, const int m0_width) {
-	return rintf(m0_width * logf (f / 20.0) / logf (1000.0));
-}
-
 /* cache grid as image surface */
 static void draw_grid (Fil4UI* ui) {
 	assert(!ui->m0_grid);
@@ -799,10 +925,15 @@ m0_size_allocate (RobWidget* handle, int w, int h) {
 	ui->m0_width = w;
 	ui->m0_height = h;
 	robwidget_set_size(ui->m0, w, h);
+
 	if (ui->m0_grid) {
 		cairo_surface_destroy (ui->m0_grid);
 		ui->m0_grid = NULL;
 	}
+
+	// old size
+	const int m0_w = ui->m0_xw;
+	const int m0_h = ui->m0_y1 - ui->m0_y0; // old height
 
 	const int m0h = h & ~1;
 	ui->m0_xw = ui->m0_width - 44;
@@ -810,6 +941,25 @@ m0_size_allocate (RobWidget* handle, int w, int h) {
 	ui->m0_yr = (m0h - 20) / 64.f;
 	ui->m0_y0 = floor (ui->m0_ym - 30.f * ui->m0_yr);
 	ui->m0_y1 = ceil  (ui->m0_ym + 30.f * ui->m0_yr);
+
+	const int m0_H = ui->m0_y1 - ui->m0_y0; // new height
+
+	if (m0_w != ui->m0_xw) {
+		free (ui->ffy);
+		ui->ffy = (float*) calloc(ui->m0_xw, sizeof(float));
+	}
+
+	if (m0_w != ui->m0_xw || m0_h != m0_H) {
+		ui->fft_hist_line = -1;
+		if (ui->fft_history) {
+			cairo_surface_destroy (ui->fft_history);
+		}
+		ui->fft_history = cairo_image_surface_create (CAIRO_FORMAT_ARGB32, ui->m0_xw, m0_H);
+		cairo_t *cr = cairo_create (ui->fft_history);
+		cairo_set_operator (cr, CAIRO_OPERATOR_CLEAR);
+		cairo_paint (cr);
+		cairo_destroy (cr);
+	}
 }
 
 static RobWidget* m0_mouse_up (RobWidget* handle, RobTkBtnEvent *ev) {
@@ -909,6 +1059,11 @@ static RobWidget* m0_mouse_move (RobWidget* handle, RobTkBtnEvent *ev) {
 	return handle;
 }
 
+inline float x_power_to_dB (float a) {
+	/* 10 instead of 20 because of squared signal -- no sqrt(powerp[]) */
+	return a > 1e-10 ? 10.0 * fast_log10(a) : -60;
+}
+
 /*** main drawing function ***/
 static bool m0_expose_event (RobWidget* handle, cairo_t* cr, cairo_rectangle_t *ev) {
 	Fil4UI* ui = (Fil4UI*)GET_HANDLE(handle);
@@ -932,8 +1087,10 @@ static bool m0_expose_event (RobWidget* handle, cairo_t* cr, cairo_rectangle_t *
 	if (!ui->m0_grid) {
 		draw_grid (ui);
 	}
+
+	cairo_set_operator (cr, CAIRO_OPERATOR_OVER);
 	cairo_set_source_surface(cr, ui->m0_grid, 0, 0);
-	cairo_paint(cr);
+	cairo_paint (cr);
 
 	write_text_full (cr,
 			ui->nfo ? ui->nfo : "x42 fil4.LV2",
@@ -949,6 +1106,42 @@ static bool m0_expose_event (RobWidget* handle, cairo_t* cr, cairo_rectangle_t *
 	if (!robtk_cbtn_get_active(ui->btn_g_enable)) {
 		shade = 0.5;
 	}
+
+#if 0
+	/* draw spectrum */
+	if (robtk_select_get_value(ui->sel_fft) > 0) {
+		cairo_set_operator (cr, CAIRO_OPERATOR_OVER);
+		cairo_set_line_width(cr, 1.0);
+		cairo_set_source_rgba (cr, .5, .6, .7, .7);
+		cairo_move_to (cr, x0, ym - yr * (x_power_to_dB(ui->ffy[0]) + 30));
+		for (int i = 1; i < xw; ++i) {
+			float yy = ym - yr * (x_power_to_dB(ui->ffy[i]) + 30.); // XXX align properly or add 2nd scale
+			cairo_line_to (cr, x0 + i, yy);
+		}
+		cairo_stroke (cr);
+	}
+#else
+	if (robtk_select_get_value(ui->sel_fft) > 0 &&  ui->fft_hist_line >= 0) {
+		cairo_set_operator (cr, CAIRO_OPERATOR_OVER);
+		const int y0 = ui->m0_y0;
+		const int yh = ui->m0_y1 - ui->m0_y0;
+		if (ui->fft_hist_line == yh - 1) {
+			cairo_set_source_surface(cr, ui->fft_history, x0, ui->m0_y0);
+			cairo_rectangle (cr, x0, y0, xw, ui->m0_y1 - ui->m0_y0);
+			cairo_fill (cr);
+		} else {
+			int yp = yh - ui->fft_hist_line - 1;
+
+			cairo_set_source_surface(cr, ui->fft_history, x0, y0 + yp);
+			cairo_rectangle (cr, x0, y0 + yp, xw, ui->fft_hist_line);
+			cairo_fill (cr);
+
+			cairo_set_source_surface(cr, ui->fft_history, x0, y0 - ui->fft_hist_line - 1);
+			cairo_rectangle (cr, x0, y0, xw, yp);
+			cairo_fill (cr);
+		}
+	}
+#endif
 
 	/* draw dots */
 	cairo_set_operator (cr, CAIRO_OPERATOR_ADD);
@@ -1209,6 +1402,9 @@ static void gui_cleanup(Fil4UI* ui) {
 	cairo_surface_destroy (ui->dial_bg[3]);
 	cairo_surface_destroy (ui->hpf_btn[0]);
 	cairo_surface_destroy (ui->hpf_btn[1]);
+	if (ui->fft_history) {
+		cairo_surface_destroy (ui->fft_history);
+	}
 	if (ui->m0_grid) {
 		cairo_surface_destroy (ui->m0_grid);
 	}
@@ -1216,6 +1412,9 @@ static void gui_cleanup(Fil4UI* ui) {
 	robwidget_destroy (ui->m0);
 	rob_table_destroy (ui->ctbl);
 	rob_box_destroy(ui->rw);
+
+	fftx_free(ui->fa);
+	free(ui->ffy);
 }
 
 /******************************************************************************
@@ -1258,6 +1457,7 @@ instantiate(
 	ui->write      = write_function;
 	ui->controller = controller;
 	ui->dragging   = -1;
+	ui->samplerate = 48000;
 
 	for (int i = 0; i < NSECT; ++i) {
 		/* used for analysis only, but should eventually
@@ -1265,8 +1465,8 @@ instantiate(
 		ui->flt[i].rate = 48000;
 	}
 
-	map_fil4_uris(ui->map, &ui->uris);
-	//reinitialize_fft(ui);
+	map_fil4_uris (ui->map, &ui->uris);
+	reinitialize_fft (ui);
 
 	*widget = toplevel(ui, ui_toplevel);
 	return ui;
@@ -1323,7 +1523,11 @@ port_event(LV2UI_Handle handle,
 
 				const size_t n_elem = (a1->size - sizeof(LV2_Atom_Vector_Body)) / vof->atom.size;
 				const float *data = (float*) LV2_ATOM_BODY(&vof->atom);
-				//update_fft(ui, sr, n_elem, data);
+				if (ui->samplerate != sr) {
+					ui->samplerate = sr;
+					reinitialize_fft (ui);
+				}
+				update_spectrum(ui, n_elem, data);
 			}
 		}
 	}
