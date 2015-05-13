@@ -25,6 +25,7 @@
 
 #include "../src/uris.h"
 #include "fft.c"
+#include "analyser.cc"
 
 #define MTR_URI "http://gareus.org/oss/lv2/fil4#"
 #define MTR_GUI "ui"
@@ -32,10 +33,16 @@
 #define DOTRADIUS (9) // radius of draggable nodes on the plot
 
 #define NSECT (6) // number of filter-bands + 2 (lo,hi-shelf)
+#define FFT_MAX 512
 
 #ifndef MAX
 #define MAX(A,B) ((A) > (B)) ? (A) : (B)
 #endif
+
+#ifndef MIN
+#define MIN(A,B) ((A) < (B)) ? (A) : (B)
+#endif
+
 
 #ifndef SQUARE
 #define SQUARE(X) ( (X) * (X) )
@@ -114,11 +121,21 @@ typedef struct {
 	// fft
 	float samplerate;
 	RobTkSelect* sel_fft;
+
+	// scrolling history
 	struct FFTAnalysis *fa;
 	float *ffy;
-
 	cairo_surface_t* fft_history;
 	int fft_hist_line;
+
+	Analyser *japa; // fons, how many bottles of wine is this going to cost me?
+	int _ipsize;
+	int _ipstep;
+	int _stepcnt;
+	int _bufpos;
+	int _fpscnt;
+	float _fscale[FFT_MAX + 1];
+	//float _bwcorr[FFT_MAX + 1]; // unused
 
 	// misc other stuff
 	cairo_surface_t* m0_grid;
@@ -459,10 +476,38 @@ static void prepare_faceplates(Fil4UI* ui) {
 
 ///////////////////////////////////////////////////////////////////////////////
 
+static double warp_freq (double w, double f)
+{
+	f *= 2 * M_PI;
+	return fabs (atan2 ((1 - w * w) * sin (f), (1 + w * w) * cos (f) - 2 * w) / (2 * M_PI));
+}
+
 static void reinitialize_fft(Fil4UI* ui) {
+	// History
 	fftx_free(ui->fa);
 	ui->fa = (struct FFTAnalysis*) malloc(sizeof(struct FFTAnalysis));
 	fftx_init (ui->fa, 8192, ui->samplerate, 25);
+
+	// JAPA
+	ui->_ipstep = (ui->samplerate > 64e3f) ? 0x2000 : 0x1000;
+	ui->_ipsize = 2 * ui->_ipstep;
+	ui->japa = new Analyser (ui->_ipsize, FFT_MAX, ui->samplerate);
+	ui->japa->set_fftlen (512);
+	ui->japa->set_wfact (0.95); // high, med:.9
+	ui->japa->set_speed (0.1); // was .2 [med]
+
+	for (int i = 0; i <= FFT_MAX; ++i) {
+		const double f = 0.5 * i / FFT_MAX;
+		ui->_fscale [i] = warp_freq (-.95, f);
+	}
+
+#if 0 // not used, yet
+	for (int i = 1; i < FFT_MAX; ++i) {
+		ui->_bwcorr [i] = 30.0f * (ui->_fscale [i + 1] - ui->_fscale [i - 1]) / ui->_fscale [i];
+	}
+	ui->_bwcorr [0]       = ui->_bwcorr [1];
+	ui->_bwcorr [FFT_MAX] = ui->_bwcorr [FFT_MAX - 1];
+#endif
 }
 
 static void hsl2rgb(float c[3], const float hue, const float sat, const float lum) {
@@ -473,12 +518,13 @@ static void hsl2rgb(float c[3], const float hue, const float sat, const float lu
 	c[2] = rtk_hue2rgb(cp, cq, hue - 1.f/3.f);
 }
 
-#if 1
-static void update_spectrum (Fil4UI* ui, const size_t n_elem, float const * data) {
+
+static void update_spectrum_history (Fil4UI* ui, const size_t n_elem, float const * data) {
 	if (!ui->fft_history) {
 		return;
 	}
-	if (robtk_select_get_value(ui->sel_fft) == 0) {
+	const float mode = robtk_select_get_value(ui->sel_fft);
+	if (mode < 3) {
 		if (ui->fft_hist_line >= 0) {
 			ui->fft_hist_line = -1;
 			cairo_t *cr = cairo_create (ui->fft_history);
@@ -527,45 +573,37 @@ static void update_spectrum (Fil4UI* ui, const size_t n_elem, float const * data
 	}
 }
 
-#else
-static void update_spectrum (Fil4UI* ui, const size_t n_elem, float const * data) {
-  /* this callback runs in the "communication" thread of the LV2-host
-   * usually a g_timeout() at ~25fps
-	 *
-	 * TODO thread sync. this should never collide with exposure, but
-	 * there is no guarantee that all hosts will call port-event in the UI thread.
-   */
-	if (robtk_select_get_value(ui->sel_fft) == 0) {
-		// XXX clear
+static void update_spectrum_japa (Fil4UI* ui, const size_t n_elem, float const * data) {
+	float *d = ui->japa->ipdata();
+	const int step =  ui->_ipstep;
+	int remain = n_elem;
+
+	const float mode = robtk_select_get_value(ui->sel_fft);
+	if (mode < 1 || mode > 2) {
+		// TODO clear 1st time
 		return;
 	}
-  if (!fftx_run(ui->fa, n_elem, data)) {
-    uint32_t b = fftx_bins(ui->fa);
-		for (uint32_t i = 1; i < b-1; ++i) {
-			// XXX integer rounding here is bad :(
-			// also use proportional 1/bw power scaling.
-			const float freq = fftx_freq_at_bin(ui->fa, i);
-			const int f0     = floorf (x_at_freq (MAX (5, freq - 6. * ui->fa->freq_per_bin), ui->m0_xw));
-			const int f1     = ceilf  (x_at_freq (        freq + 6. * ui->fa->freq_per_bin,  ui->m0_xw));
 
-			if (f0 >= f1) {
-				if (f0 > 0 && f0 < ui->m0_xw) {
-					ui->ffy[f0] = ui->fa->power[i];
-				}
-				continue;
-			}
+	while (remain > 0) {
+		int sc = MIN(step, MIN (ui->_ipsize - ui->_bufpos, remain));
+		memcpy(d + ui->_bufpos, data, sc * sizeof(float));
 
-			for (int j = f0; j < f1; ++j) {
-				if (j < 0) continue;
-				if (j >= ui->m0_xw) continue;
-				const float dist = expf (-SQUARE ( .707 * (freq_at_x(j, ui->m0_xw) - freq) / ui->fa->freq_per_bin) );
-				ui->ffy[j] += (.07 + freq / ui->samplerate) * (ui->fa->power[i] * dist - ui->ffy[j]);
-			}
+		ui->_stepcnt += sc;
+		ui->_bufpos  = (ui->_bufpos + sc) % ui->_ipsize;
+		remain -= sc;
+
+		if (ui->_stepcnt >= step) {
+			ui->japa->process (step, false);
+			ui->_stepcnt -= step;
+			ui->_fpscnt += step;
 		}
+	}
+
+	if (ui->_fpscnt > ui->samplerate / 25) {
+		ui->_fpscnt -= (ui->samplerate / 25);
 		queue_draw(ui->m0);
 	}
 }
-#endif
 
 ///////////////////////////////////////////////////////////////////////////////
 
@@ -1107,21 +1145,8 @@ static bool m0_expose_event (RobWidget* handle, cairo_t* cr, cairo_rectangle_t *
 		shade = 0.5;
 	}
 
-#if 0
-	/* draw spectrum */
-	if (robtk_select_get_value(ui->sel_fft) > 0) {
-		cairo_set_operator (cr, CAIRO_OPERATOR_OVER);
-		cairo_set_line_width(cr, 1.0);
-		cairo_set_source_rgba (cr, .5, .6, .7, .7);
-		cairo_move_to (cr, x0, ym - yr * (x_power_to_dB(ui->ffy[0]) + 30));
-		for (int i = 1; i < xw; ++i) {
-			float yy = ym - yr * (x_power_to_dB(ui->ffy[i]) + 30.); // XXX align properly or add 2nd scale
-			cairo_line_to (cr, x0 + i, yy);
-		}
-		cairo_stroke (cr);
-	}
-#else
-	if (robtk_select_get_value(ui->sel_fft) > 0 &&  ui->fft_hist_line >= 0) {
+	const int fft_mode = robtk_select_get_value(ui->sel_fft);
+	if (fft_mode >= 3 &&  ui->fft_hist_line >= 0) {
 		cairo_set_operator (cr, CAIRO_OPERATOR_OVER);
 		const int y0 = ui->m0_y0;
 		const int yh = ui->m0_y1 - ui->m0_y0;
@@ -1141,7 +1166,26 @@ static bool m0_expose_event (RobWidget* handle, cairo_t* cr, cairo_rectangle_t *
 			cairo_fill (cr);
 		}
 	}
-#endif
+	else if (fft_mode > 0 && fft_mode < 3) {
+		cairo_set_operator (cr, CAIRO_OPERATOR_OVER);
+		cairo_set_line_width(cr, 1.0);
+		cairo_set_source_rgba (cr, .5, .6, .7, .75);
+		float *d = ui->japa->power ()->_data;
+		for (int i = 0; i <= FFT_MAX; ++i) {
+			float xx = x_at_freq(ui->_fscale[i] * ui->samplerate, xw) - .5; // TODO cache
+			float v  = (*d++ + 1e-30); // / ui->_bwcorr [i];
+			float yy = 10.f * log10f (v);
+			yy += 30; // align 0dBFS to top, TODO clamp bottom
+			if (i == 0) { //XXX
+				cairo_move_to (cr, x0 + xx, ym - yr * yy);
+			} else {
+				cairo_line_to (cr, x0 + xx, ym - yr * yy);
+			}
+		}
+		cairo_stroke (cr);
+	}
+
+	// TODO: draw to image surface, cache.
 
 	/* draw dots */
 	cairo_set_operator (cr, CAIRO_OPERATOR_ADD);
@@ -1156,7 +1200,7 @@ static bool m0_expose_event (RobWidget* handle, cairo_t* cr, cairo_rectangle_t *
 
 		const float xx = x0 + x_at_freq(fq, xw) - .5f;
 		const float yy = rintf(ym + .5 - yr * (db + g_gain)) - .5;
-		cairo_set_source_rgba (cr, c_fil[j][0], c_fil[j][1], c_fil[j][2], .4 * fshade);
+		cairo_set_source_rgba (cr, c_fil[j][0], c_fil[j][1], c_fil[j][2], .6 * fshade);
 		cairo_arc (cr, xx, yy, DOTRADIUS, 0, 2 * M_PI);
 		cairo_fill_preserve (cr);
 		cairo_set_source_rgba (cr, c_fil[j][0], c_fil[j][1], c_fil[j][2], .3 * fshade);
@@ -1240,10 +1284,10 @@ static bool m0_expose_event (RobWidget* handle, cairo_t* cr, cairo_rectangle_t *
 	}
 	cairo_set_operator (cr, CAIRO_OPERATOR_ADD);
 	cairo_stroke_preserve(cr);
-	cairo_set_operator (cr, CAIRO_OPERATOR_OVER);
+	cairo_set_operator (cr, CAIRO_OPERATOR_ADD);
 	cairo_line_to (cr, x0 + xw, ym - yr * g_gain);
 	cairo_line_to (cr, x0, ym - yr * g_gain);
-	cairo_set_source_rgba (cr, 0.5, 0.5, 0.5, 0.4 * shade);
+	cairo_set_source_rgba (cr, 0.5, 0.5, 0.5, 0.33 * shade);
 	cairo_fill (cr);
 
 	return TRUE;
@@ -1292,9 +1336,11 @@ static RobWidget * toplevel(Fil4UI* ui, void * const top) {
 	robtk_dial_set_detent_default (ui->spn_g_gain, true);
 
 	ui->sel_fft = robtk_select_new();
-	robtk_select_add_item (ui->sel_fft, 0, "FFT Off");
-	robtk_select_add_item (ui->sel_fft, 1, "FFT In");
-	robtk_select_add_item (ui->sel_fft, 2, "FFT Out");
+	robtk_select_add_item (ui->sel_fft, 0, "Off");
+	robtk_select_add_item (ui->sel_fft, 1, "Pre");
+	robtk_select_add_item (ui->sel_fft, 2, "Post");
+	robtk_select_add_item (ui->sel_fft, 3, "Pre");
+	robtk_select_add_item (ui->sel_fft, 4, "Post");
 	robtk_select_set_default_item (ui->sel_fft, 0);
 	robtk_select_set_value (ui->sel_fft, 0);
 	robtk_select_set_callback(ui->sel_fft, cb_set_fft, ui);
@@ -1402,9 +1448,15 @@ static void gui_cleanup(Fil4UI* ui) {
 	cairo_surface_destroy (ui->dial_bg[3]);
 	cairo_surface_destroy (ui->hpf_btn[0]);
 	cairo_surface_destroy (ui->hpf_btn[1]);
+
 	if (ui->fft_history) {
 		cairo_surface_destroy (ui->fft_history);
 	}
+	fftx_free(ui->fa);
+	free(ui->ffy);
+
+	delete ui->japa;
+
 	if (ui->m0_grid) {
 		cairo_surface_destroy (ui->m0_grid);
 	}
@@ -1413,8 +1465,6 @@ static void gui_cleanup(Fil4UI* ui) {
 	rob_table_destroy (ui->ctbl);
 	rob_box_destroy(ui->rw);
 
-	fftx_free(ui->fa);
-	free(ui->ffy);
 }
 
 /******************************************************************************
@@ -1527,7 +1577,8 @@ port_event(LV2UI_Handle handle,
 					ui->samplerate = sr;
 					reinitialize_fft (ui);
 				}
-				update_spectrum(ui, n_elem, data);
+				update_spectrum_history (ui, n_elem, data);
+				update_spectrum_japa (ui, n_elem, data);
 			}
 		}
 	}
