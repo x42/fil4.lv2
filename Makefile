@@ -129,11 +129,16 @@ endif
 
 ifneq ($(MAKECMDGOALS), submodules)
   ifeq ($(wildcard $(RW)robtk.mk),)
+    $(warning "**********************************************************")
     $(warning This plugin needs https://github.com/x42/robtk)
+    $(warning "**********************************************************")
+    $(info )
     $(info set the RW environment variale to the location of the robtk headers)
     ifeq ($(wildcard .git),.git)
       $(info or run 'make submodules' to initialize robtk as git submodule)
     endif
+    $(info )
+    $(warning "**********************************************************")
     $(error robtk not found)
   endif
 endif
