@@ -4,12 +4,12 @@
 extern const LV2_Descriptor* lv2_descriptor(uint32_t index);
 extern const LV2UI_Descriptor* lv2ui_descriptor(uint32_t index);
 
-static const RtkLv2Description _plugin = {
+static const RtkLv2Description _plugin_mono = {
 	&lv2_descriptor,
 	&lv2ui_descriptor
 	, 0 // uint32_t dsp_descriptor_id
 	, 0 // uint32_t gui_descriptor_id
-	, "4 Band Parametric EQ" // const char *plugin_human_id
+	, "4 Band Parametric EQ Mono" // const char *plugin_human_id
 	, (const struct LV2Port[34])
 	{
 		{ "control", ATOM_IN, nan},

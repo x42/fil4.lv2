@@ -1,0 +1,26 @@
+		a lv2:AudioPort ,
+			lv2:InputPort ;
+		lv2:index 32 ;
+		lv2:symbol "inL" ;
+		lv2:name "In Left"
+	] , [
+		a lv2:AudioPort ,
+			lv2:OutputPort ;
+		lv2:index 33 ;
+		lv2:symbol "outL" ;
+		lv2:name "Out Left"
+	] , [
+		a lv2:AudioPort ,
+			lv2:InputPort ;
+		lv2:index 34 ;
+		lv2:symbol "inR" ;
+		lv2:name "In Right"
+	] , [
+		a lv2:AudioPort ,
+			lv2:OutputPort ;
+		lv2:index 35 ;
+		lv2:symbol "outR" ;
+		lv2:name "Out Right"
+	] ;
+	rdfs:comment "Stereo 4 Band Parametric Filter with High + Low Shelf, DC-offset/High Pass and Low Pass filter."
+	.

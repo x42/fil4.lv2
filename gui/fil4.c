@@ -122,6 +122,7 @@ typedef struct {
 	// fft
 	float samplerate;
 	RobTkSelect* sel_fft;
+	RobTkSelect* sel_chn;
 
 	// scrolling history
 	struct FFTAnalysis *fa;
@@ -159,6 +160,9 @@ typedef struct {
 
 	bool scale_cached;
 	float xscale[FFT_MAX + 1];
+
+	int n_channels;
+	float mixdown[8192];
 
 	const char *nfo;
 } Fil4UI;
@@ -756,6 +760,45 @@ static inline float y_power_flat (Fil4UI* ui, float v, const float gain) {
 
 static inline float y_power_prop (Fil4UI* ui, float v, const float gain, const float corr) {
 	return gain + 10.f * log10f (corr * (v + 1e-30));
+}
+
+static void handle_audio_data (Fil4UI* ui, const int chn, const size_t n_elem, const float *data) {
+	if (ui->n_channels == 1) {
+		update_spectrum_history (ui, n_elem, data);
+		update_spectrum_japa (ui, n_elem, data);
+		return;
+	}
+
+	const int chnsel = rint(robtk_select_get_value(ui->sel_chn));
+
+	if (chnsel >= 0 && chn != chnsel) {
+		return;
+	}
+	else if (chnsel >= 0) {
+		update_spectrum_history (ui, n_elem, data);
+		update_spectrum_japa (ui, n_elem, data);
+		return;
+	}
+
+	/* mixdown */
+	if (chn == 0) {
+		memcpy(ui->mixdown, data, n_elem * sizeof(float));
+	} else {
+		for (size_t s = 0; s < n_elem; ++s) {
+			ui->mixdown[s] += data[s];
+		}
+	}
+
+	if (chn + 1 == ui->n_channels) {
+
+		const float amp = 1.0 / (float) ui->n_channels;
+		for (size_t s = 0; s < n_elem; ++s) {
+			ui->mixdown[s] *= amp;
+		}
+
+		update_spectrum_history (ui, n_elem, ui->mixdown);
+		update_spectrum_japa (ui, n_elem, ui->mixdown);
+	}
 }
 
 ///////////////////////////////////////////////////////////////////////////////
@@ -1688,12 +1731,27 @@ static RobWidget * toplevel(Fil4UI* ui, void * const top) {
 	robtk_select_set_value (ui->sel_fft, 0);
 	robtk_select_set_callback(ui->sel_fft, cb_set_fft, ui);
 
+	ui->sel_chn = robtk_select_new();
+	robtk_select_add_item (ui->sel_chn, -1, "All");
+	robtk_select_set_default_item (ui->sel_chn, 0);
+	robtk_select_set_value (ui->sel_chn, -1);
+
+	if (ui->n_channels == 2) {
+		robtk_select_add_item (ui->sel_chn, 0, "L");
+		robtk_select_add_item (ui->sel_chn, 1, "R");
+	}
+
 	ui->sep_h0 = robtk_sep_new(TRUE);
 
 	rob_table_attach (ui->ctbl, GBT_W(ui->btn_g_enable), col, col+2, 0, 1, 5, 0, RTK_EXANDF, RTK_SHRINK);
 	rob_table_attach (ui->ctbl, GSP_W(ui->spn_g_gain),   col, col+2, 1, 2, 5, 0, RTK_EXANDF, RTK_SHRINK);
 	rob_table_attach_defaults (ui->ctbl, robtk_sep_widget(ui->sep_h0), col, col+2, 2, 3);
-	rob_table_attach (ui->ctbl, robtk_select_widget(ui->sel_fft), col,   col+1, 3, 5, 5, 0, RTK_EXANDF, RTK_SHRINK);
+	if (ui->n_channels > 1) {
+		rob_table_attach (ui->ctbl, robtk_select_widget(ui->sel_chn), col,   col+1, 3, 4, 5, 0, RTK_EXANDF, RTK_SHRINK);
+		rob_table_attach (ui->ctbl, robtk_select_widget(ui->sel_fft), col,   col+1, 4, 5, 5, 0, RTK_EXANDF, RTK_SHRINK);
+	} else {
+		rob_table_attach (ui->ctbl, robtk_select_widget(ui->sel_fft), col,   col+1, 3, 5, 5, 0, RTK_EXANDF, RTK_SHRINK);
+	}
 	rob_table_attach (ui->ctbl, GLB_W(ui->lbl_fftgain),           col+1, col+2, 3, 4, 5, 0, RTK_EXANDF, RTK_SHRINK);
 	rob_table_attach (ui->ctbl, GSP_W(ui->spn_fftgain),           col+1, col+2, 4, 5, 5, 0, RTK_EXANDF, RTK_SHRINK);
 
@@ -1835,6 +1893,7 @@ static void gui_cleanup(Fil4UI* ui) {
 	robtk_ibtn_destroy (ui->btn_g_lopass);
 	robtk_dial_destroy (ui->spn_g_lofreq);
 	robtk_select_destroy(ui->sel_fft);
+	robtk_select_destroy(ui->sel_chn);
 
 	robtk_sep_destroy (ui->sep_v0);
 	robtk_lbl_destroy (ui->lbl_fftgain);
@@ -1908,9 +1967,16 @@ instantiate(
 		RobWidget**               widget,
 		const LV2_Feature* const* features)
 {
-	if (strcmp(plugin_uri, MTR_URI "mono")) { return NULL; }
-
 	Fil4UI* ui = (Fil4UI*) calloc(1, sizeof(Fil4UI));
+
+	if (!strcmp(plugin_uri, MTR_URI "mono")) {
+		ui->n_channels = 1;
+	} else if (!strcmp(plugin_uri, MTR_URI "stereo")) {
+		ui->n_channels = 2;
+	} else {
+		free (ui);
+		return NULL;
+	}
 
 	for (int i = 0; features[i]; ++i) {
 		if (!strcmp(features[i]->URI, LV2_URID_URI "#map")) {
@@ -1979,32 +2045,34 @@ port_event(LV2UI_Handle handle,
 			LV2_Atom_Object* obj = (LV2_Atom_Object*)atom;
 			LV2_Atom *a0 = NULL;
 			LV2_Atom *a1 = NULL;
+			LV2_Atom *a2 = NULL;
 			if (
 					/* handle raw-audio data objects */
 					obj->body.otype == ui->uris.rawaudio
 					/* retrieve properties from object and
 					 * check that there the [here] two required properties are set.. */
-					&& 2 == lv2_atom_object_get(obj, ui->uris.samplerate, &a0, ui->uris.audiodata, &a1, NULL)
+					&& 3 == lv2_atom_object_get(obj, ui->uris.samplerate, &a0, ui->uris.channelid, &a1, ui->uris.audiodata, &a2, NULL)
 					/* ..and non-null.. */
-					&& a0
-					&& a1
+					&& a0 && a1 && a2
 					/* ..and match the expected type */
 					&& a0->type == ui->uris.atom_Float
-					&& a1->type == ui->uris.atom_Vector
+					&& a1->type == ui->uris.atom_Int
+					&& a2->type == ui->uris.atom_Vector
 				 )
 			{
 				const float sr = ((LV2_Atom_Float*)a0)->body;
-				LV2_Atom_Vector* vof = (LV2_Atom_Vector*)LV2_ATOM_BODY(a1);
+				const int chn = ((LV2_Atom_Int*)a1)->body;
+				LV2_Atom_Vector* vof = (LV2_Atom_Vector*)LV2_ATOM_BODY(a2);
 				assert (vof->atom.type == ui->uris.atom_Float);
 
-				const size_t n_elem = (a1->size - sizeof(LV2_Atom_Vector_Body)) / vof->atom.size;
+				const size_t n_elem = (a2->size - sizeof(LV2_Atom_Vector_Body)) / vof->atom.size;
 				const float *data = (float*) LV2_ATOM_BODY(&vof->atom);
+
 				if (ui->samplerate != sr) {
 					ui->samplerate = sr;
 					reinitialize_fft (ui);
 				}
-				update_spectrum_history (ui, n_elem, data);
-				update_spectrum_japa (ui, n_elem, data);
+				handle_audio_data (ui, chn, n_elem, data);
 			}
 		}
 	}

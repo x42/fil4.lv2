@@ -28,7 +28,6 @@
 #include "lv2/lv2plug.in/ns/lv2core/lv2.h"
 #include "uris.h"
 
-
 static bool printed_capacity_warning = false;
 
 typedef struct {
@@ -48,6 +47,7 @@ typedef struct {
 	float         rate;
 
 	FilterChannel fc[2];
+	uint32_t n_channels;
 
 	/* atom-forge & fft related */
 	const LV2_Atom_Sequence *control;
@@ -78,7 +78,6 @@ static void init_filter_channel (FilterChannel *fc, double rate) {
 
 	hip_setup (&fc->hip, rate, 100);
 	lop_setup (&fc->lop, rate, 10000);
-
 }
 
 static LV2_Handle
@@ -88,6 +87,15 @@ instantiate(const LV2_Descriptor*     descriptor,
             const LV2_Feature* const* features)
 {
 	Fil4* self = (Fil4*)calloc(1, sizeof(Fil4));
+
+	if (!strcmp (descriptor->URI, FIL4_URI "mono")) {
+		self->n_channels = 1;
+	} else if (!strcmp (descriptor->URI, FIL4_URI "stereo")) {
+		self->n_channels = 2;
+	} else {
+		free (self);
+		return NULL;
+	}
 
 	for (int i=0; features[i]; ++i) {
 		if (!strcmp(features[i]->URI, LV2_URID__map)) {
@@ -105,7 +113,9 @@ instantiate(const LV2_Descriptor*     descriptor,
 	lv2_atom_forge_init (&self->forge, self->map);
 	map_fil4_uris (self->map, &self->uris);
 
-	init_filter_channel (&self->fc[0], rate);
+	for (uint32_t c = 0; c < self->n_channels; ++c) {
+		init_filter_channel (&self->fc[c], rate);
+	}
 
 	return (LV2_Handle)self;
 }
@@ -120,7 +130,7 @@ connect_port(LV2_Handle instance,
 		self->control = (const LV2_Atom_Sequence*) data;
 	} else if (port == FIL_ATOM_NOTIFY) {
 		self->notify = (LV2_Atom_Sequence*) data;
-	} else if (port <= FIL_OUTPUT0) {
+	} else if (port <= FIL_OUTPUT1) {
 		self->_port[port] = (float*) data;
 	}
 }
@@ -135,7 +145,8 @@ static float exp2ap (float x) {
 
 /** forge atom-vector of raw data */
 static void tx_rawaudio (LV2_Atom_Forge *forge, Fil4LV2URIs *uris,
-                        const float sr, const size_t n_samples, void *data)
+                         const float sr, const uint32_t chn,
+                         const size_t n_samples, void *data)
 {
 	LV2_Atom_Forge_Frame frame;
 	/* forge container object of type 'rawaudio' */
@@ -145,6 +156,10 @@ static void tx_rawaudio (LV2_Atom_Forge *forge, Fil4LV2URIs *uris,
 	/* add float attribute 'samplerate' */
 	lv2_atom_forge_property_head(forge, uris->samplerate, 0);
 	lv2_atom_forge_float(forge, sr);
+
+	/* add integer attribute 'channelid' */
+	lv2_atom_forge_property_head(forge, uris->channelid, 0);
+	lv2_atom_forge_int(forge, chn);
 
 	/* add vector of floats raw 'audiodata' */
 	lv2_atom_forge_property_head(forge, uris->audiodata, 0);
@@ -169,8 +184,8 @@ static void process_channel(Fil4* self, FilterChannel *fc, uint32_t p_samples, u
 	const float hifreq  = *self->_port[FIL_HIFREQ];
 	const float lofreq  = *self->_port[FIL_LOFREQ];
 
-	float *aip = self->_port [FIL_INPUT0 + (chn >> 1)];
-	float *aop = self->_port [FIL_OUTPUT0 + (chn >> 1)];
+	float *aip = self->_port [FIL_INPUT0 + (chn<<1)];
+	float *aop = self->_port [FIL_OUTPUT0 + (chn<<1)];
 
 	float sfreq [NSECT];
 	float sband [NSECT];
@@ -300,7 +315,7 @@ run(LV2_Handle instance, uint32_t n_samples)
 	const int fft_mode = self->fft_mode;
 
 	/* check atom buffer size */
-	const size_t size = (sizeof(float) * n_samples + 64);
+	const size_t size = (sizeof(float) * self->n_channels * n_samples + 64);
 	const uint32_t capacity = self->notify->atom.size;
 	bool capacity_ok = true;
 	if (capacity < size + 128) {
@@ -323,15 +338,21 @@ run(LV2_Handle instance, uint32_t n_samples)
 
 	// send raw input
 	if ((fft_mode & 1) == 1 && capacity_ok) {
-		tx_rawaudio (&self->forge, &self->uris, self->rate, n_samples, self->_port [FIL_INPUT0]);
+		for (uint32_t c = 0; c < self->n_channels; ++c) {
+			tx_rawaudio (&self->forge, &self->uris, self->rate, c, n_samples, self->_port [FIL_INPUT0 + (c<<1)]);
+		}
 	}
 
 	// audio processing
-	process_channel (self, &self->fc[0], n_samples, 0);
+	for (uint32_t c = 0; c < self->n_channels; ++c) {
+		process_channel (self, &self->fc[c], n_samples, c);
+	}
 
 	// send processed output
 	if (fft_mode > 0 && (fft_mode & 1) == 0 && capacity_ok) {
-		tx_rawaudio (&self->forge, &self->uris, self->rate, n_samples, self->_port [FIL_OUTPUT0]);
+		for (uint32_t c = 0; c < self->n_channels; ++c) {
+			tx_rawaudio (&self->forge, &self->uris, self->rate, c, n_samples, self->_port [FIL_OUTPUT0 + (c<<1)]);
+		}
 	}
 	
 	/* close off atom-sequence */
@@ -350,8 +371,19 @@ extension_data(const char* uri)
 	return NULL;
 }
 
-static const LV2_Descriptor descriptor = {
+static const LV2_Descriptor descriptor_mono = {
 	FIL4_URI "mono",
+	instantiate,
+	connect_port,
+	NULL,
+	run,
+	NULL,
+	cleanup,
+	extension_data
+};
+
+static const LV2_Descriptor descriptor_stereo = {
+	FIL4_URI "stereo",
 	instantiate,
 	connect_port,
 	NULL,
@@ -373,7 +405,9 @@ lv2_descriptor(uint32_t index)
 {
 	switch (index) {
 	case 0:
-		return &descriptor;
+		return &descriptor_mono;
+	case 1:
+		return &descriptor_stereo;
 	default:
 		return NULL;
 	}

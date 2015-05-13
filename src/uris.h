@@ -36,6 +36,7 @@ typedef struct {
 	LV2_URID atom_Object;
 	LV2_URID atom_Vector;
 	LV2_URID atom_Float;
+	LV2_URID atom_Int;
 	LV2_URID atom_eventTransfer;
 	LV2_URID rawaudio;
 	LV2_URID channelid;
@@ -51,10 +52,12 @@ map_fil4_uris(LV2_URID_Map* map, Fil4LV2URIs* uris) {
 	uris->atom_Object        = map->map(map->handle, LV2_ATOM__Object);
 	uris->atom_Vector        = map->map(map->handle, LV2_ATOM__Vector);
 	uris->atom_Float         = map->map(map->handle, LV2_ATOM__Float);
+	uris->atom_Int           = map->map(map->handle, LV2_ATOM__Int);
 	uris->atom_eventTransfer = map->map(map->handle, LV2_ATOM__eventTransfer);
 	uris->rawaudio           = map->map(map->handle, FIL4_URI "rawaudio");
 	uris->audiodata          = map->map(map->handle, FIL4_URI "audiodata");
 	uris->samplerate         = map->map(map->handle, FIL4_URI "samplerate");
+	uris->channelid          = map->map(map->handle, FIL4_URI "channelid");
 	uris->fftmode            = map->map(map->handle, FIL4_URI "fftmode");
 	uris->ui_off             = map->map(map->handle, FIL4_URI "ui_off");
 }
@@ -78,6 +81,7 @@ typedef enum {
 	IIR_HS_EN, IIR_HS_FREQ, IIR_HS_Q, IIR_HS_GAIN,
 
 	FIL_INPUT0, FIL_OUTPUT0,
+	FIL_INPUT1, FIL_OUTPUT1,
 	FIL_LAST
 } PortIndex;
 

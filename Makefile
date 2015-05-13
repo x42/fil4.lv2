@@ -187,13 +187,21 @@ $(BUILDDIR)manifest.ttl: lv2ttl/manifest.ttl.in Makefile
 	sed "s/@LV2NAME@/$(LV2NAME)/g;s/@LIB_EXT@/$(LIB_EXT)/;s/@UI_TYPE@/$(UI_TYPE)/;s/@LV2GUI@/$(LV2GUI)/g" \
 		lv2ttl/manifest.ttl.in > $(BUILDDIR)manifest.ttl
 
-$(BUILDDIR)$(LV2NAME).ttl: lv2ttl/$(LV2NAME).ttl.in Makefile
+$(BUILDDIR)$(LV2NAME).ttl: Makefile lv2ttl/$(LV2NAME).ttl.in \
+	lv2ttl/$(LV2NAME).ports.ttl.in lv2ttl/$(LV2NAME).mono.ttl.in lv2ttl/$(LV2NAME).stereo.ttl.in
 	@mkdir -p $(BUILDDIR)
 	sed "s/@LV2NAME@/$(LV2NAME)/g;s/@UI_TYPE@/$(UI_TYPE)/;s/@UI_REQ@/$(LV2UIREQ)/" \
 	    lv2ttl/$(LV2NAME).ttl.in > $(BUILDDIR)$(LV2NAME).ttl
+	sed "s/@LV2NAME@/$(LV2NAME)/g;s/@URISUFFIX@/mono/;s/@NAMESUFFIX@/ Mono/;s/@CTLSIZE@/33120/" \
+	    lv2ttl/$(LV2NAME).ports.ttl.in >> $(BUILDDIR)$(LV2NAME).ttl
+	cat lv2ttl/$(LV2NAME).mono.ttl.in >> $(BUILDDIR)$(LV2NAME).ttl
+	sed "s/@LV2NAME@/$(LV2NAME)/g;s/@URISUFFIX@/stereo/;s/@NAMESUFFIX@/ Stereo/;s/@CTLSIZE@/65888/" \
+	    lv2ttl/$(LV2NAME).ports.ttl.in >> $(BUILDDIR)$(LV2NAME).ttl
+	cat lv2ttl/$(LV2NAME).stereo.ttl.in >> $(BUILDDIR)$(LV2NAME).ttl
 
 DSP_SRC = src/lv2.c
 DSP_DEPS = $(DSP_SRC) src/filters.h src/iir.h src/hip.h src/uris.h src/lop.h
+GUI_DEPS = gui/analyser.cc gui/analyser.h gui/fft.c gui/fil4.c
 
 $(BUILDDIR)$(LV2NAME)$(LIB_EXT): $(DSP_DEPS) Makefile
 	@mkdir -p $(BUILDDIR)
@@ -204,11 +212,11 @@ $(BUILDDIR)$(LV2NAME)$(LIB_EXT): $(DSP_DEPS) Makefile
 
 jackapps: $(APPBLD)x42-fil4
 
-$(eval x42_fil4_JACKSRC = src/lv2.c)
+$(eval x42_fil4_JACKSRC = -DX42_MULTIPLUGIN src/lv2.c)
 x42_fil4_JACKGUI = gui/fil4.c
-x42_fil4_LV2HTTL = lv2ttl/fil4.h
+x42_fil4_LV2HTTL = lv2ttl/plugins.h
 x42_fil4_JACKDESC = lv2ui_descriptor
-$(APPBLD)x42-fil4$(EXE_EXT): src/lv2.c src/filters.h gui/fil4.c \
+$(APPBLD)x42-fil4$(EXE_EXT): $(DSP_DEPS) $(GUI_DEPS) \
 	        $(x42_fil4_JACKGUI) $(x42_fil4_LV2HTTL)
 
 
