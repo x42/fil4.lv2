@@ -28,33 +28,11 @@
 #include "lv2/lv2plug.in/ns/lv2core/lv2.h"
 #include "uris.h"
 
-#define NSECT (4)
 
 static bool printed_capacity_warning = false;
 
-typedef enum {
-	FIL_INPUT = 0,
-	FIL_OUTPUT,
-
-	FIL_ENABLE,
-	FIL_GAIN,
-	FIL_HIPASS, FIL_HIFREQ,
-	FIL_LOPASS, FIL_LOFREQ,
-
-	IIR_LS_EN, IIR_LS_FREQ, IIR_LS_Q, IIR_LS_GAIN,
-
-	FIL_SEC1, FIL_FREQ1, FIL_Q1, FIL_GAIN1,
-	FIL_SEC2, FIL_FREQ2, FIL_Q2, FIL_GAIN2,
-	FIL_SEC3, FIL_FREQ3, FIL_Q3, FIL_GAIN3,
-	FIL_SEC4, FIL_FREQ4, FIL_Q4, FIL_GAIN4,
-
-	IIR_HS_EN, IIR_HS_FREQ, IIR_HS_Q, IIR_HS_GAIN,
-
-	FIL_ATOM_CONTROL, FIL_ATOM_NOTIFY
-} PortIndex;
-
 typedef struct {
-	float        *_port [FIL_ATOM_CONTROL];
+	float        *_port [FIL_LAST];
 	float         _gain;
 	int           _fade;
 	Fil4Paramsect _sect [NSECT];
@@ -128,13 +106,14 @@ connect_port(LV2_Handle instance,
              void*      data)
 {
 	Fil4* self = (Fil4*)instance;
-	if (port < FIL_ATOM_CONTROL) {
-		self->_port[port] = (float*) data;
-	} else if (port == FIL_ATOM_CONTROL) {
+	if (port == FIL_ATOM_CONTROL) {
 		self->control = (const LV2_Atom_Sequence*) data;
 	} else if (port == FIL_ATOM_NOTIFY) {
 		self->notify = (LV2_Atom_Sequence*) data;
+	} else if (port <= FIL_OUTPUT0) {
+		self->_port[port] = (float*) data;
 	}
+	
 }
 
 static float exp2ap (float x) {
@@ -184,8 +163,8 @@ run(LV2_Handle instance, uint32_t n_samples)
 	const float hifreq  = *self->_port[FIL_HIFREQ];
 	const float lofreq  = *self->_port[FIL_LOFREQ];
 
-	float *aip = self->_port [FIL_INPUT];
-	float *aop = self->_port [FIL_OUTPUT];
+	float *aip = self->_port [FIL_INPUT0];
+	float *aop = self->_port [FIL_OUTPUT0];
 
 	float sfreq [NSECT];
 	float sband [NSECT];
@@ -339,7 +318,7 @@ run(LV2_Handle instance, uint32_t n_samples)
 
 	// send processed output
 	if (fft_mode > 0 && (fft_mode & 1) == 0 && capacity_ok) {
-		tx_rawaudio (&self->forge, &self->uris, self->_fsam, n_samples, self->_port [FIL_OUTPUT]);
+		tx_rawaudio (&self->forge, &self->uris, self->_fsam, n_samples, self->_port [FIL_OUTPUT0]);
 	}
 	
 	/* close off atom-sequence */

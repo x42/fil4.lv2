@@ -59,4 +59,28 @@ map_fil4_uris(LV2_URID_Map* map, Fil4LV2URIs* uris) {
 	uris->ui_off             = map->map(map->handle, FIL4_URI "ui_off");
 }
 
+// common data
+
+typedef enum {
+	FIL_ATOM_CONTROL = 0, FIL_ATOM_NOTIFY,
+	FIL_ENABLE,
+	FIL_GAIN,
+	FIL_HIPASS, FIL_HIFREQ,
+	FIL_LOPASS, FIL_LOFREQ,
+
+	IIR_LS_EN, IIR_LS_FREQ, IIR_LS_Q, IIR_LS_GAIN,
+
+	FIL_SEC1, FIL_FREQ1, FIL_Q1, FIL_GAIN1,
+	FIL_SEC2, FIL_FREQ2, FIL_Q2, FIL_GAIN2,
+	FIL_SEC3, FIL_FREQ3, FIL_Q3, FIL_GAIN3,
+	FIL_SEC4, FIL_FREQ4, FIL_Q4, FIL_GAIN4,
+
+	IIR_HS_EN, IIR_HS_FREQ, IIR_HS_Q, IIR_HS_GAIN,
+
+	FIL_INPUT0, FIL_OUTPUT0,
+	FIL_LAST
+} PortIndex;
+
+#define NSECT (4)
+
 #endif

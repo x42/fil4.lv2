@@ -12,8 +12,8 @@ static const RtkLv2Description _plugin = {
 	, "4 Band Parametric EQ" // const char *plugin_human_id
 	, (const struct LV2Port[34])
 	{
-		{ "in", AUDIO_IN, nan},
-		{ "out", AUDIO_OUT, nan},
+		{ "control", ATOM_IN, nan},
+		{ "notify", ATOM_OUT, nan},
 		{ "filter", CONTROL_IN, 0.000000},
 		{ "gain", CONTROL_IN, 0.000000},
 		{ "HighPass", CONTROL_IN, 0.000000},
@@ -44,8 +44,8 @@ static const RtkLv2Description _plugin = {
 		{ "HSfreq", CONTROL_IN, 8000.000000},
 		{ "HSq", CONTROL_IN, 1.000000},
 		{ "HSgain", CONTROL_IN, 0.000000},
-		{ "control", ATOM_IN, nan},
-		{ "notify", ATOM_OUT, nan},
+		{ "in", AUDIO_IN, nan},
+		{ "out", AUDIO_OUT, nan},
 	}
 	, 34 // uint32_t nports_total
 	, 1 // uint32_t nports_audio_in
