@@ -32,17 +32,22 @@
 static bool printed_capacity_warning = false;
 
 typedef struct {
-	float        *_port [FIL_LAST];
-	float         _gain;
-	int           _fade;
 	Fil4Paramsect _sect [NSECT];
-	float         _fsam;
-
 	HighPass      hip;
 	LowPass       lop;
 
 	IIRProc       iir_lowshelf;
 	IIRProc       iir_highshelf;
+
+	int           _fade;
+	float         _gain;
+} FilterChannel;
+
+typedef struct {
+	float        *_port [FIL_LAST];
+	float         rate;
+
+	FilterChannel fc[2];
 
 	/* atom-forge & fft related */
 	const LV2_Atom_Sequence *control;
@@ -54,6 +59,27 @@ typedef struct {
 	int                      fft_mode;
 
 } Fil4;
+
+static void init_filter_channel (FilterChannel *fc, double rate) {
+	fc->_fade = 0;
+	fc->_gain = 1.f;
+	for (int j = 0; j < NSECT; ++j) {
+		fc->_sect [j].init ();
+	}
+
+	iir_init (&fc->iir_lowshelf, rate);
+	iir_init (&fc->iir_highshelf, rate);
+
+	fc->iir_lowshelf.freq = 50;
+	fc->iir_highshelf.freq = 8000;
+
+	iir_calc_lowshelf (&fc->iir_lowshelf);
+	iir_calc_highshelf (&fc->iir_highshelf);
+
+	hip_setup (&fc->hip, rate, 100);
+	lop_setup (&fc->lop, rate, 10000);
+
+}
 
 static LV2_Handle
 instantiate(const LV2_Descriptor*     descriptor,
@@ -75,27 +101,11 @@ instantiate(const LV2_Descriptor*     descriptor,
 		return NULL;
 	}
 
-	self->_fsam = rate;
-	self->_fade = 0;
-	self->_gain = 1.f;
-	for (int j = 0; j < NSECT; ++j) {
-		self->_sect [j].init ();
-	}
-
-	iir_init (&self->iir_lowshelf, rate);
-	iir_init (&self->iir_highshelf, rate);
-
-	self->iir_lowshelf.freq = 50;
-	self->iir_highshelf.freq = 8000;
-
-	iir_calc_lowshelf (&self->iir_lowshelf);
-	iir_calc_highshelf (&self->iir_highshelf);
-
-	hip_setup (&self->hip, rate, 100);
-	lop_setup (&self->lop, rate, 10000);
-
+	self->rate = rate;
 	lv2_atom_forge_init (&self->forge, self->map);
 	map_fil4_uris (self->map, &self->uris);
+
+	init_filter_channel (&self->fc[0], rate);
 
 	return (LV2_Handle)self;
 }
@@ -113,7 +123,6 @@ connect_port(LV2_Handle instance,
 	} else if (port <= FIL_OUTPUT0) {
 		self->_port[port] = (float*) data;
 	}
-	
 }
 
 static float exp2ap (float x) {
@@ -145,10 +154,7 @@ static void tx_rawaudio (LV2_Atom_Forge *forge, Fil4LV2URIs *uris,
 	lv2_atom_forge_pop(forge, &frame);
 }
 
-static void
-run(LV2_Handle instance, uint32_t n_samples)
-{
-	Fil4* self = (Fil4*)instance;
+static void process_channel(Fil4* self, FilterChannel *fc, uint32_t p_samples, uint32_t chn) {
 
 	/* localize variables */
 	const float ls_gain = *self->_port[IIR_LS_EN] > 0 ? powf (10.f, .05f * self->_port[IIR_LS_GAIN][0]) : 1.f;
@@ -163,14 +169,113 @@ run(LV2_Handle instance, uint32_t n_samples)
 	const float hifreq  = *self->_port[FIL_HIFREQ];
 	const float lofreq  = *self->_port[FIL_LOFREQ];
 
-	float *aip = self->_port [FIL_INPUT0];
-	float *aop = self->_port [FIL_OUTPUT0];
+	float *aip = self->_port [FIL_INPUT0 + (chn >> 1)];
+	float *aop = self->_port [FIL_OUTPUT0 + (chn >> 1)];
 
 	float sfreq [NSECT];
 	float sband [NSECT];
 	float sgain [NSECT];
 
 
+
+	/* calculate target values, parameter smoothing */
+	const float fgain = exp2ap (0.1661 * self->_port [FIL_GAIN][0]);
+
+	for (int j = 0; j < NSECT; ++j) {
+		float t = self->_port [FIL_SEC1 + 4 * j + Fil4Paramsect::FREQ][0] / self->rate;
+		if (t < 0.0002) t = 0.0002;
+		if (t > 0.4998) t = 0.4998;
+
+		sfreq [j] = t;
+		sband [j] = self->_port [FIL_SEC1 + 4 * j + Fil4Paramsect::BAND][0];
+
+		if (self->_port [FIL_SEC1 + 4 * j + Fil4Paramsect::SECT][0] > 0) {
+			sgain [j] = exp2ap (0.1661 * self->_port [FIL_SEC1 + 4 * j + Fil4Paramsect::GAIN][0]);
+		} else {
+			sgain [j] = 1.0;
+		}
+	}
+
+	while (p_samples) {
+		uint32_t i;
+		float sig [48];
+		const uint32_t k = (p_samples > 48) ? 32 : p_samples;
+
+		float t = fgain;
+		float g = fc->_gain;
+		if      (t > 1.25 * g) t = 1.25 * g;
+		else if (t < 0.80 * g) t = 0.80 * g;
+		fc->_gain = t;
+		float d = (t - g) / k;
+
+		/* apply gain */
+		for (i = 0; i < k; i++) {
+			g += d;
+			sig [i] = g * aip [i];
+		}
+
+		/* update IIR */
+		if (iir_interpolate (&fc->iir_lowshelf,  ls_gain, ls_freq, ls_q)) {
+			iir_calc_lowshelf (&fc->iir_lowshelf);
+		}
+		if (iir_interpolate (&fc->iir_highshelf, hs_gain, hs_freq, hs_q)) {
+			iir_calc_highshelf (&fc->iir_highshelf);
+		}
+
+		hip_interpolate (&fc->hip, hipass, hifreq);
+		lop_interpolate (&fc->lop, lopass, lofreq);
+
+		/* run filters */
+
+		hip_compute (&fc->hip, k, sig);
+		lop_compute (&fc->lop, k, sig);
+
+		for (int j = 0; j < NSECT; ++j) {
+			fc->_sect [j].proc (k, sig, sfreq [j], sband [j], sgain [j]);
+		}
+
+		iir_compute (&fc->iir_lowshelf, k, sig);
+		iir_compute (&fc->iir_highshelf, k, sig);
+
+		/* fade 16 * 32 samples when enable changes */
+		int j = fc->_fade;
+		g = j / 16.0;
+
+		float *p = NULL;
+
+		if (self->_port [FIL_ENABLE][0] > 0) {
+			if (j == 16) p = sig;
+			else ++j;
+		}
+		else
+		{
+			if (j == 0) p = aip;
+			else --j;
+		}
+		fc->_fade = j;
+
+		if (p) {
+			/* active or bypassed */
+			memcpy (aop, p, k * sizeof (float));
+		} else {
+			/* fade in/out */
+			d = (j / 16.0 - g) / k;
+			for (uint32_t i = 0; i < k; ++i) {
+				g += d;
+				aop [i] = g * sig [i] + (1 - g) * aip [i];
+			}
+		}
+
+		aip += k;
+		aop += k;
+		p_samples -= k;
+	}
+}
+
+static void
+run(LV2_Handle instance, uint32_t n_samples)
+{
+	Fil4* self = (Fil4*)instance;
 	// process messages from GUI;
 	if (self->control) {
 		LV2_Atom_Event* ev = lv2_atom_sequence_begin(&(self->control)->body);
@@ -218,107 +323,15 @@ run(LV2_Handle instance, uint32_t n_samples)
 
 	// send raw input
 	if ((fft_mode & 1) == 1 && capacity_ok) {
-		tx_rawaudio (&self->forge, &self->uris, self->_fsam, n_samples, aip);
+		tx_rawaudio (&self->forge, &self->uris, self->rate, n_samples, self->_port [FIL_INPUT0]);
 	}
 
-	/* calculate target values, parameter smoothing */
-	const float fgain = exp2ap (0.1661 * self->_port [FIL_GAIN][0]);
-
-	for (int j = 0; j < NSECT; ++j) {
-		float t = self->_port [FIL_SEC1 + 4 * j + Fil4Paramsect::FREQ][0] / self->_fsam;
-		if (t < 0.0002) t = 0.0002;
-		if (t > 0.4998) t = 0.4998;
-
-		sfreq [j] = t;
-		sband [j] = self->_port [FIL_SEC1 + 4 * j + Fil4Paramsect::BAND][0];
-
-		if (self->_port [FIL_SEC1 + 4 * j + Fil4Paramsect::SECT][0] > 0) {
-			sgain [j] = exp2ap (0.1661 * self->_port [FIL_SEC1 + 4 * j + Fil4Paramsect::GAIN][0]);
-		} else {
-			sgain [j] = 1.0;
-		}
-	}
-
-	uint32_t p_samples = n_samples;
-
-	while (p_samples) {
-		uint32_t i;
-		float sig [48];
-		const uint32_t k = (p_samples > 48) ? 32 : p_samples;
-
-		float t = fgain;
-		float g = self->_gain;
-		if      (t > 1.25 * g) t = 1.25 * g;
-		else if (t < 0.80 * g) t = 0.80 * g;
-		self->_gain = t;
-		float d = (t - g) / k;
-
-		/* apply gain */
-		for (i = 0; i < k; i++) {
-			g += d;
-			sig [i] = g * aip [i];
-		}
-
-		/* update IIR */
-		if (iir_interpolate (&self->iir_lowshelf,  ls_gain, ls_freq, ls_q)) {
-			iir_calc_lowshelf (&self->iir_lowshelf);
-		}
-		if (iir_interpolate (&self->iir_highshelf, hs_gain, hs_freq, hs_q)) {
-			iir_calc_highshelf (&self->iir_highshelf);
-		}
-
-		hip_interpolate (&self->hip, hipass, hifreq);
-		lop_interpolate (&self->lop, lopass, lofreq);
-
-		/* run filters */
-
-		hip_compute (&self->hip, k, sig);
-		lop_compute (&self->lop, k, sig);
-
-		for (int j = 0; j < NSECT; ++j) {
-			self->_sect [j].proc (k, sig, sfreq [j], sband [j], sgain [j]);
-		}
-
-		iir_compute (&self->iir_lowshelf, k, sig);
-		iir_compute (&self->iir_highshelf, k, sig);
-
-		/* fade 16 * 32 samples when enable changes */
-		int j = self->_fade;
-		g = j / 16.0;
-
-		float *p = NULL;
-
-		if (self->_port [FIL_ENABLE][0] > 0) {
-			if (j == 16) p = sig;
-			else ++j;
-		}
-		else
-		{
-			if (j == 0) p = aip;
-			else --j;
-		}
-		self->_fade = j;
-
-		if (p) {
-			/* active or bypassed */
-			memcpy (aop, p, k * sizeof (float));
-		} else {
-			/* fade in/out */
-			d = (j / 16.0 - g) / k;
-			for (uint32_t i = 0; i < k; ++i) {
-				g += d;
-				aop [i] = g * sig [i] + (1 - g) * aip [i];
-			}
-		}
-
-		aip += k;
-		aop += k;
-		p_samples -= k;
-	}
+	// audio processing
+	process_channel (self, &self->fc[0], n_samples, 0);
 
 	// send processed output
 	if (fft_mode > 0 && (fft_mode & 1) == 0 && capacity_ok) {
-		tx_rawaudio (&self->forge, &self->uris, self->_fsam, n_samples, self->_port [FIL_OUTPUT0]);
+		tx_rawaudio (&self->forge, &self->uris, self->rate, n_samples, self->_port [FIL_OUTPUT0]);
 	}
 	
 	/* close off atom-sequence */
