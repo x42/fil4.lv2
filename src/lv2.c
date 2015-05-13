@@ -50,11 +50,11 @@ typedef enum {
 
 	IIR_HS_EN, IIR_HS_FREQ, IIR_HS_Q, IIR_HS_GAIN,
 
-	FIL_FFT_MODE, FIL_ATOM_NOTIFY
+	FIL_ATOM_CONTROL, FIL_ATOM_NOTIFY
 } PortIndex;
 
 typedef struct {
-	float        *_port [FIL_FFT_MODE];
+	float        *_port [FIL_ATOM_CONTROL];
 	float         _gain;
 	int           _fade;
 	Fil4Paramsect _sect [NSECT];
@@ -67,12 +67,13 @@ typedef struct {
 	IIRProc       iir_highshelf;
 
 	/* atom-forge & fft related */
-	float               *fft_ctrl;
-	LV2_Atom_Sequence   *notify;
-	LV2_URID_Map        *map;
-	Fil4LV2URIs          uris;
-	LV2_Atom_Forge       forge;
-	LV2_Atom_Forge_Frame frame;
+	const LV2_Atom_Sequence *control;
+	LV2_Atom_Sequence       *notify;
+	LV2_URID_Map            *map;
+	Fil4LV2URIs              uris;
+	LV2_Atom_Forge           forge;
+	LV2_Atom_Forge_Frame     frame;
+	int                      fft_mode;
 
 } Fil4;
 
@@ -127,12 +128,12 @@ connect_port(LV2_Handle instance,
              void*      data)
 {
 	Fil4* self = (Fil4*)instance;
-	if (port < FIL_FFT_MODE) {
+	if (port < FIL_ATOM_CONTROL) {
 		self->_port[port] = (float*) data;
-	} else if (port == FIL_FFT_MODE) {
-		self->fft_ctrl = (float*) data;
+	} else if (port == FIL_ATOM_CONTROL) {
+		self->control = (const LV2_Atom_Sequence*) data;
 	} else if (port == FIL_ATOM_NOTIFY) {
-		self->notify = (LV2_Atom_Sequence*)data;
+		self->notify = (LV2_Atom_Sequence*) data;
 	}
 }
 
@@ -189,7 +190,29 @@ run(LV2_Handle instance, uint32_t n_samples)
 	float sband [NSECT];
 	float sgain [NSECT];
 
-	int fft_mode = rint(*self->fft_ctrl);
+
+	// process messages from GUI;
+	if (self->control) {
+		LV2_Atom_Event* ev = lv2_atom_sequence_begin(&(self->control)->body);
+		while(!lv2_atom_sequence_is_end(&(self->control)->body, (self->control)->atom.size, ev)) {
+			if (ev->body.type == self->uris.atom_Blank || ev->body.type == self->uris.atom_Object) {
+				const LV2_Atom_Object* obj = (LV2_Atom_Object*)&ev->body;
+				if (obj->body.otype == self->uris.ui_off) {
+					self->fft_mode = 0;
+				}
+				else if (obj->body.otype == self->uris.fftmode) {
+					const LV2_Atom* v = NULL;
+					lv2_atom_object_get(obj, self->uris.fftmode, &v, 0);
+					if (v) {
+						self->fft_mode = ((LV2_Atom_Int*)v)->body;
+					}
+				}
+				ev = lv2_atom_sequence_next(ev);
+			}
+		}
+	}
+
+	const int fft_mode = self->fft_mode;
 
 	/* check atom buffer size */
 	const size_t size = (sizeof(float) * n_samples + 64);
@@ -335,7 +358,7 @@ extension_data(const char* uri)
 }
 
 static const LV2_Descriptor descriptor = {
-	FIL4_URI,
+	FIL4_URI "mono",
 	instantiate,
 	connect_port,
 	NULL,

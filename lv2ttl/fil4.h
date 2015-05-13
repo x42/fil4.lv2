@@ -44,7 +44,7 @@ static const RtkLv2Description _plugin = {
 		{ "HSfreq", CONTROL_IN, 8000.000000},
 		{ "HSq", CONTROL_IN, 2.800000},
 		{ "HSgain", CONTROL_IN, 0.000000},
-		{ "fftmode", CONTROL_IN, 0.000000},
+		{ "control", ATOM_IN, nan},
 		{ "notify", ATOM_OUT, nan},
 	}
 	, 34 // uint32_t nports_total
@@ -52,10 +52,10 @@ static const RtkLv2Description _plugin = {
 	, 1 // uint32_t nports_audio_out
 	, 0 // uint32_t nports_midi_in
 	, 0 // uint32_t nports_midi_out
-	, 0 // uint32_t nports_atom_in
+	, 1 // uint32_t nports_atom_in
 	, 1 // uint32_t nports_atom_out
-	, 31 // uint32_t nports_ctrl
-	, 31 // uint32_t nports_ctrl_in
+	, 30 // uint32_t nports_ctrl
+	, 30 // uint32_t nports_ctrl_in
 	, 0 // uint32_t nports_ctrl_out
 	, 33120 // uint32_t min_atom_bufsiz
 	, false // bool send_time_info

@@ -23,7 +23,7 @@
 #include "lv2/lv2plug.in/ns/ext/atom/forge.h"
 #include "lv2/lv2plug.in/ns/ext/urid/urid.h"
 
-#define FIL4_URI "http://gareus.org/oss/lv2/fil4#mono"
+#define FIL4_URI "http://gareus.org/oss/lv2/fil4#"
 
 #ifdef HAVE_LV2_1_8
 #define x_forge_object lv2_atom_forge_object
@@ -41,6 +41,8 @@ typedef struct {
 	LV2_URID channelid;
 	LV2_URID audiodata;
 	LV2_URID samplerate;
+	LV2_URID fftmode;
+	LV2_URID ui_off;
 } Fil4LV2URIs;
 
 static inline void
@@ -50,9 +52,11 @@ map_fil4_uris(LV2_URID_Map* map, Fil4LV2URIs* uris) {
 	uris->atom_Vector        = map->map(map->handle, LV2_ATOM__Vector);
 	uris->atom_Float         = map->map(map->handle, LV2_ATOM__Float);
 	uris->atom_eventTransfer = map->map(map->handle, LV2_ATOM__eventTransfer);
-	uris->rawaudio           = map->map(map->handle, FIL4_URI "#rawaudio");
-	uris->audiodata          = map->map(map->handle, FIL4_URI "#audiodata");
-	uris->samplerate         = map->map(map->handle, FIL4_URI "#samplerate");
+	uris->rawaudio           = map->map(map->handle, FIL4_URI "rawaudio");
+	uris->audiodata          = map->map(map->handle, FIL4_URI "audiodata");
+	uris->samplerate         = map->map(map->handle, FIL4_URI "samplerate");
+	uris->fftmode            = map->map(map->handle, FIL4_URI "fftmode");
+	uris->ui_off             = map->map(map->handle, FIL4_URI "ui_off");
 }
 
 #endif
