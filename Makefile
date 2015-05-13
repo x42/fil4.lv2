@@ -3,8 +3,7 @@
 OPTIMIZATIONS ?= -msse -msse2 -mfpmath=sse -ffast-math -fomit-frame-pointer -O3 -fno-finite-math-only
 
 PREFIX   ?= /usr/local
-CFLAGS   ?= -Wall -g -Wno-unused-function
-CXXFLAGS ?= -Wall -g
+CXXFLAGS ?= -Wall -g -Wno-unused-function
 STRIP    ?= strip
 BUILDDIR ?= build/
 APPBLD   ?= x42/
@@ -64,7 +63,7 @@ endif
 ifeq ($(UI_TYPE),)
   UI_TYPE=kx:Widget
   LV2UIREQ+=lv2:requiredFeature kx:Widget;
-  override CFLAGS += -DXTERNAL_UI
+  override CXXFLAGS += -DXTERNAL_UI
 endif
 
 targets+=$(BUILDDIR)$(LV2NAME)$(LIB_EXT)
@@ -95,6 +94,11 @@ ifeq ($(shell pkg-config --atleast-version=1.4.2 lv2 && echo yes), yes)
   LV2UIREQ+=lv2:requiredFeature ui:idleInterface; lv2:extensionData ui:idleInterface;
 endif
 
+# check for lv2_atom_forge_object  new in 1.8.1 deprecates lv2_atom_forge_blank
+ifeq ($(shell pkg-config --atleast-version=1.8.1 lv2 && echo yes), yes)
+  override CXXFLAGS += -DHAVE_LV2_1_8
+endif
+
 ifneq ($(MAKECMDGOALS), submodules)
   ifeq ($(wildcard $(RW)robtk.mk),)
     $(warning This plugin needs https://github.com/x42/robtk)
@@ -107,9 +111,7 @@ ifneq ($(MAKECMDGOALS), submodules)
 endif
 
 # add library dependent flags and libs
-override CFLAGS += -fPIC $(OPTIMIZATIONS) -DVERSION="\"$(fil4_VERSION)\""
-override CFLAGS += `pkg-config --cflags lv2`
-override CXXFLAGS += -fPIC $(OPTIMIZATIONS)
+override CXXFLAGS += -fPIC $(OPTIMIZATIONS) -DVERSION="\"$(fil4_VERSION)\""
 override CXXFLAGS += `pkg-config --cflags lv2`
 
 
@@ -130,7 +132,7 @@ endif
 
 ROBGL+= Makefile
 
-JACKCFLAGS=-I. $(CFLAGS) $(CXXFLAGS) $(LIC_CFLAGS)
+JACKCFLAGS=-I. $(CXXFLAGS) $(LIC_CFLAGS)
 JACKCFLAGS+=`pkg-config --cflags jack lv2 pango pangocairo $(PKG_GL_LIBS)`
 JACKLIBS=-lm $(GLUILIBS) $(LIC_LOADLIBES)
 
@@ -163,7 +165,7 @@ $(BUILDDIR)$(LV2NAME).ttl: lv2ttl/$(LV2NAME).ttl.in Makefile
 	    lv2ttl/$(LV2NAME).ttl.in > $(BUILDDIR)$(LV2NAME).ttl
 
 DSP_SRC = src/lv2.c
-DSP_DEPS = $(DSP_SRC) src/filters.h src/iir.h src/hip.h
+DSP_DEPS = $(DSP_SRC) src/filters.h src/iir.h src/hip.h src/uris.h
 
 $(BUILDDIR)$(LV2NAME)$(LIB_EXT): $(DSP_DEPS) Makefile
 	@mkdir -p $(BUILDDIR)

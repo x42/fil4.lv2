@@ -23,6 +23,8 @@
 #include <string.h>
 #include <assert.h>
 
+#include "../src/uris.h"
+
 #define MTR_URI "http://gareus.org/oss/lv2/fil4#"
 #define MTR_GUI "ui"
 
@@ -36,7 +38,7 @@ enum {
 	FIL_GAIN = 3,
 	FIL_HIPASS = 4,
 	FIL_SEC1, FIL_FREQ1, FIL_Q1, FIL_GAIN1,
-	FIL_LAST = 29
+	FIL_FFT_MODE = 29, FIL_ATOM_NOTIFY = 30
 };
 
 /* cached filter state */
@@ -58,6 +60,8 @@ typedef struct {
 typedef struct {
 	LV2UI_Write_Function write;
 	LV2UI_Controller controller;
+	LV2_URID_Map*    map;
+	Fil4LV2URIs      uris;
 
 	PangoFontDescription *font[2];
 
@@ -93,6 +97,9 @@ typedef struct {
 	RobTkDial *spn_s_freq[2];
 	RobTkDial *spn_s_gain[2];
 	RobTkDial *spn_s_bw[2];
+
+	// fft
+	RobTkSelect* sel_fft;
 
 	// misc other stuff
 	cairo_surface_t* m0_grid;
@@ -641,6 +648,15 @@ static bool cb_spn_g_gain (RobWidget *w, void* handle) {
 	return TRUE;
 }
 
+static bool cb_set_fft (RobWidget* w, void *handle) {
+	Fil4UI* ui = (Fil4UI*)handle;
+	if (ui->disable_signals) return TRUE;
+	const float val = robtk_select_get_value(ui->sel_fft);
+	ui->write(ui->controller, FIL_FFT_MODE, sizeof(float), 0, (const void*) &val);
+	queue_draw(ui->m0);
+	return TRUE;
+}
+
 ///////////////////////////////////////////////////////////////////////////////
 
 /* graph log-scale mapping */
@@ -1082,6 +1098,15 @@ static RobWidget * toplevel(Fil4UI* ui, void * const top) {
 	robtk_dial_set_default(ui->spn_g_gain, 0.0);
 	robtk_dial_set_detent_default (ui->spn_g_gain, true);
 
+	ui->sel_fft = robtk_select_new();
+	robtk_select_add_item (ui->sel_fft, 0, "FFT Off");
+	robtk_select_add_item (ui->sel_fft, 1, "FFT In");
+	robtk_select_add_item (ui->sel_fft, 2, "FFT Out");
+	robtk_select_set_default_item (ui->sel_fft, 0);
+	robtk_select_set_value (ui->sel_fft, 0);
+	robtk_select_set_callback(ui->sel_fft, cb_set_fft, ui);
+	rob_table_attach (ui->ctbl, robtk_select_widget(ui->sel_fft), col, col+1, 1, 2, 5, 0, RTK_EXANDF, RTK_SHRINK);
+
 	++col;
 	ui->sep_v0 = robtk_sep_new(FALSE);
 	rob_table_attach_defaults (ui->ctbl, robtk_sep_widget(ui->sep_v0), col, col+1, 0, 5);
@@ -1171,6 +1196,7 @@ static void gui_cleanup(Fil4UI* ui) {
 
 	robtk_cbtn_destroy (ui->btn_g_enable);
 	robtk_dial_destroy (ui->spn_g_gain);
+	robtk_select_destroy(ui->sel_fft);
 
 	robtk_sep_destroy (ui->sep_v0);
 
@@ -1216,6 +1242,18 @@ instantiate(
 
 	Fil4UI* ui = (Fil4UI*) calloc(1, sizeof(Fil4UI));
 
+	for (int i = 0; features[i]; ++i) {
+		if (!strcmp(features[i]->URI, LV2_URID_URI "#map")) {
+			ui->map = (LV2_URID_Map*)features[i]->data;
+		}
+	}
+
+	if (!ui->map) {
+		fprintf (stderr, "Fil4.lv2 UI: Host does not support urid:map\n");
+		free(ui);
+		return NULL;
+	}
+
 	ui->nfo = robtk_info(ui_toplevel);
 	ui->write      = write_function;
 	ui->controller = controller;
@@ -1226,6 +1264,9 @@ instantiate(
 		 * match actual rate (rails at bounrary) */
 		ui->flt[i].rate = 48000;
 	}
+
+	map_fil4_uris(ui->map, &ui->uris);
+	//reinitialize_fft(ui);
 
 	*widget = toplevel(ui, ui_toplevel);
 	return ui;
@@ -1254,6 +1295,39 @@ port_event(LV2UI_Handle handle,
 		const void*  buffer)
 {
 	Fil4UI* ui = (Fil4UI*)handle;
+
+	if (format == ui->uris.atom_eventTransfer && port_index == FIL_ATOM_NOTIFY) {
+		LV2_Atom* atom = (LV2_Atom*)buffer;
+		if (atom->type == ui->uris.atom_Blank || atom->type == ui->uris.atom_Object) {
+			/* cast the buffer to Atom Object */
+			LV2_Atom_Object* obj = (LV2_Atom_Object*)atom;
+			LV2_Atom *a0 = NULL;
+			LV2_Atom *a1 = NULL;
+			if (
+					/* handle raw-audio data objects */
+					obj->body.otype == ui->uris.rawaudio
+					/* retrieve properties from object and
+					 * check that there the [here] two required properties are set.. */
+					&& 2 == lv2_atom_object_get(obj, ui->uris.samplerate, &a0, ui->uris.audiodata, &a1, NULL)
+					/* ..and non-null.. */
+					&& a0
+					&& a1
+					/* ..and match the expected type */
+					&& a0->type == ui->uris.atom_Float
+					&& a1->type == ui->uris.atom_Vector
+				 )
+			{
+				const float sr = ((LV2_Atom_Float*)a0)->body;
+				LV2_Atom_Vector* vof = (LV2_Atom_Vector*)LV2_ATOM_BODY(a1);
+				assert (vof->atom.type == ui->uris.atom_Float);
+
+				const size_t n_elem = (a1->size - sizeof(LV2_Atom_Vector_Body)) / vof->atom.size;
+				const float *data = (float*) LV2_ATOM_BODY(&vof->atom);
+				//update_fft(ui, sr, n_elem, data);
+			}
+		}
+	}
+
 	if (format != 0 || port_index < FIL_ENABLE) return;
 
 	const float v = *(float *)buffer;
@@ -1267,7 +1341,7 @@ port_event(LV2UI_Handle handle,
 	else if (port_index == FIL_HIPASS) {
 		robtk_ibtn_set_active (ui->btn_g_hipass, v > 0 ? true : false);
 	}
-	else if (port_index >= FIL_SEC1 && port_index < FIL_LAST) {
+	else if (port_index >= FIL_SEC1 && port_index < FIL_FFT_MODE) {
 		const int param = (port_index - FIL_SEC1) % 4;
 		const int sect = (port_index - FIL_SEC1) / 4;
 		assert (sect >= 0 && sect < NSECT);
@@ -1289,6 +1363,13 @@ port_event(LV2UI_Handle handle,
 				break;
 		}
 	}
+	else if (port_index == FIL_FFT_MODE) {
+		float val = *(float *)buffer;
+		uint32_t fft_mode = val;
+		robtk_select_set_value (ui->sel_fft, fft_mode);
+		queue_draw(ui->m0);
+	}
+
 	ui->disable_signals = false;
 }
 

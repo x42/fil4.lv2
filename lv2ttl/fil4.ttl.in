@@ -1,12 +1,15 @@
-@prefix doap: <http://usefulinc.com/ns/doap#> .
-@prefix foaf: <http://xmlns.com/foaf/0.1/> .
-@prefix lv2: <http://lv2plug.in/ns/lv2core#> .
-@prefix rdf: <http://www.w3.org/1999/02/22-rdf-syntax-ns#> .
-@prefix rdfs: <http://www.w3.org/2000/01/rdf-schema#> .
+@prefix doap:  <http://usefulinc.com/ns/doap#> .
+@prefix foaf:  <http://xmlns.com/foaf/0.1/> .
+@prefix lv2:   <http://lv2plug.in/ns/lv2core#> .
+@prefix rdf:   <http://www.w3.org/1999/02/22-rdf-syntax-ns#> .
+@prefix rdfs:  <http://www.w3.org/2000/01/rdf-schema#> .
 @prefix units: <http://lv2plug.in/ns/extensions/units#> .
 @prefix pprop: <http://lv2plug.in/ns/ext/port-props#> .
+@prefix urid:  <http://lv2plug.in/ns/ext/urid#> .
+@prefix atom:  <http://lv2plug.in/ns/ext/atom#> .
 @prefix ui:    <http://lv2plug.in/ns/extensions/ui#> .
 @prefix kx:    <http://kxstudio.sf.net/ns/lv2ext/external-ui#> .
+@prefix rsz:   <http://lv2plug.in/ns/ext/resize-port#> .
 @prefix @LV2NAME@: <http://gareus.org/oss/lv2/@LV2NAME@#> .
 
 <http://gareus.org/rgareus#me>
@@ -20,6 +23,7 @@
 	doap:license <http://usefulinc.com/doap/licenses/gpl> ;
 	doap:maintainer <http://gareus.org/rgareus#me> ;
 	doap:name "4 Band Parametric EQ";
+	lv2:requiredFeature urid:map ;
 	lv2:optionalFeature lv2:hardRTCapable ;
   ui:ui @LV2NAME@:ui_gl ;
 	lv2:port [
@@ -304,9 +308,39 @@
 		lv2:minimum -18 ;
 		lv2:maximum 18;
 		units:unit units:db ;
-	] .
+	] , [
+		a lv2:ControlPort, lv2:InputPort ;
+		lv2:index 29 ;
+		lv2:portProperty lv2:integer;
+		lv2:portProperty lv2:enumeration;
+		lv2:symbol "fftmode" ;
+		lv2:name "FFT Mode" ;
+		lv2:default 0 ;
+		lv2:minimum 0 ;
+		lv2:maximum 2 ;
+		lv2:scalePoint [ rdfs:label  "Off";  rdf:value  0 ; ] ;
+		lv2:scalePoint [ rdfs:label  "Input";  rdf:value  1 ; ] ;
+		lv2:scalePoint [ rdfs:label  "Output";  rdf:value  1 ; ] ;
+	] , [
+		a atom:AtomPort ,
+			lv2:OutputPort ;
+		atom:bufferType atom:Sequence ;
+		lv2:designation lv2:control ;
+		lv2:index 30 ;
+		lv2:symbol "notify" ;
+		rsz:minimumSize 33120;
+	  rdfs:comment "Plugin to GUI communication"
+	] ;
+	rdfs:comment "4 Band Parametric Filter with High + Low Shelf and DC-offset/High Pass filter."
+	.
 
 @LV2NAME@:ui_gl
-  a @UI_TYPE@ ;
-  @UI_REQ@
+	a @UI_TYPE@ ;
+	@UI_REQ@
+	lv2:requiredFeature urid:map ;
+	ui:portNotification [
+		ui:plugin @LV2NAME@:mono ;
+		lv2:symbol "notify";
+		ui:notifyType atom:Blank
+	]
   .
