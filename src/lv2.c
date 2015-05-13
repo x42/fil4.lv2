@@ -237,7 +237,7 @@ run(LV2_Handle instance, uint32_t n_samples)
 	lv2_atom_forge_sequence_head(&self->forge, &self->frame, 0);
 
 	// send raw input
-	if ((fft_mode == 1 || fft_mode == 3) && capacity_ok) {
+	if ((fft_mode & 1) == 1 && capacity_ok) {
 		tx_rawaudio (&self->forge, &self->uris, self->_fsam, n_samples, aip);
 	}
 
@@ -337,7 +337,7 @@ run(LV2_Handle instance, uint32_t n_samples)
 	}
 
 	// send processed output
-	if ((fft_mode == 2 || fft_mode == 4) && capacity_ok) {
+	if (fft_mode > 0 && (fft_mode & 1) == 0 && capacity_ok) {
 		tx_rawaudio (&self->forge, &self->uris, self->_fsam, n_samples, self->_port [FIL_OUTPUT]);
 	}
 	
