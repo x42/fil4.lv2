@@ -704,13 +704,19 @@ static void update_spectrum_history (Fil4UI* ui, const size_t n_elem, float cons
 		cairo_fill (cr);
 
 		cairo_set_operator (cr, CAIRO_OPERATOR_SOURCE);
-		float gain = 6.f + robtk_dial_get_value (ui->spn_fftgain);
+		float gain = -6 + robtk_dial_get_value (ui->spn_fftgain);
 		for (uint32_t i = 1; i < b-1; ++i) {
 			const float freq = fftx_freq_at_bin (ui->fa, i);
 			const float f0 = x_at_freq (MAX (5, freq - 2 * ui->fa->freq_per_bin), ui->m0_xw);
 			const float f1 = x_at_freq (        freq + 2 * ui->fa->freq_per_bin,  ui->m0_xw);
 
-			const float level = gain + fftx_power_to_dB (ui->fa->power[i]);
+#if 0 // do we really have to be 'this' precise (take phase into account)
+			float norm = freq / ui->fa->freq_per_bin;
+			if (norm <= 1) { norm = 1; }
+#else
+			const float norm = i;
+#endif
+			const float level = gain + fftx_power_to_dB (ui->fa->power[i] * norm);
 			if (level < -60) continue;
 			const float pk = level > 0.0 ? 1.0 : (60 + level) / 60.0; // TODO Range
 			float clr[3];
