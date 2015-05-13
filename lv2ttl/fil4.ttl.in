@@ -72,6 +72,38 @@
 		a lv2:InputPort ,
 			lv2:ControlPort ;
 		lv2:index 5 ;
+		lv2:symbol "HPfreq" ;
+		lv2:name "Highpass Frequency" ;
+		lv2:default 13 ;
+		lv2:minimum 5 ;
+		lv2:maximum 200 ;
+		units:unit units:hz ;
+		lv2:portProperty pprop:logarithmic;
+	] , [
+		a lv2:InputPort ,
+			lv2:ControlPort ;
+		lv2:index 6 ;
+		lv2:symbol "LowPass" ;
+		lv2:name "Lowpass";
+		lv2:default 0 ;
+		lv2:minimum 0 ;
+		lv2:maximum 1 ;
+		lv2:portProperty lv2:integer, lv2:toggled;
+	] , [
+		a lv2:InputPort ,
+			lv2:ControlPort ;
+		lv2:index 7 ;
+		lv2:symbol "LPfreq" ;
+		lv2:name "Lowpass Frequency" ;
+		lv2:default 18000 ;
+		lv2:minimum 5000 ;
+		lv2:maximum 20000 ;
+		units:unit units:hz ;
+		lv2:portProperty pprop:logarithmic;
+	] , [
+		a lv2:InputPort ,
+			lv2:ControlPort ;
+		lv2:index 8 ;
 		lv2:symbol "LSsec" ;
 		lv2:name "Lowshelf";
 		lv2:default 1 ;
@@ -81,7 +113,7 @@
 	] , [
 		a lv2:InputPort ,
 			lv2:ControlPort ;
-		lv2:index 6 ;
+		lv2:index 9 ;
 		lv2:symbol "LSfreq" ;
 		lv2:name "Lowshelf Frequency" ;
 		lv2:default 80 ;
@@ -92,7 +124,7 @@
 	] , [
 		a lv2:InputPort ,
 			lv2:ControlPort ;
-		lv2:index 7 ;
+		lv2:index 10 ;
 		lv2:symbol "LSq" ;
 		lv2:name "Lowshelf Bandwidth" ;
 		lv2:default 2.8;
@@ -101,7 +133,7 @@
 	] , [
 		a lv2:InputPort ,
 			lv2:ControlPort ;
-		lv2:index 8 ;
+		lv2:index 11 ;
 		lv2:symbol "LSgain" ;
 		lv2:name "Lowshelf Gain" ;
 		lv2:default 0 ;
@@ -111,7 +143,7 @@
 	] , [
 		a lv2:InputPort ,
 			lv2:ControlPort ;
-		lv2:index 9 ;
+		lv2:index 12 ;
 		lv2:symbol "sec1" ;
 		lv2:name "Section 1";
 		lv2:default 1 ;
@@ -121,7 +153,7 @@
 	] , [
 		a lv2:InputPort ,
 			lv2:ControlPort ;
-		lv2:index 10 ;
+		lv2:index 13 ;
 		lv2:symbol "freq1" ;
 		lv2:name "Frequency 1" ;
 		lv2:default 160 ;
@@ -132,7 +164,7 @@
 	] , [
 		a lv2:InputPort ,
 			lv2:ControlPort ;
-		lv2:index 11 ;
+		lv2:index 14 ;
 		lv2:symbol "q1" ;
 		lv2:name "Bandwidth 1" ;
 		lv2:default 0.6 ;
@@ -141,7 +173,7 @@
 	] , [
 		a lv2:InputPort ,
 			lv2:ControlPort ;
-		lv2:index 12 ;
+		lv2:index 15 ;
 		lv2:symbol "gain1" ;
 		lv2:name "Gain 1" ;
 		lv2:default 0 ;
@@ -151,7 +183,7 @@
 	] , [
 		a lv2:InputPort ,
 			lv2:ControlPort ;
-		lv2:index 13 ;
+		lv2:index 16 ;
 		lv2:symbol "sec2" ;
 		lv2:name "Section 2";
 		lv2:default 1 ;
@@ -161,7 +193,7 @@
 	] , [
 		a lv2:InputPort ,
 			lv2:ControlPort ;
-		lv2:index 14 ;
+		lv2:index 17 ;
 		lv2:symbol "freq2" ;
 		lv2:name "Frequency 2" ;
 		lv2:default 397 ;
@@ -172,7 +204,7 @@
 	] , [
 		a lv2:InputPort ,
 			lv2:ControlPort ;
-		lv2:index 15 ;
+		lv2:index 18 ;
 		lv2:symbol "q2" ;
 		lv2:name "Bandwidth 2" ;
 		lv2:default 0.6 ;
@@ -181,7 +213,7 @@
 	] , [
 		a lv2:InputPort ,
 			lv2:ControlPort ;
-		lv2:index 16 ;
+		lv2:index 19 ;
 		lv2:symbol "gain2" ;
 		lv2:name "Gain 2" ;
 		lv2:default 0 ;
@@ -191,7 +223,7 @@
 	] , [
 		a lv2:InputPort ,
 			lv2:ControlPort ;
-		lv2:index 17 ;
+		lv2:index 20 ;
 		lv2:symbol "sec3" ;
 		lv2:name "Section 3";
 		lv2:default 1 ;
@@ -201,7 +233,7 @@
 	] , [
 		a lv2:InputPort ,
 			lv2:ControlPort ;
-		lv2:index 18 ;
+		lv2:index 21 ;
 		lv2:symbol "freq3" ;
 		lv2:name "Frequency 3" ;
 		lv2:default 1250 ;
@@ -212,7 +244,7 @@
 	] , [
 		a lv2:InputPort ,
 			lv2:ControlPort ;
-		lv2:index 19 ;
+		lv2:index 22 ;
 		lv2:symbol "q3" ;
 		lv2:name "Bandwidth 3" ;
 		lv2:default 0.6 ;
@@ -221,7 +253,7 @@
 	] , [
 		a lv2:InputPort ,
 			lv2:ControlPort ;
-		lv2:index 20 ;
+		lv2:index 23 ;
 		lv2:symbol "gain3" ;
 		lv2:name "Gain 3" ;
 		lv2:default 0 ;
@@ -231,7 +263,7 @@
 	] , [
 		a lv2:InputPort ,
 			lv2:ControlPort ;
-		lv2:index 21 ;
+		lv2:index 24 ;
 		lv2:symbol "sec4" ;
 		lv2:name "Section 4";
 		lv2:default 1 ;
@@ -241,7 +273,7 @@
 	] , [
 		a lv2:InputPort ,
 			lv2:ControlPort ;
-		lv2:index 22 ;
+		lv2:index 25 ;
 		lv2:symbol "freq4" ;
 		lv2:name "Frequency 4" ;
 		lv2:default 2500 ;
@@ -252,7 +284,7 @@
 	] , [
 		a lv2:InputPort ,
 			lv2:ControlPort ;
-		lv2:index 23 ;
+		lv2:index 26 ;
 		lv2:symbol "q4" ;
 		lv2:name "Bandwidth 4" ;
 		lv2:default 0.6 ;
@@ -261,7 +293,7 @@
 	] , [
 		a lv2:InputPort ,
 			lv2:ControlPort ;
-		lv2:index 24 ;
+		lv2:index 27 ;
 		lv2:symbol "gain4" ;
 		lv2:name "Gain 4" ;
 		lv2:default 0 ;
@@ -271,7 +303,7 @@
 	] , [
 		a lv2:InputPort ,
 			lv2:ControlPort ;
-		lv2:index 25 ;
+		lv2:index 28 ;
 		lv2:symbol "HSsec" ;
 		lv2:name "Highshelf";
 		lv2:default 1 ;
@@ -281,7 +313,7 @@
 	] , [
 		a lv2:InputPort ,
 			lv2:ControlPort ;
-		lv2:index 26 ;
+		lv2:index 29 ;
 		lv2:symbol "HSfreq" ;
 		lv2:name "Highshelf Frequency" ;
 		lv2:default 8000 ;
@@ -292,7 +324,7 @@
 	] , [
 		a lv2:InputPort ,
 			lv2:ControlPort ;
-		lv2:index 27 ;
+		lv2:index 30 ;
 		lv2:symbol "HSq" ;
 		lv2:name "Highshelf Bandwidth" ;
 		lv2:default 2.8;
@@ -301,7 +333,7 @@
 	] , [
 		a lv2:InputPort ,
 			lv2:ControlPort ;
-		lv2:index 28 ;
+		lv2:index 31 ;
 		lv2:symbol "HSgain" ;
 		lv2:name "Highshelf Gain" ;
 		lv2:default 0 ;
@@ -310,7 +342,7 @@
 		units:unit units:db ;
 	] , [
 		a lv2:ControlPort, lv2:InputPort ;
-		lv2:index 29 ;
+		lv2:index 32 ;
 		lv2:portProperty lv2:integer;
 		lv2:portProperty lv2:enumeration;
 		lv2:symbol "fftmode" ;
@@ -328,7 +360,7 @@
 			lv2:OutputPort ;
 		atom:bufferType atom:Sequence ;
 		lv2:designation lv2:control ;
-		lv2:index 30 ;
+		lv2:index 33 ;
 		lv2:symbol "notify" ;
 		rsz:minimumSize 33120;
 	  rdfs:comment "Plugin to GUI communication"

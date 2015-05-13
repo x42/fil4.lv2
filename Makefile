@@ -193,7 +193,7 @@ $(BUILDDIR)$(LV2NAME).ttl: lv2ttl/$(LV2NAME).ttl.in Makefile
 	    lv2ttl/$(LV2NAME).ttl.in > $(BUILDDIR)$(LV2NAME).ttl
 
 DSP_SRC = src/lv2.c
-DSP_DEPS = $(DSP_SRC) src/filters.h src/iir.h src/hip.h src/uris.h
+DSP_DEPS = $(DSP_SRC) src/filters.h src/iir.h src/hip.h src/uris.h src/lop.h
 
 $(BUILDDIR)$(LV2NAME)$(LIB_EXT): $(DSP_DEPS) Makefile
 	@mkdir -p $(BUILDDIR)

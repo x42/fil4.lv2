@@ -23,6 +23,7 @@
 #include "filters.h"
 #include "iir.h"
 #include "hip.h"
+#include "lop.h"
 
 #include "lv2/lv2plug.in/ns/lv2core/lv2.h"
 #include "uris.h"
@@ -37,7 +38,8 @@ typedef enum {
 
 	FIL_ENABLE,
 	FIL_GAIN,
-	FIL_HIPASS,
+	FIL_HIPASS, FIL_HIFREQ,
+	FIL_LOPASS, FIL_LOFREQ,
 
 	IIR_LS_EN, IIR_LS_FREQ, IIR_LS_Q, IIR_LS_GAIN,
 
@@ -59,6 +61,7 @@ typedef struct {
 	float         _fsam;
 
 	HighPass      hip;
+	LowPass       lop;
 
 	IIRProc       iir_lowshelf;
 	IIRProc       iir_highshelf;
@@ -109,7 +112,8 @@ instantiate(const LV2_Descriptor*     descriptor,
 	iir_calc_lowshelf (&self->iir_lowshelf);
 	iir_calc_highshelf (&self->iir_highshelf);
 
-	hip_setup (&self->hip, rate, 13);
+	hip_setup (&self->hip, rate, 100);
+	lop_setup (&self->lop, rate, 10000);
 
 	lv2_atom_forge_init (&self->forge, self->map);
 	map_fil4_uris (self->map, &self->uris);
@@ -174,6 +178,9 @@ run(LV2_Handle instance, uint32_t n_samples)
 	const float ls_q    = .337f + self->_port[IIR_LS_Q][0] / 7.425; // map [.125 .. 8] to [2^(-3/2) .. 2^(1/2)]
 	const float hs_q    = .337f + self->_port[IIR_HS_Q][0] / 7.425;
 	const bool  hipass  = *self->_port[FIL_HIPASS] > 0 ? true : false;
+	const bool  lopass  = *self->_port[FIL_LOPASS] > 0 ? true : false;
+	const float hifreq  = *self->_port[FIL_HIFREQ];
+	const float lofreq  = *self->_port[FIL_LOFREQ];
 
 	float *aip = self->_port [FIL_INPUT];
 	float *aop = self->_port [FIL_OUTPUT];
@@ -257,11 +264,13 @@ run(LV2_Handle instance, uint32_t n_samples)
 			iir_calc_highshelf (&self->iir_highshelf);
 		}
 
-		hip_interpolate (&self->hip, hipass);
+		hip_interpolate (&self->hip, hipass, hifreq);
+		lop_interpolate (&self->lop, lopass, lofreq);
 
 		/* run filters */
 
 		hip_compute (&self->hip, k, sig);
+		lop_compute (&self->lop, k, sig);
 
 		for (int j = 0; j < NSECT; ++j) {
 			self->_sect [j].proc (k, sig, sfreq [j], sband [j], sgain [j]);

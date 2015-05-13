@@ -56,9 +56,10 @@
 enum {
 	FIL_ENABLE = 2,
 	FIL_GAIN = 3,
-	FIL_HIPASS = 4,
+	FIL_HIPASS, FIL_HIFREQ,
+	FIL_LOPASS, FIL_LOFREQ,
 	FIL_SEC1, FIL_FREQ1, FIL_Q1, FIL_GAIN1,
-	FIL_FFT_MODE = 29, FIL_ATOM_NOTIFY = 30
+	FIL_FFT_MODE = 32, FIL_ATOM_NOTIFY = 33
 };
 
 /* cached filter state */
@@ -103,8 +104,12 @@ typedef struct {
 
 	// global section
 	RobTkCBtn *btn_g_enable;
-	RobTkIBtn *btn_g_hipass;
 	RobTkDial *spn_g_gain;
+
+	RobTkIBtn *btn_g_hipass;
+	RobTkIBtn *btn_g_lopass;
+	RobTkDial *spn_g_hifreq;
+	RobTkDial *spn_g_lofreq;
 
 	// filter section
 	RobTkCBtn *btn_enable[NSECT];
@@ -140,10 +145,13 @@ typedef struct {
 	// misc other stuff
 	cairo_surface_t* m0_grid;
 	cairo_surface_t* hpf_btn[2];
+	cairo_surface_t* lpf_btn[2];
 	cairo_surface_t* dial_bg[4];
 	cairo_surface_t* dial_fq[NSECT];
+	cairo_surface_t* dial_hplp[2];
 
 	FilterSection flt[NSECT];
+	float hilo[2];
 	int dragging;
 
 	bool disable_signals;
@@ -161,6 +169,11 @@ static FilterFreq freqs[NSECT] = {
 	{ 100, 10000,  1250},
 	{ 200, 20000,  2500},
 	{1000, 16000,  8000}, // HS
+};
+
+static FilterFreq lphp[2] = {
+	{   5,   200,    13}, // HP
+	{5000, 20000, 18000}, // LP
 };
 
 /* vidual filter colors */
@@ -297,6 +310,37 @@ static void prepare_faceplates(Fil4UI* ui) {
 	cairo_set_line_width (cr, 1.5);
 	cairo_stroke (cr);
 	cairo_destroy (cr);
+
+	ui->lpf_btn[0] = cairo_image_surface_create(CAIRO_FORMAT_ARGB32, 26, 20);
+	cr = cairo_create (ui->lpf_btn[0]);
+	cairo_move_to (cr,  4,  4);
+	cairo_line_to (cr, 17,  4);
+	cairo_line_to (cr, 22, 16);
+	cairo_set_line_cap (cr, CAIRO_LINE_CAP_ROUND);
+	CairoSetSouerceRGBA (c_blk);
+	cairo_set_line_width (cr, 3.0);
+	cairo_stroke_preserve (cr);
+	CairoSetSouerceRGBA (c_g80);
+	cairo_set_line_width (cr, 1.5);
+	cairo_stroke (cr);
+	cairo_destroy (cr);
+
+	ui->lpf_btn[1] = cairo_image_surface_create(CAIRO_FORMAT_ARGB32, 26, 20);
+	cr = cairo_create (ui->lpf_btn[1]);
+	cairo_move_to (cr,  4, 4);
+	cairo_line_to (cr, 17, 4);
+	cairo_line_to (cr, 22, 16);
+	cairo_set_line_cap (cr, CAIRO_LINE_CAP_ROUND);
+	CairoSetSouerceRGBA (c_blk);
+	cairo_set_line_width (cr, 3.0);
+	cairo_stroke_preserve (cr);
+	CairoSetSouerceRGBA (c_grn);
+	cairo_set_line_width (cr, 1.5);
+	cairo_stroke (cr);
+	cairo_destroy (cr);
+
+
+
 
 #define INIT_DIAL_SF(VAR, W, H) \
 	VAR = cairo_image_surface_create(CAIRO_FORMAT_ARGB32, W, H); \
@@ -472,6 +516,31 @@ static void prepare_faceplates(Fil4UI* ui) {
 
 		cairo_destroy (cr);
 	}
+
+	/* hi/lo pass faceplates */
+	for (int i = 0; i < 2; ++i) {
+		INIT_DIAL_SF(ui->dial_hplp[i], GED_WIDTH + 12, GED_HEIGHT + 20);
+		char tfq[8];
+
+		print_hz(tfq, dial_to_freq(&lphp[i], 0));
+		RESPLABLEL(0.00); write_text_full(cr, tfq, ui->font[0], xlp, ylp, 0, 1, c_dlf);
+
+		print_hz(tfq, dial_to_freq(&lphp[i], .25));
+		RESPLABLEL(0.25); write_text_full(cr, tfq, ui->font[0], xlp, ylp, 0, 1, c_dlf);
+
+		print_hz(tfq, dial_to_freq(&lphp[i], .50));
+		RESPLABLEL(0.50); write_text_full(cr, tfq, ui->font[0], xlp, ylp, 0, 2, c_dlf);
+
+		print_hz(tfq, dial_to_freq(&lphp[i], .75));
+		RESPLABLEL(0.75); write_text_full(cr, tfq, ui->font[0], xlp-2, ylp, 0, 3, c_dlf);
+
+		print_hz(tfq, dial_to_freq(&lphp[i], 1.0));
+		RESPLABLEL(1.00); write_text_full(cr, tfq, ui->font[0], xlp-2, ylp, 0, 3, c_dlf);
+
+		cairo_destroy (cr);
+	}
+
+
 }
 
 ///////////////////////////////////////////////////////////////////////////////
@@ -534,7 +603,7 @@ static void update_spectrum_history (Fil4UI* ui, const size_t n_elem, float cons
 		}
 		return;
 	}
-  if (!fftx_run(ui->fa, n_elem, data)) {
+	if (!fftx_run(ui->fa, n_elem, data)) {
 		cairo_t *cr = cairo_create (ui->fft_history);
 		cairo_set_line_width (cr, 1.0);
 
@@ -542,7 +611,7 @@ static void update_spectrum_history (Fil4UI* ui, const size_t n_elem, float cons
 		const int m0_h = ui->m0_y1 - ui->m0_y0;
 		ui->fft_hist_line = (ui->fft_hist_line + 1) % m0_h;
 
-    const uint32_t b = fftx_bins(ui->fa);
+		const uint32_t b = fftx_bins(ui->fa);
 		const float yy = ui->fft_hist_line;
 
 		// clear current line
@@ -734,10 +803,16 @@ static float get_shelf_response (FilterSection *flt, const float freq) {
 	return 20.f * log10f (sqrtf ((SQUARE(A) + SQUARE(B)) * (SQUARE(C) + SQUARE(D))) / (SQUARE(C) + SQUARE(D)));
 }
 
-static float get_highpass_response (const float freq) {
-	const float w = freq / 13.f; // see lv2.c hip_setup()
+static float get_highpass_response (Fil4UI *ui, const float freq) {
+	const float w = freq / ui->hilo[0];
 	const float v = (w / sqrtf (1 + w * w));
 	return 40.f * log10f (v); // 20 * log(v^2);
+}
+
+static float get_lowpass_response (Fil4UI *ui, const float freq) {
+	const float w0 = freq / ui->hilo[1];
+	const float w1 = 2 * freq / ui->samplerate;
+	return -20.f * log10f ((1 + SQUARE(w0)) / (1 + SQUARE(w1)));
 }
 
 ///////////////////////////////////////////////////////////////////////////////
@@ -794,6 +869,28 @@ static bool cb_spn_gain (RobWidget *w, void* handle) {
 	return TRUE;
 }
 
+static bool cb_spn_g_hifreq (RobWidget *w, void* handle) {
+	Fil4UI* ui = (Fil4UI*)handle;
+	const float val = dial_to_freq(&lphp[0], robtk_dial_get_value (ui->spn_g_hifreq));
+	ui->hilo[0] = val;
+	if (ui->disable_signals) return TRUE;
+	ui->write(ui->controller, FIL_HIFREQ, sizeof(float), 0, (const void*) &val);
+	queue_draw(ui->m0);
+	return TRUE;
+}
+
+static bool cb_spn_g_lofreq (RobWidget *w, void* handle) {
+	Fil4UI* ui = (Fil4UI*)handle;
+	//update_filters(ui);
+	const float val = dial_to_freq(&lphp[1], robtk_dial_get_value (ui->spn_g_lofreq));
+	ui->hilo[1] = val;
+	// TODO display freq
+	if (ui->disable_signals) return TRUE;
+	ui->write(ui->controller, FIL_LOFREQ, sizeof(float), 0, (const void*) &val);
+	queue_draw(ui->m0);
+	return TRUE;
+}
+
 static bool cb_btn_g_en (RobWidget *w, void* handle) {
 	Fil4UI* ui = (Fil4UI*)handle;
 	if (ui->disable_signals) return TRUE;
@@ -808,6 +905,15 @@ static bool cb_btn_g_hi (RobWidget *w, void* handle) {
 	if (ui->disable_signals) return TRUE;
 	const float val = robtk_ibtn_get_active(ui->btn_g_hipass) ? 1.f : 0.f;
 	ui->write(ui->controller, FIL_HIPASS, sizeof(float), 0, (const void*) &val);
+	queue_draw(ui->m0);
+	return TRUE;
+}
+
+static bool cb_btn_g_lo (RobWidget *w, void* handle) {
+	Fil4UI* ui = (Fil4UI*)handle;
+	if (ui->disable_signals) return TRUE;
+	const float val = robtk_ibtn_get_active(ui->btn_g_lopass) ? 1.f : 0.f;
+	ui->write(ui->controller, FIL_LOPASS, sizeof(float), 0, (const void*) &val);
 	queue_draw(ui->m0);
 	return TRUE;
 }
@@ -1274,7 +1380,10 @@ static bool m0_expose_event (RobWidget* handle, cairo_t* cr, cairo_rectangle_t *
 			}
 		}
 		if (robtk_ibtn_get_active(ui->btn_g_hipass)) {
-			y += yr * get_highpass_response (xf);
+			y += yr * get_highpass_response (ui, xf);
+		}
+		if (robtk_ibtn_get_active(ui->btn_g_lopass)) {
+			y += yr * get_lowpass_response (ui, xf);
 		}
 		if (i == 0) {
 			cairo_move_to (cr, x0 + i, ym - y);
@@ -1305,7 +1414,7 @@ static RobWidget * toplevel(Fil4UI* ui, void * const top) {
 
 	prepare_faceplates (ui);
 
-	ui->ctbl = rob_table_new (/*rows*/4, /*cols*/ 2 * NSECT + 2, FALSE);
+	ui->ctbl = rob_table_new (/*rows*/4, /*cols*/ 2 * NSECT + 4, FALSE);
 
 #define GBT_W(PTR) robtk_cbtn_widget(PTR)
 #define GBI_W(PTR) robtk_ibtn_widget(PTR)
@@ -1316,17 +1425,11 @@ static RobWidget * toplevel(Fil4UI* ui, void * const top) {
 
 	/* Global section */
 	ui->btn_g_enable = robtk_cbtn_new ("Enable", GBT_LED_LEFT, false);
-	ui->btn_g_hipass = robtk_ibtn_new (ui->hpf_btn[0], ui->hpf_btn[1]);
-	ui->spn_g_gain   = robtk_dial_new_with_size (-18, 18, .2,
+ui->spn_g_gain   = robtk_dial_new_with_size (-18, 18, .2,
 				GED_WIDTH + 12, GED_HEIGHT + 20, GED_CX + 6, GED_CY + 15, GED_RADIUS);
-
-	rob_table_attach (ui->ctbl, GBT_W(ui->btn_g_enable), col, col+1, 0, 1, 5, 0, RTK_EXANDF, RTK_SHRINK);
-	rob_table_attach (ui->ctbl, GBI_W(ui->btn_g_hipass), col, col+1, 2, 3, 5, 0, RTK_EXANDF, RTK_SHRINK);
-	rob_table_attach (ui->ctbl, GSP_W(ui->spn_g_gain),   col, col+1, 3, 4, 5, 0, RTK_EXANDF, RTK_SHRINK);
 
 	robtk_dial_annotation_callback(ui->spn_g_gain, dial_annotation_db, ui);
 	robtk_cbtn_set_callback (ui->btn_g_enable, cb_btn_g_en, ui);
-	robtk_ibtn_set_callback (ui->btn_g_hipass, cb_btn_g_hi, ui);
 	robtk_dial_set_callback (ui->spn_g_gain,   cb_spn_g_gain, ui);
 	robtk_dial_set_surface (ui->spn_g_gain, ui->dial_bg[0]);
 
@@ -1344,11 +1447,48 @@ static RobWidget * toplevel(Fil4UI* ui, void * const top) {
 	robtk_select_set_default_item (ui->sel_fft, 0);
 	robtk_select_set_value (ui->sel_fft, 0);
 	robtk_select_set_callback(ui->sel_fft, cb_set_fft, ui);
-	rob_table_attach (ui->ctbl, robtk_select_widget(ui->sel_fft), col, col+1, 1, 2, 5, 0, RTK_EXANDF, RTK_SHRINK);
 
+	rob_table_attach (ui->ctbl, GBT_W(ui->btn_g_enable), col, col+1, 0, 1, 5, 0, RTK_EXANDF, RTK_SHRINK);
+	rob_table_attach (ui->ctbl, GSP_W(ui->spn_g_gain),   col, col+1, 1, 2, 5, 0, RTK_EXANDF, RTK_SHRINK);
+	rob_table_attach (ui->ctbl, robtk_select_widget(ui->sel_fft), col, col+1, 3, 4, 5, 0, RTK_EXANDF, RTK_SHRINK);
+
+	/* separator */
 	++col;
 	ui->sep_v0 = robtk_sep_new(FALSE);
 	rob_table_attach_defaults (ui->ctbl, robtk_sep_widget(ui->sep_v0), col, col+1, 0, 5);
+
+	/* HPF & LPF */
+	++col;
+	ui->btn_g_hipass = robtk_ibtn_new (ui->hpf_btn[0], ui->hpf_btn[1]);
+	ui->btn_g_lopass = robtk_ibtn_new (ui->lpf_btn[0], ui->lpf_btn[1]); // XXX
+
+	robtk_ibtn_set_alignment(ui->btn_g_hipass, .5, 0);
+	robtk_ibtn_set_alignment(ui->btn_g_lopass, .5, 0);
+
+	ui->spn_g_hifreq = robtk_dial_new_with_size (0, 1, .00625,
+			GED_WIDTH + 12, GED_HEIGHT + 20, GED_CX + 6, GED_CY + 15, GED_RADIUS);
+	ui->spn_g_lofreq = robtk_dial_new_with_size (0, 1, .00625,
+			GED_WIDTH + 12, GED_HEIGHT + 20, GED_CX + 6, GED_CY + 15, GED_RADIUS);
+
+	robtk_ibtn_set_callback (ui->btn_g_hipass, cb_btn_g_hi, ui);
+	robtk_ibtn_set_callback (ui->btn_g_lopass, cb_btn_g_lo, ui);
+	robtk_dial_set_callback (ui->spn_g_hifreq, cb_spn_g_hifreq, ui);
+	robtk_dial_set_callback (ui->spn_g_lofreq, cb_spn_g_lofreq, ui);
+
+	robtk_dial_set_constained (ui->spn_g_hifreq, false);
+	robtk_dial_set_constained (ui->spn_g_lofreq, false);
+	robtk_dial_set_default(ui->spn_g_hifreq, freq_to_dial (&lphp[0], lphp[0].dflt));
+	robtk_dial_set_default(ui->spn_g_lofreq, freq_to_dial (&lphp[1], lphp[1].dflt));
+
+	robtk_dial_set_surface (ui->spn_g_hifreq, ui->dial_hplp[0]);
+	robtk_dial_set_surface (ui->spn_g_lofreq, ui->dial_hplp[1]);
+
+	rob_table_attach (ui->ctbl, GBI_W(ui->btn_g_hipass), col, col+1, 0, 2, 5, 0, RTK_EXANDF, RTK_SHRINK);
+	rob_table_attach (ui->ctbl, GSP_W(ui->spn_g_hifreq), col, col+1, 3, 4, 5, 0, RTK_EXANDF, RTK_SHRINK);
+
+	// LPF AT END
+	rob_table_attach (ui->ctbl, GBI_W(ui->btn_g_lopass), col + NSECT + 2, col + NSECT + 3, 0, 2, 5, 0, RTK_EXANDF, RTK_SHRINK);
+	rob_table_attach (ui->ctbl, GSP_W(ui->spn_g_lofreq), col + NSECT + 2, col + NSECT + 3, 3, 4, 5, 0, RTK_EXANDF, RTK_SHRINK);
 
 	/* Filter bands */
 	++col;
@@ -1363,9 +1503,9 @@ static RobWidget * toplevel(Fil4UI* ui, void * const top) {
 				GED_WIDTH, GED_HEIGHT + 4, GED_CX, GED_CY + 3, GED_RADIUS);
 
 		rob_table_attach (ui->ctbl, GBT_W(ui->btn_enable[i]), col, col+1, 0, 1, 0, 0, RTK_EXANDF, RTK_SHRINK);
-		rob_table_attach (ui->ctbl, GSP_W(ui->spn_freq[i]),   col, col+1, 1, 2, 0, 0, RTK_EXANDF, RTK_SHRINK);
+		rob_table_attach (ui->ctbl, GSP_W(ui->spn_gain[i]),   col, col+1, 1, 2, 0, 0, RTK_EXANDF, RTK_SHRINK);
 		rob_table_attach (ui->ctbl, GSP_W(ui->spn_bw[i]),     col, col+1, 2, 3, 0, 0, RTK_EXANDF, RTK_SHRINK);
-		rob_table_attach (ui->ctbl, GSP_W(ui->spn_gain[i]),   col, col+1, 3, 4, 0, 0, RTK_EXANDF, RTK_SHRINK);
+		rob_table_attach (ui->ctbl, GSP_W(ui->spn_freq[i]),   col, col+1, 3, 4, 0, 0, RTK_EXANDF, RTK_SHRINK);
 
 		robtk_dial_annotation_callback(ui->spn_gain[i], dial_annotation_db, ui);
 		robtk_dial_set_constained (ui->spn_freq[i], false);
@@ -1435,6 +1575,10 @@ static void gui_cleanup(Fil4UI* ui) {
 
 	robtk_cbtn_destroy (ui->btn_g_enable);
 	robtk_dial_destroy (ui->spn_g_gain);
+	robtk_ibtn_destroy (ui->btn_g_hipass);
+	robtk_dial_destroy (ui->spn_g_hifreq);
+	robtk_ibtn_destroy (ui->btn_g_lopass);
+	robtk_dial_destroy (ui->spn_g_lofreq);
 	robtk_select_destroy(ui->sel_fft);
 
 	robtk_sep_destroy (ui->sep_v0);
@@ -1448,6 +1592,8 @@ static void gui_cleanup(Fil4UI* ui) {
 	cairo_surface_destroy (ui->dial_bg[3]);
 	cairo_surface_destroy (ui->hpf_btn[0]);
 	cairo_surface_destroy (ui->hpf_btn[1]);
+	cairo_surface_destroy (ui->lpf_btn[0]);
+	cairo_surface_destroy (ui->lpf_btn[1]);
 
 	if (ui->fft_history) {
 		cairo_surface_destroy (ui->fft_history);
@@ -1514,6 +1660,9 @@ instantiate(
 		 * match actual rate (rails at bounrary) */
 		ui->flt[i].rate = 48000;
 	}
+
+	ui->hilo[0] = lphp[0].dflt;
+	ui->hilo[1] = lphp[1].dflt;
 
 	map_fil4_uris (ui->map, &ui->uris);
 	reinitialize_fft (ui);
@@ -1595,6 +1744,15 @@ port_event(LV2UI_Handle handle,
 	}
 	else if (port_index == FIL_HIPASS) {
 		robtk_ibtn_set_active (ui->btn_g_hipass, v > 0 ? true : false);
+	}
+	else if (port_index == FIL_HIFREQ) {
+		robtk_dial_set_value (ui->spn_g_hifreq, freq_to_dial (&lphp[0], v));
+	}
+	else if (port_index == FIL_LOPASS) {
+		robtk_ibtn_set_active (ui->btn_g_lopass, v > 0 ? true : false);
+	}
+	else if (port_index == FIL_LOFREQ) {
+		robtk_dial_set_value (ui->spn_g_lofreq, freq_to_dial (&lphp[1], v));
 	}
 	else if (port_index >= FIL_SEC1 && port_index < FIL_FFT_MODE) {
 		const int param = (port_index - FIL_SEC1) % 4;
