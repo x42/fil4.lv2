@@ -44,7 +44,7 @@ static void iir_init (IIRProc *f, double rate) {
 
 static int iir_interpolate (IIRProc *f, const float gain, float freq, float q) {
 	if (q < .25f) { q = .25f; }
-	if (q > 1.42f)  { q = 1.42f; }
+	if (q > 2.0f) { q = 2.0f; }
 	if (freq < f->f_l) { freq = f->f_l; }
 	if (freq > f->f_u) { freq = f->f_u; }
 

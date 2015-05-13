@@ -127,9 +127,9 @@
 		lv2:index 10 ;
 		lv2:symbol "LSq" ;
 		lv2:name "Lowshelf Bandwidth" ;
-		lv2:default 2.8;
-		lv2:minimum 0.125;
-		lv2:maximum 8.0;
+		lv2:default 1.0;
+		lv2:minimum 0.0625 ;
+		lv2:maximum 4.0;
 	] , [
 		a lv2:InputPort ,
 			lv2:ControlPort ;
@@ -168,8 +168,8 @@
 		lv2:symbol "q1" ;
 		lv2:name "Bandwidth 1" ;
 		lv2:default 0.6 ;
-		lv2:minimum 0.125;
-		lv2:maximum 8.0;
+		lv2:minimum 0.0625 ;
+		lv2:maximum 4.0;
 	] , [
 		a lv2:InputPort ,
 			lv2:ControlPort ;
@@ -208,8 +208,8 @@
 		lv2:symbol "q2" ;
 		lv2:name "Bandwidth 2" ;
 		lv2:default 0.6 ;
-		lv2:minimum 0.125;
-		lv2:maximum 8.0;
+		lv2:minimum 0.0625 ;
+		lv2:maximum 4.0;
 	] , [
 		a lv2:InputPort ,
 			lv2:ControlPort ;
@@ -248,8 +248,8 @@
 		lv2:symbol "q3" ;
 		lv2:name "Bandwidth 3" ;
 		lv2:default 0.6 ;
-		lv2:minimum 0.125;
-		lv2:maximum 8.0;
+		lv2:minimum 0.0625 ;
+		lv2:maximum 4.0;
 	] , [
 		a lv2:InputPort ,
 			lv2:ControlPort ;
@@ -288,8 +288,8 @@
 		lv2:symbol "q4" ;
 		lv2:name "Bandwidth 4" ;
 		lv2:default 0.6 ;
-		lv2:minimum 0.125;
-		lv2:maximum 8.0;
+		lv2:minimum 0.0625 ;
+		lv2:maximum 4.0;
 	] , [
 		a lv2:InputPort ,
 			lv2:ControlPort ;
@@ -327,9 +327,9 @@
 		lv2:index 30 ;
 		lv2:symbol "HSq" ;
 		lv2:name "Highshelf Bandwidth" ;
-		lv2:default 2.8;
-		lv2:minimum 0.125;
-		lv2:maximum 8.0;
+		lv2:default 1.0;
+		lv2:minimum 0.0625;
+		lv2:maximum 4.0;
 	] , [
 		a lv2:InputPort ,
 			lv2:ControlPort ;
