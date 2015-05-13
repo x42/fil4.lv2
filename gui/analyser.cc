@@ -58,7 +58,13 @@ Analyser::Analyser (int ipsize, int fftmax, float fsamp) :
 
 Analyser::~Analyser (void)
 {
+#ifdef WITH_FFTW_LOCK
+    pthread_mutex_lock(&fftw_planner_lock);
+#endif
     if (_fftplan) fftwf_destroy_plan (_fftplan);
+#ifdef WITH_FFTW_LOCK
+    pthread_mutex_unlock(&fftw_planner_lock);
+#endif
     delete _power;
     delete _peakp;
     fftwf_free (_trdata);
@@ -72,9 +78,15 @@ void Analyser::set_fftlen (int fftlen)
     if (fftlen > _fftmax) fftlen = _fftmax;
     if (_fftlen != fftlen)
     {
+#ifdef WITH_FFTW_LOCK
+        pthread_mutex_lock(&fftw_planner_lock);
+#endif
         if (_fftplan) fftwf_destroy_plan (_fftplan);
         _fftlen = fftlen;
         _fftplan = fftwf_plan_dft_r2c_1d (_fftlen, _warped, _trdata + 4, FFTW_ESTIMATE);
+#ifdef WITH_FFTW_LOCK
+        pthread_mutex_unlock(&fftw_planner_lock);
+#endif
         set_wfact (_wfact);
         set_speed (_speed);
         clr_peak ();

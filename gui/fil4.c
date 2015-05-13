@@ -25,6 +25,7 @@
 
 #include "../src/uris.h"
 #include "fft.c"
+#define WITH_FFTW_LOCK
 #include "analyser.cc"
 
 #define MTR_URI "http://gareus.org/oss/lv2/fil4#"
