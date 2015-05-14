@@ -63,9 +63,9 @@ static void lop_compute (LowPass *f, uint32_t n_samples, float *buf) {
 	float z2 = f->z2;
 	const float a = f->a;
 	for (uint32_t i = 0; i < n_samples; ++i) {
-		const float y1 = z1 + a * (buf[i] - z1);
-		z1 = y1;
-		z2 = buf[i] = z2 + a * (y1 - z2);
+		z1 += a * (buf[i] - z1);
+		z2 += a * (z1 - z2);
+		buf[i] = z2;
 	}
 	f->z1 = z1 + 1e-12;
 	f->z2 = z2 + 1e-12;

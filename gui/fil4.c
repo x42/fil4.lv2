@@ -1010,10 +1010,10 @@ static bool cb_spn_g_hifreq (RobWidget *w, void* handle) {
 	Fil4UI* ui = (Fil4UI*)handle;
 	const float val = dial_to_freq(&lphp[0], robtk_dial_get_value (ui->spn_g_hifreq));
 	ui->hilo[0] = val;
+	update_filter_display (ui);
 	// TODO numeric display ??
 	if (ui->disable_signals) return TRUE;
 	ui->write(ui->controller, FIL_HIFREQ, sizeof(float), 0, (const void*) &val);
-	update_filter_display (ui);
 	return TRUE;
 }
 
@@ -1021,10 +1021,10 @@ static bool cb_spn_g_lofreq (RobWidget *w, void* handle) {
 	Fil4UI* ui = (Fil4UI*)handle;
 	const float val = dial_to_freq(&lphp[1], robtk_dial_get_value (ui->spn_g_lofreq));
 	ui->hilo[1] = val;
+	update_filter_display (ui);
 	// TODO numeric display ??
 	if (ui->disable_signals) return TRUE;
 	ui->write(ui->controller, FIL_LOFREQ, sizeof(float), 0, (const void*) &val);
-	update_filter_display (ui);
 	return TRUE;
 }
 
@@ -1785,6 +1785,9 @@ static RobWidget * toplevel(Fil4UI* ui, void * const top) {
 			GED_WIDTH + 12, GED_HEIGHT + 20, GED_CX + 6, GED_CY + 15, GED_RADIUS);
 	ui->spn_g_lofreq = robtk_dial_new_with_size (0, 1, 1./100.,
 			GED_WIDTH + 12, GED_HEIGHT + 20, GED_CX + 6, GED_CY + 15, GED_RADIUS);
+
+	robtk_dial_set_value (ui->spn_g_hifreq, freq_to_dial (&lphp[0], lphp[0].dflt));
+	robtk_dial_set_value (ui->spn_g_lofreq, freq_to_dial (&lphp[1], lphp[1].dflt));
 
 	robtk_ibtn_set_callback (ui->btn_g_hipass, cb_btn_g_hi, ui);
 	robtk_ibtn_set_callback (ui->btn_g_lopass, cb_btn_g_lo, ui);
