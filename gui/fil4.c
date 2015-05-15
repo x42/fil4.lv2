@@ -99,6 +99,7 @@ typedef struct {
 	RobTkCBtn *btn_g_enable;
 	RobTkDial *spn_g_gain;
 	RobTkDial *spn_fftgain;
+	RobTkLbl  *lbl_g_gain;
 	RobTkLbl  *lbl_fftgain;
 
 	RobTkIBtn *btn_g_hipass;
@@ -1715,7 +1716,7 @@ static RobWidget * toplevel(Fil4UI* ui, void * const top) {
 
 	prepare_faceplates (ui);
 
-	ui->ctbl = rob_table_new (/*rows*/5, /*cols*/ 2 * NCTRL + 4, FALSE);
+	ui->ctbl = rob_table_new (/*rows*/6, /*cols*/ 2 * NCTRL + 4, FALSE);
 
 #define GBT_W(PTR) robtk_cbtn_widget(PTR)
 #define GBI_W(PTR) robtk_ibtn_widget(PTR)
@@ -1729,6 +1730,7 @@ static RobWidget * toplevel(Fil4UI* ui, void * const top) {
 	ui->spn_g_gain   = robtk_dial_new_with_size (-18, 18, .2,
 			GED_WIDTH + 12, GED_HEIGHT + 20, GED_CX + 6, GED_CY + 15, GED_RADIUS);
 	ui->spn_fftgain  = robtk_dial_new (-30, 30, 1.0);
+	ui->lbl_g_gain  = robtk_lbl_new ("Output Gain");
 	ui->lbl_fftgain  = robtk_lbl_new ("FFT Amp");
 	robtk_dial_set_value (ui->spn_fftgain, 0);
 	robtk_dial_set_sensitive (ui->spn_fftgain, false);
@@ -1772,20 +1774,21 @@ static RobWidget * toplevel(Fil4UI* ui, void * const top) {
 
 	rob_table_attach (ui->ctbl, GBT_W(ui->btn_g_enable), col, col+2, 0, 1, 5, 0, RTK_EXANDF, RTK_SHRINK);
 	rob_table_attach (ui->ctbl, GSP_W(ui->spn_g_gain),   col, col+2, 1, 2, 5, 0, RTK_EXANDF, RTK_SHRINK);
-	rob_table_attach_defaults (ui->ctbl, robtk_sep_widget(ui->sep_h0), col, col+2, 2, 3);
+	rob_table_attach (ui->ctbl, GLB_W(ui->lbl_g_gain),   col, col+2, 2, 3, 5, 0, RTK_EXANDF, RTK_SHRINK);
+	rob_table_attach_defaults (ui->ctbl, robtk_sep_widget(ui->sep_h0), col, col+2, 3, 4);
 	if (ui->n_channels > 1) {
-		rob_table_attach (ui->ctbl, robtk_select_widget(ui->sel_chn), col,   col+1, 3, 4, 5, 0, RTK_EXANDF, RTK_SHRINK);
-		rob_table_attach (ui->ctbl, robtk_select_widget(ui->sel_fft), col,   col+1, 4, 5, 5, 0, RTK_EXANDF, RTK_SHRINK);
+		rob_table_attach (ui->ctbl, robtk_select_widget(ui->sel_chn), col,   col+1, 4, 5, 5, 0, RTK_EXANDF, RTK_SHRINK);
+		rob_table_attach (ui->ctbl, robtk_select_widget(ui->sel_fft), col,   col+1, 5, 6, 5, 0, RTK_EXANDF, RTK_SHRINK);
 	} else {
-		rob_table_attach (ui->ctbl, robtk_select_widget(ui->sel_fft), col,   col+1, 3, 5, 5, 0, RTK_EXANDF, RTK_SHRINK);
+		rob_table_attach (ui->ctbl, robtk_select_widget(ui->sel_fft), col,   col+1, 4, 6, 5, 0, RTK_EXANDF, RTK_SHRINK);
 	}
-	rob_table_attach (ui->ctbl, GLB_W(ui->lbl_fftgain),           col+1, col+2, 3, 4, 5, 0, RTK_EXANDF, RTK_SHRINK);
-	rob_table_attach (ui->ctbl, GSP_W(ui->spn_fftgain),           col+1, col+2, 4, 5, 5, 0, RTK_EXANDF, RTK_SHRINK);
+	rob_table_attach (ui->ctbl, GLB_W(ui->lbl_fftgain),           col+1, col+2, 4, 5, 5, 0, RTK_EXANDF, RTK_SHRINK);
+	rob_table_attach (ui->ctbl, GSP_W(ui->spn_fftgain),           col+1, col+2, 5, 6, 5, 0, RTK_EXANDF, RTK_SHRINK);
 
 	/* separator */
 	col += 2;
 	ui->sep_v0 = robtk_sep_new(FALSE);
-	rob_table_attach_defaults (ui->ctbl, robtk_sep_widget(ui->sep_v0), col, col+1, 0, 5);
+	rob_table_attach_defaults (ui->ctbl, robtk_sep_widget(ui->sep_v0), col, col+1, 0, 6);
 
 	/* HPF & LPF */
 	++col;
@@ -1823,12 +1826,12 @@ static RobWidget * toplevel(Fil4UI* ui, void * const top) {
 
 	rob_table_attach (ui->ctbl, GBI_W(ui->btn_g_hipass), col, col+1, 0, 2, 5, 0, RTK_EXANDF, RTK_SHRINK);
 	rob_table_attach (ui->ctbl, GLB_W(ui->lbl_hilo[0]),  col, col+1, 2, 3, 5, 0, RTK_EXANDF, RTK_SHRINK);
-	rob_table_attach (ui->ctbl, GSP_W(ui->spn_g_hifreq), col, col+1, 3, 5, 5, 0, RTK_EXANDF, RTK_SHRINK);
+	rob_table_attach (ui->ctbl, GSP_W(ui->spn_g_hifreq), col, col+1, 4, 6, 5, 0, RTK_EXANDF, RTK_SHRINK);
 
 	// LPF AT END
 	rob_table_attach (ui->ctbl, GBI_W(ui->btn_g_lopass), col + NCTRL + 2, col + NCTRL + 3, 0, 2, 5, 0, RTK_EXANDF, RTK_SHRINK);
-	rob_table_attach (ui->ctbl, GLB_W(ui->lbl_hilo[1]),  col + NCTRL + 2, col + NCTRL + 3, 2, 3, 5, 0, RTK_EXANDF, RTK_SHRINK);
-	rob_table_attach (ui->ctbl, GSP_W(ui->spn_g_lofreq), col + NCTRL + 2, col + NCTRL + 3, 3, 5, 5, 0, RTK_EXANDF, RTK_SHRINK);
+	rob_table_attach (ui->ctbl, GLB_W(ui->lbl_hilo[1]),  col + NCTRL + 2, col + NCTRL + 3, 2, 4, 5, 0, RTK_EXANDF, RTK_SHRINK);
+	rob_table_attach (ui->ctbl, GSP_W(ui->spn_g_lofreq), col + NCTRL + 2, col + NCTRL + 3, 4, 6, 5, 0, RTK_EXANDF, RTK_SHRINK);
 
 	/* Filter bands */
 	++col;
@@ -1848,8 +1851,8 @@ static RobWidget * toplevel(Fil4UI* ui, void * const top) {
 
 		rob_table_attach (ui->ctbl, GBT_W(ui->btn_enable[i]), col, col+1, 0, 1, 0, 0, RTK_EXANDF, RTK_SHRINK);
 		rob_table_attach (ui->ctbl, GSP_W(ui->spn_gain[i]),   col, col+1, 1, 2, 0, 0, RTK_EXANDF, RTK_SHRINK);
-		rob_table_attach (ui->ctbl, GSP_W(ui->spn_bw[i]),     col, col+1, 2, 3, 0, 0, RTK_EXANDF, RTK_SHRINK);
-		rob_table_attach (ui->ctbl, GSP_W(ui->spn_freq[i]),   col, col+1, 3, 5, 0, 0, RTK_EXANDF, RTK_SHRINK);
+		rob_table_attach (ui->ctbl, GSP_W(ui->spn_bw[i]),     col, col+1, 2, 4, 0, 0, RTK_EXANDF, RTK_SHRINK);
+		rob_table_attach (ui->ctbl, GSP_W(ui->spn_freq[i]),   col, col+1, 4, 6, 0, 0, RTK_EXANDF, RTK_SHRINK);
 
 		robtk_dial_annotation_callback(ui->spn_gain[i], dial_annotation_db, ui);
 		robtk_dial_set_constained (ui->spn_freq[i], false);
