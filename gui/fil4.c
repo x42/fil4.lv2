@@ -183,7 +183,7 @@ static FilterFreq freqs[NCTRL] = {
 
 static FilterFreq lphp[2] = {
 	{   5,   200,    13,  40}, // HP
-	{5000, 20000, 18000,  .1}, // LP
+	{ 2000, 20000, 18000,.33}, // LP
 };
 
 /* vidual filter colors */
@@ -947,9 +947,17 @@ static float get_highpass_response (Fil4UI *ui, const float freq) {
 }
 
 static float get_lowpass_response (Fil4UI *ui, const float freq) {
+#if 1
+	const float w1 = 2 * freq / ui->samplerate;
+	const float wc = 1.41 * ui->hilo[1];
+	const float w = freq;
+	return  -10.f * log10f (SQUARE(1 - SQUARE(w) / SQUARE(wc)) *.25 / (.25 + SQUARE(SQUARE(w1))) + SQUARE(1.56 * w / wc) );
+#else
+	// exact rolloff near nyquist w/o feedback (knee)
 	const float w0 = freq / ui->hilo[1];
 	const float w1 = 2 * freq / ui->samplerate;
-	return -20.f * log10f ((1 + SQUARE(w0)) / (1 + SQUARE(w1)));
+	return  -20.f * log10f ( (1 + SQUARE(w0)) / (1 + SQUARE(w1)) );
+#endif
 }
 
 ///////////////////////////////////////////////////////////////////////////////
@@ -1405,7 +1413,7 @@ static RobWidget* m0_mouse_move (RobWidget* handle, RobTkBtnEvent *ev) {
 			return handle;
 		}
 		float delta = (ui->hilo_y[1] - ev->y) / ui->m0_yr;
-		robtk_dial_set_value (ui->spn_g_lofreq, robtk_dial_get_value (ui->spn_g_lofreq) + delta / 90.);
+		robtk_dial_set_value (ui->spn_g_lofreq, robtk_dial_get_value (ui->spn_g_lofreq) + delta / 180.);
 		//robtk_dial_set_value (ui->spn_g_hifreq, freq_to_dial (&lphp[1], v));
 		return handle;
 	}
