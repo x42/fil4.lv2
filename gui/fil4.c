@@ -1393,7 +1393,11 @@ static RobWidget* m0_mouse_move (RobWidget* handle, RobTkBtnEvent *ev) {
 	const float y0 = ui->m0_y0;
 	const float y1 = ui->m0_y1;
 
+#ifdef VISUAL_GAIN_OFFSET
 	float g_gain = robtk_dial_get_value (ui->spn_g_gain);
+#else
+	float g_gain = 0;
+#endif
 	const int sect = ui->dragging;
 
 	if (sect == NCTRL) {
@@ -1447,7 +1451,11 @@ static void draw_filters (Fil4UI* ui) {
 	cairo_set_line_cap(cr, CAIRO_LINE_CAP_BUTT);
 	cairo_set_line_join(cr, CAIRO_LINE_JOIN_ROUND);
 
+#ifdef VISUAL_GAIN_OFFSET
 	float g_gain = robtk_dial_get_value (ui->spn_g_gain);
+#else
+	float g_gain = 0;
+#endif
 	if (!robtk_cbtn_get_active(ui->btn_g_enable)) {
 		shade = 0.5;
 	}
