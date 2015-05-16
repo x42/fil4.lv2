@@ -206,7 +206,7 @@ $(BUILDDIR)$(LV2NAME).ttl: Makefile lv2ttl/$(LV2NAME).ttl.in \
 
 DSP_SRC = src/lv2.c
 DSP_DEPS = $(DSP_SRC) src/filters.h src/iir.h src/hip.h src/uris.h src/lop.h
-GUI_DEPS = gui/analyser.cc gui/analyser.h gui/fft.c gui/fil4.c
+GUI_DEPS = gui/analyser.cc gui/analyser.h gui/fft.c gui/fil4.c src/uris.h
 
 $(BUILDDIR)$(LV2NAME)$(LIB_EXT): $(DSP_DEPS) Makefile
 	@mkdir -p $(BUILDDIR)
