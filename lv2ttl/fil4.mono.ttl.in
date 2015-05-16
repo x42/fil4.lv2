@@ -1,12 +1,12 @@
 		a lv2:AudioPort ,
 			lv2:InputPort ;
-		lv2:index 32 ;
+		lv2:index 34 ;
 		lv2:symbol "in" ;
 		lv2:name "In"
 	] , [
 		a lv2:AudioPort ,
 			lv2:OutputPort ;
-		lv2:index 33 ;
+		lv2:index 35 ;
 		lv2:symbol "out" ;
 		lv2:name "Out"
 	] ;
