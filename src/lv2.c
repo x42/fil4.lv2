@@ -76,7 +76,7 @@ static void init_filter_channel (FilterChannel *fc, double rate) {
 	iir_calc_lowshelf (&fc->iir_lowshelf);
 	iir_calc_highshelf (&fc->iir_highshelf);
 
-	hip_setup (&fc->hip, rate, 100);
+	hip_setup (&fc->hip, rate, 20, .7);
 	lop_setup (&fc->lop, rate, 10000);
 }
 
@@ -182,6 +182,7 @@ static void process_channel(Fil4* self, FilterChannel *fc, uint32_t p_samples, u
 	const bool  hipass  = *self->_port[FIL_HIPASS] > 0 ? true : false;
 	const bool  lopass  = *self->_port[FIL_LOPASS] > 0 ? true : false;
 	const float hifreq  = *self->_port[FIL_HIFREQ];
+	const float hi_q    = *self->_port[FIL_HIQ];
 	const float lofreq  = *self->_port[FIL_LOFREQ];
 
 	float *aip = self->_port [FIL_INPUT0 + (chn<<1)];
@@ -237,7 +238,7 @@ static void process_channel(Fil4* self, FilterChannel *fc, uint32_t p_samples, u
 			iir_calc_highshelf (&fc->iir_highshelf);
 		}
 
-		hip_interpolate (&fc->hip, hipass, hifreq);
+		hip_interpolate (&fc->hip, hipass, hifreq, hi_q);
 		lop_interpolate (&fc->lop, lopass, lofreq);
 
 		/* run filters */
