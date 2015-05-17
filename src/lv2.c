@@ -76,7 +76,7 @@ static void init_filter_channel (FilterChannel *fc, double rate) {
 	iir_calc_lowshelf (&fc->iir_lowshelf);
 	iir_calc_highshelf (&fc->iir_highshelf);
 
-	hip_setup (&fc->hip, rate, 20, .7);
+	hip_setup (&fc->hip, rate, 20, .41);
 	lop_setup (&fc->lop, rate, 10000);
 }
 

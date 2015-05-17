@@ -22,7 +22,7 @@ typedef struct {
 	float y2;
 	float z1, z2;
 	float a, q, g;
-	float alpha, omega;
+	float alpha, omega, q2;
 	float freq, qual; // last settings
 	float rate;
 } HighPass;
@@ -33,7 +33,9 @@ static void hip_setup (HighPass *f, float rate, float freq, float q) {
 	f->freq = freq;
 
 	f->qual = q;
-	if (f->qual > 1.39) f->qual = 1.39;
+	if (q >= 1.4f) { f->q2 = 1.4f; }
+	else if (q <= 0.f) { f->q2 = 0.f; }
+	else { f->q2 = 1.4f * q; }
 
 	if (freq > rate / 12.f) freq = rate / 12.f;
 	f->alpha = exp (-2.0 * M_PI * freq / rate);
@@ -56,12 +58,10 @@ static void hip_interpolate (HighPass *f, bool en, float freq, float q) {
 	}
 
 	if (f->qual != q) {
-		// TODO cache constrained value
-		if (f->qual > 1.39) {
-			f->qual = 1.39;
-		} else {
-			f->qual = q;
-		}
+		if (q >= 1.4f) { f->q2 = 1.4f; }
+		if (q <= 0.f) { f->q2 = 0.f; }
+		else { f->q2 = 1.4f * q; }
+		f->qual = q;
 	}
 
 	const float to = en ? f->alpha : 1.0;
@@ -71,7 +71,7 @@ static void hip_interpolate (HighPass *f, bool en, float freq, float q) {
 		f->a += .01 * (to - f->a);
 	}
 
-	const float tq = en ? f->qual : 0;
+	const float tq = en ? f->q2 : 0;
 	if (fabsf(tq - f->q) < 1e-5) {
 		f->q = tq;
 	} else {

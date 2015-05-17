@@ -997,13 +997,13 @@ static float get_highpass_response (Fil4UI *ui, const float freq) {
 	 * the filter does not [yet] correct for the attenuation
 	 * once  "0dB" reaches fsamp/2,
 	 */
-	const float w = 2 * freq / ui->samplerate;
-	const float wc = 2 * ui->hilo[0].f / ui->samplerate;
-	float q = 2.828 * ui->hilo[0].q;
-	if (ui->hilo[0].q > 1) { // clamp pole at 2 * sqrt(2) to ~6dB
-		q -= ((ui->hilo[0].q - 1) / .4) * (2.828 - 2.61);
+	const float wr = ui->hilo[0].f / freq;
+	float q = 2.2056 * sqrt(ui->hilo[0].q); // sqrt(2 / 0.41) , -3dB point
+	if (q > 1.41) { // clamp pole to ~6.5dB
+		q -= (q - 1.41) * .34;
 	}
-	return -10.f * log10f(SQUARE(1 + SQUARE(wc) / SQUARE(w)) - q * SQUARE(wc / w) );
+	// -20 log (sqrt( (1 + wc /w)^2 - (r * wc / wq)^2))
+	return -10.f * log10f(SQUARE(1 + SQUARE(wr)) - SQUARE(q * wr));
 #else // fixed q=0
 	const float w = freq / ui->hilo[0].f;
 	const float v = (w / sqrtf (1 + w * w));
@@ -1082,14 +1082,11 @@ static bool cb_spn_gain (RobWidget *w, void* handle) {
 static void set_hipass_label (Fil4UI* ui) {
 	char txt[32];
 	if ( ui->hilo[0].f > 999) {
-		snprintf(txt, 32, "%.1f KHz\nQ: %.2f",
-				ui->hilo[0].f / 1000, ui->hilo[0].q);
+		snprintf(txt, 32, "%.1f KHz", ui->hilo[0].f / 1000);
 	} else if ( ui->hilo[0].f >= 50) {
-		snprintf(txt, 32, "%.0f Hz\nQ: %.2f",
-				ui->hilo[0].f, ui->hilo[0].q);
+		snprintf(txt, 32, "%.0f Hz", ui->hilo[0].f);
 	} else {
-		snprintf(txt, 32, "%.1f Hz\nQ: %.2f",
-				ui->hilo[0].f, ui->hilo[0].q);
+		snprintf(txt, 32, "%.1f Hz", ui->hilo[0].f);
 	}
 	robtk_lbl_set_text (ui->lbl_hilo[0], txt);
 }
@@ -1867,6 +1864,7 @@ static RobWidget * toplevel(Fil4UI* ui, void * const top) {
 	robtk_cbtn_set_color_off(ui->btn_g_enable, .2, .2, .2);
 	robtk_dial_set_default(ui->spn_g_gain, 0.0);
 	robtk_dial_set_detent_default (ui->spn_g_gain, true);
+	robtk_dial_set_scroll_mult (ui->spn_g_gain, 5.f);
 	robtk_dial_set_default(ui->spn_fftgain, 0.0);
 	robtk_dial_set_detent_default (ui->spn_fftgain, true);
 
@@ -1916,7 +1914,7 @@ static RobWidget * toplevel(Fil4UI* ui, void * const top) {
 	++col;
 	ui->btn_g_hipass = robtk_ibtn_new (ui->hpf_btn[0], ui->hpf_btn[1]);
 	ui->btn_g_lopass = robtk_ibtn_new (ui->lpf_btn[0], ui->lpf_btn[1]); // XXX
-	ui->lbl_hilo[0]  = robtk_lbl_new ("XXXX Hz\nQ:8.88");
+	ui->lbl_hilo[0]  = robtk_lbl_new ("XXXX Hz");
 	ui->lbl_hilo[1]  = robtk_lbl_new ("XXXX Hz\n-12dB/8ve");
 
 	robtk_ibtn_set_alignment(ui->btn_g_hipass, .5, 0);
@@ -1930,9 +1928,9 @@ static RobWidget * toplevel(Fil4UI* ui, void * const top) {
 	ui->spn_g_lofreq = robtk_dial_new_with_size (0, 1, 1./160.,
 			GED_WIDTH + 12, GED_HEIGHT + 20, GED_CX + 6, GED_CY + 15, GED_RADIUS);
 
-	ui->spn_g_hiq = robtk_dial_new_with_size (0, 1.4, 1./90.,
+	ui->spn_g_hiq = robtk_dial_new_with_size (0, 1.0, 1./90.,
 			GED_WIDTH, GED_HEIGHT + 4, GED_CX, GED_CY + 3, GED_RADIUS);
-	ui->spn_g_loq = robtk_dial_new_with_size (0, 1.4, 1./90.,
+	ui->spn_g_loq = robtk_dial_new_with_size (0, 1.0, 1./90.,
 			GED_WIDTH, GED_HEIGHT + 4, GED_CX, GED_CY + 3, GED_RADIUS);
 
 	robtk_ibtn_set_callback (ui->btn_g_hipass, cb_btn_g_hi, ui);
@@ -1946,16 +1944,16 @@ static RobWidget * toplevel(Fil4UI* ui, void * const top) {
 	// trigger update of hi/lo labels
 	robtk_dial_set_value (ui->spn_g_hifreq, freq_to_dial (&lphp[0], lphp[0].dflt));
 	robtk_dial_set_value (ui->spn_g_lofreq, freq_to_dial (&lphp[1], lphp[1].dflt));
-	robtk_dial_set_value (ui->spn_g_hiq, .7);
-	robtk_dial_set_value (ui->spn_g_loq, .7);
+	robtk_dial_set_value (ui->spn_g_hiq, .41);
+	robtk_dial_set_value (ui->spn_g_loq, .41);
 	ui->disable_signals = false;
 
 	robtk_dial_set_constained (ui->spn_g_hifreq, false);
 	robtk_dial_set_constained (ui->spn_g_lofreq, false);
 	robtk_dial_set_default(ui->spn_g_hifreq, freq_to_dial (&lphp[0], lphp[0].dflt));
 	robtk_dial_set_default(ui->spn_g_lofreq, freq_to_dial (&lphp[1], lphp[1].dflt));
-	robtk_dial_set_default(ui->spn_g_hiq, .7);
-	robtk_dial_set_default(ui->spn_g_loq, .7);
+	robtk_dial_set_default(ui->spn_g_hiq, .41);
+	robtk_dial_set_default(ui->spn_g_loq, .41);
 
 	robtk_dial_set_scroll_mult (ui->spn_g_hifreq, 4.f);
 	robtk_dial_set_scroll_mult (ui->spn_g_lofreq, 4.f);
