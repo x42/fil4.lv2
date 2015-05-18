@@ -16,8 +16,8 @@
  * along with this program. If not, see <http://www.gnu.org/licenses/>.
  */
 
-#ifndef SPR_URIS_H
-#define SPR_URIS_H
+#ifndef FIL4_URIS_H
+#define FIL4_URIS_H
 
 #include "lv2/lv2plug.in/ns/ext/atom/atom.h"
 #include "lv2/lv2plug.in/ns/ext/atom/forge.h"
@@ -62,7 +62,7 @@ map_fil4_uris(LV2_URID_Map* map, Fil4LV2URIs* uris) {
 	uris->ui_off             = map->map(map->handle, FIL4_URI "ui_off");
 }
 
-// common data
+/* common definitions UI and DSP */
 
 typedef enum {
 	FIL_ATOM_CONTROL = 0, FIL_ATOM_NOTIFY,
@@ -86,5 +86,23 @@ typedef enum {
 } PortIndex;
 
 #define NSECT (4)
+
+/* Low Pass Resonance Map
+ * user    internal    desc
+ * 0.0       0.0         -6dB at freq
+ * 0.71      1.0         -3dB at freq
+ * 1.0       3.0          0dB at freq
+ * 1.4       8.8
+ */
+#define RESLP(X) (3.f * powf((X), 3.20772f))
+
+/* High Pass Resonance Map
+ * user    internal    desc
+ * 0.0       0.0         -6dB at freq
+ * 0.71      0.57        -3dB at freq
+ * 1.00      0.97         0dB at freq
+ * 1.4       1.3
+ */
+#define RESHP(X) (0.7 + 0.78 * tanh(1.82 * ((X) -.8)))
 
 #endif

@@ -16,6 +16,9 @@
  * along with this program. If not, see <http://www.gnu.org/licenses/>.
  */
 
+#ifndef _FIL4_HIP_H
+#define _FIL4_HIP_H
+
 #include <math.h>
 
 typedef struct {
@@ -33,9 +36,9 @@ static void hip_setup (HighPass *f, float rate, float freq, float q) {
 	f->freq = freq;
 
 	f->qual = q;
-	if (q >= 1.4f) { f->q2 = 1.4f; }
-	else if (q <= 0.f) { f->q2 = 0.f; }
-	else { f->q2 = 1.4f * q; }
+	f->q2 = RESHP(q);
+	if (f->q2 < 0.f)  f->q2 = 0.f;
+	if (f->q2 > 1.6f) f->q2 = 1.6f;
 
 	if (freq > rate / 12.f) freq = rate / 12.f;
 	f->alpha = exp (-2.0 * M_PI * freq / rate);
@@ -58,9 +61,10 @@ static void hip_interpolate (HighPass *f, bool en, float freq, float q) {
 	}
 
 	if (f->qual != q) {
-		if (q >= 1.4f) { f->q2 = 1.4f; }
-		if (q <= 0.f) { f->q2 = 0.f; }
-		else { f->q2 = 1.4f * q; }
+		f->q2 = RESHP(q);
+		if (f->q2 < 0.f)  f->q2 = 0.f;
+		if (f->q2 > 1.6f) f->q2 = 1.6f;
+		//printf("HI: %f -> %f\n", q, f->q2);
 		f->qual = q;
 	}
 
@@ -127,3 +131,4 @@ static void hip_compute (HighPass *f, uint32_t n_samples, float *buf) {
 	f->z1 = z1 + 1e-12;
 	f->z2 = z2 + 1e-12;
 }
+#endif

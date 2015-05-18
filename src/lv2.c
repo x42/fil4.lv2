@@ -21,12 +21,12 @@
 #include <stdlib.h>
 #include <string.h>
 #include "filters.h"
+#include "uris.h"
 #include "iir.h"
 #include "hip.h"
 #include "lop.h"
 
 #include "lv2/lv2plug.in/ns/lv2core/lv2.h"
-#include "uris.h"
 
 static bool printed_capacity_warning = false;
 
@@ -76,8 +76,8 @@ static void init_filter_channel (FilterChannel *fc, double rate) {
 	iir_calc_lowshelf (&fc->iir_lowshelf);
 	iir_calc_highshelf (&fc->iir_highshelf);
 
-	hip_setup (&fc->hip, rate, 20, .41);
-	lop_setup (&fc->lop, rate, 10000, 1.0);
+	hip_setup (&fc->hip, rate, 20, .7);
+	lop_setup (&fc->lop, rate, 10000, .7);
 }
 
 static LV2_Handle

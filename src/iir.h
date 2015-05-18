@@ -16,6 +16,8 @@
  * along with this program. If not, see <http://www.gnu.org/licenses/>.
  */
 
+#ifndef _FIL4_IIR_H
+#define _FIL4_IIR_H
 
 #include <stdint.h>
 #include <math.h>
@@ -126,3 +128,4 @@ static void iir_compute (IIRProc *f, uint32_t n_samples, float *buf) {
 	}
 	if (fabs(f->y0) < (1e-12)) f->y0 = 0.0; // denormal FTZ
 }
+#endif
