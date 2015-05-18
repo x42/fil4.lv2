@@ -113,7 +113,7 @@ typedef struct {
 	RobTkDial *spn_g_hifreq;
 	RobTkDial *spn_g_hiq;
 	RobTkDial *spn_g_lofreq;
-	RobTkDial *spn_g_loq; // not yet used
+	RobTkDial *spn_g_loq;
 
 	RobTkLbl  *lbl_hilo[2];
 
@@ -1915,13 +1915,13 @@ static RobWidget * toplevel(Fil4UI* ui, void * const top) {
 	ui->btn_g_hipass = robtk_ibtn_new (ui->hpf_btn[0], ui->hpf_btn[1]);
 	ui->btn_g_lopass = robtk_ibtn_new (ui->lpf_btn[0], ui->lpf_btn[1]); // XXX
 	ui->lbl_hilo[0]  = robtk_lbl_new ("XXXX Hz");
-	ui->lbl_hilo[1]  = robtk_lbl_new ("XXXX Hz\n-12dB/8ve");
+	ui->lbl_hilo[1]  = robtk_lbl_new ("XXXX Hz");
 
 	robtk_ibtn_set_alignment(ui->btn_g_hipass, .5, 0);
 	robtk_ibtn_set_alignment(ui->btn_g_lopass, .5, 0);
 
 	robtk_lbl_set_alignment(ui->lbl_hilo[0], .5, 0);
-	robtk_lbl_set_alignment(ui->lbl_hilo[1], .5, 1);
+	robtk_lbl_set_alignment(ui->lbl_hilo[1], .5, 0);
 
 	ui->spn_g_hifreq = robtk_dial_new_with_size (0, 1, 1./160.,
 			GED_WIDTH + 12, GED_HEIGHT + 20, GED_CX + 6, GED_CY + 15, GED_RADIUS);
@@ -1972,8 +1972,8 @@ static RobWidget * toplevel(Fil4UI* ui, void * const top) {
 
 	// LPF AT END
 	rob_table_attach (ui->ctbl, GBI_W(ui->btn_g_lopass), col + NCTRL + 2, col + NCTRL + 3, 0, 2, 5, 0, RTK_EXANDF, RTK_SHRINK);
-	rob_table_attach (ui->ctbl, GLB_W(ui->lbl_hilo[1]),  col + NCTRL + 2, col + NCTRL + 3, 2, 5, 5, 0, RTK_EXANDF, RTK_EXANDF);
-	//rob_table_attach (ui->ctbl, GSP_W(ui->spn_g_loq), col, col+1, 3, 4, 5, 0, RTK_EXANDF, RTK_SHRINK);
+	rob_table_attach (ui->ctbl, GLB_W(ui->lbl_hilo[1]),  col + NCTRL + 2, col + NCTRL + 3, 2, 3, 5, 0, RTK_EXANDF, RTK_EXANDF);
+	rob_table_attach (ui->ctbl, GSP_W(ui->spn_g_loq),    col + NCTRL + 2, col + NCTRL + 3, 3, 5, 5, 0, RTK_EXANDF, RTK_SHRINK);
 	rob_table_attach (ui->ctbl, GSP_W(ui->spn_g_lofreq), col + NCTRL + 2, col + NCTRL + 3, 5, 7, 5, 0, RTK_EXANDF, RTK_SHRINK);
 
 	/* Filter bands */

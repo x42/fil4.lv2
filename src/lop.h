@@ -33,7 +33,7 @@ static float calc_lop_alpha (float rate, float freq) {
 	return 1.0 - exp (-2.0 * M_PI * fr);
 }
 
-static void lop_setup (LowPass *f, float rate, float freq) {
+static void lop_setup (LowPass *f, float rate, float freq, float res) {
 	memset (f, 0, sizeof(LowPass));
 	f->rate = rate;
 	f->freq = freq;
@@ -41,7 +41,7 @@ static void lop_setup (LowPass *f, float rate, float freq) {
 	f->a = 1.0;
 }
 
-static void lop_interpolate (LowPass *f, bool en, float freq) {
+static void lop_interpolate (LowPass *f, bool en, float freq, float res) {
 	if (freq != f->freq) {
 		f->alpha = calc_lop_alpha (f->rate, freq);
 		f->freq = freq;
