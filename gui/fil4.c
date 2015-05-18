@@ -1337,21 +1337,41 @@ static void draw_grid (Fil4UI* ui) {
 
 	write_text_full(cr, "dB", ui->font[0], x0 - 22, ui->m0_ym, M_PI * -.5, 8, c_ann);
 
-	if (ui->m0_height > 300 ) {
+#ifdef GRID10
+	if (ui->m0_height > 400) {
 		cairo_set_line_width(cr, .75);
 		CairoSetSouerceRGBA(c_g20);
-		GRID_DB_DOT(24);
-		GRID_DB_DOT(21);
-		GRID_DB_DOT(15);
-		GRID_DB_DOT(12);
-		GRID_DB_DOT(6);
-		GRID_DB_DOT(3);
-		GRID_DB_DOT(-24);
-		GRID_DB_DOT(-21);
-		GRID_DB_DOT(-15);
-		GRID_DB_DOT(-12);
-		GRID_DB_DOT(-6);
-		GRID_DB_DOT(-3);
+		for (int i = -29; i <= 29; i +=1) {
+			if (i%5 == 0) continue;
+		GRID_DB_DOT(i);
+		}
+	}
+
+	cairo_set_line_width(cr, 1.0);
+	CairoSetSouerceRGBA(c_g30);
+
+	GRID_DB(30, "+30");
+	GRID_DB(25, "+25");
+	GRID_DB(20, "+20");
+	GRID_DB(15, "+15");
+	GRID_DB(10, "+10");
+	GRID_DB(5, "+5");
+	GRID_DB(0, "0");
+	GRID_DB(-5, "-5");
+	GRID_DB(-10, "-10");
+	GRID_DB(-15, "-15");
+	GRID_DB(-20, "-20");
+	GRID_DB(-25, "-25");
+	GRID_DB(-30, "-30");
+
+#else
+	if (ui->m0_height > 300) {
+		cairo_set_line_width(cr, .75);
+		CairoSetSouerceRGBA(c_g20);
+		for (int i = -24; i <= 24; i +=3) {
+			if (i%9 == 0) continue;
+		GRID_DB_DOT(i);
+		}
 	}
 
 	cairo_set_line_width(cr, 1.0);
@@ -1367,6 +1387,7 @@ static void draw_grid (Fil4UI* ui) {
 	GRID_DB(-9, "-9");
 	GRID_DB(-18, "-18");
 	GRID_DB(-30, "-30");
+#endif
 
 	CairoSetSouerceRGBA(c_g30);
 
