@@ -169,6 +169,18 @@ static void tx_rawaudio (LV2_Atom_Forge *forge, Fil4LV2URIs *uris,
 	lv2_atom_forge_pop(forge, &frame);
 }
 
+static void tx_state (Fil4* self)
+{
+	LV2_Atom_Forge_Frame frame;
+	lv2_atom_forge_frame_time(&self->forge, 0);
+	x_forge_object(&self->forge, &frame, 1, self->uris.state);
+
+	lv2_atom_forge_property_head(&self->forge, self->uris.samplerate, 0);
+	lv2_atom_forge_float(&self->forge, self->rate);
+
+	lv2_atom_forge_pop(&self->forge, &frame);
+}
+
 static void process_channel(Fil4* self, FilterChannel *fc, uint32_t p_samples, uint32_t chn) {
 
 	/* localize variables */
@@ -293,28 +305,6 @@ static void
 run(LV2_Handle instance, uint32_t n_samples)
 {
 	Fil4* self = (Fil4*)instance;
-	// process messages from GUI;
-	if (self->control) {
-		LV2_Atom_Event* ev = lv2_atom_sequence_begin(&(self->control)->body);
-		while(!lv2_atom_sequence_is_end(&(self->control)->body, (self->control)->atom.size, ev)) {
-			if (ev->body.type == self->uris.atom_Blank || ev->body.type == self->uris.atom_Object) {
-				const LV2_Atom_Object* obj = (LV2_Atom_Object*)&ev->body;
-				if (obj->body.otype == self->uris.ui_off) {
-					self->fft_mode = 0;
-				}
-				else if (obj->body.otype == self->uris.fftmode) {
-					const LV2_Atom* v = NULL;
-					lv2_atom_object_get(obj, self->uris.fftmode, &v, 0);
-					if (v) {
-						self->fft_mode = ((LV2_Atom_Int*)v)->body;
-					}
-				}
-				ev = lv2_atom_sequence_next(ev);
-			}
-		}
-	}
-
-	const int fft_mode = self->fft_mode;
 
 	/* check atom buffer size */
 	const size_t size = (sizeof(float) * self->n_channels * n_samples + 64);
@@ -338,8 +328,32 @@ run(LV2_Handle instance, uint32_t n_samples)
 	lv2_atom_forge_set_buffer(&self->forge, (uint8_t*)self->notify, capacity);
 	lv2_atom_forge_sequence_head(&self->forge, &self->frame, 0);
 
+	// process messages from GUI;
+	if (self->control) {
+		LV2_Atom_Event* ev = lv2_atom_sequence_begin(&(self->control)->body);
+		while(!lv2_atom_sequence_is_end(&(self->control)->body, (self->control)->atom.size, ev)) {
+			if (ev->body.type == self->uris.atom_Blank || ev->body.type == self->uris.atom_Object) {
+				const LV2_Atom_Object* obj = (LV2_Atom_Object*)&ev->body;
+				if (obj->body.otype == self->uris.ui_off) {
+					self->fft_mode = 0;
+				}
+				else if (obj->body.otype == self->uris.ui_on) {
+					tx_state (self);
+				}
+				else if (obj->body.otype == self->uris.fftmode) {
+					const LV2_Atom* v = NULL;
+					lv2_atom_object_get(obj, self->uris.fftmode, &v, 0);
+					if (v) {
+						self->fft_mode = ((LV2_Atom_Int*)v)->body;
+					}
+				}
+				ev = lv2_atom_sequence_next(ev);
+			}
+		}
+	}
+
 	// send raw input
-	if ((fft_mode & 1) == 1 && capacity_ok) {
+	if ((self->fft_mode & 1) == 1 && capacity_ok) {
 		for (uint32_t c = 0; c < self->n_channels; ++c) {
 			tx_rawaudio (&self->forge, &self->uris, self->rate, c, n_samples, self->_port [FIL_INPUT0 + (c<<1)]);
 		}
@@ -351,7 +365,7 @@ run(LV2_Handle instance, uint32_t n_samples)
 	}
 
 	// send processed output
-	if (fft_mode > 0 && (fft_mode & 1) == 0 && capacity_ok) {
+	if (self->fft_mode > 0 && (self->fft_mode & 1) == 0 && capacity_ok) {
 		for (uint32_t c = 0; c < self->n_channels; ++c) {
 			tx_rawaudio (&self->forge, &self->uris, self->rate, c, n_samples, self->_port [FIL_OUTPUT0 + (c<<1)]);
 		}

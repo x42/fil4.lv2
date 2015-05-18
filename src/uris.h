@@ -43,7 +43,9 @@ typedef struct {
 	LV2_URID audiodata;
 	LV2_URID samplerate;
 	LV2_URID fftmode;
+	LV2_URID ui_on;
 	LV2_URID ui_off;
+	LV2_URID state;
 } Fil4LV2URIs;
 
 static inline void
@@ -59,7 +61,9 @@ map_fil4_uris(LV2_URID_Map* map, Fil4LV2URIs* uris) {
 	uris->samplerate         = map->map(map->handle, FIL4_URI "samplerate");
 	uris->channelid          = map->map(map->handle, FIL4_URI "channelid");
 	uris->fftmode            = map->map(map->handle, FIL4_URI "fftmode");
+	uris->ui_on              = map->map(map->handle, FIL4_URI "ui_on");
 	uris->ui_off             = map->map(map->handle, FIL4_URI "ui_off");
+	uris->state              = map->map(map->handle, FIL4_URI "state");
 }
 
 /* common definitions UI and DSP */

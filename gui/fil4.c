@@ -2292,8 +2292,15 @@ static void gui_cleanup(Fil4UI* ui) {
 #define LVGL_RESIZEABLE
 
 static void ui_enable(LV2UI_Handle handle) {
-	// TODO request sample-rate and update
-	// relevant [filter display] parameters
+	Fil4UI* ui = (Fil4UI*)handle;
+
+	uint8_t obj_buf[64];
+	lv2_atom_forge_set_buffer(&ui->forge, obj_buf, 64);
+	LV2_Atom_Forge_Frame frame;
+	lv2_atom_forge_frame_time(&ui->forge, 0);
+	LV2_Atom* msg = (LV2_Atom*)x_forge_object(&ui->forge, &frame, 1, ui->uris.ui_on);
+	lv2_atom_forge_pop(&ui->forge, &frame);
+	ui->write(ui->controller, FIL_ATOM_CONTROL, lv2_atom_total_size(msg), ui->uris.atom_eventTransfer, msg);
 }
 
 static void ui_disable(LV2UI_Handle handle) {
@@ -2421,6 +2428,19 @@ port_event(LV2UI_Handle handle,
 					samplerate_changed (ui);
 				}
 				handle_audio_data (ui, chn, n_elem, data);
+			}
+			else if (
+					obj->body.otype == ui->uris.state
+					&& 1 == lv2_atom_object_get(obj, ui->uris.samplerate, &a0, NULL)
+					&& a0
+					&& a0->type == ui->uris.atom_Float
+				 )
+			{
+				const float sr = ((LV2_Atom_Float*)a0)->body;
+				if (ui->samplerate != sr) {
+					ui->samplerate = sr;
+					samplerate_changed (ui);
+				}
 			}
 		}
 	}
