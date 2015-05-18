@@ -32,6 +32,7 @@
 #define MTR_GUI "ui"
 
 #define DOTRADIUS (9) // radius of draggable nodes on the plot
+#define BOXRADIUS (7)
 
 #define NCTRL (NSECT + 2) // number of filter-bands + 2 (lo,hi-shelf)
 #define FFT_MAX 512
@@ -65,7 +66,7 @@ typedef struct {
 	float f;
 	float q;
 	float R; // cached resonance (derived from q)
-	float y0; // mouse pos. x at edge
+	float x0; // mouse pos. vertical middle
 } HoLoFilter;
 
 /* filter parameters */
@@ -196,13 +197,15 @@ static FilterFreq lphp[2] = {
 };
 
 /* vidual filter colors */
-static const float c_fil[NCTRL][4] = {
-	{0.5, 0.6, 0.7, 0.8},
+static const float c_fil[NCTRL+2][4] = {
+	{0.5, 0.6, 0.7, 0.8}, //LS
 	{1.0, 0.2, 0.2, 0.8},
 	{0.2, 1.0, 0.2, 0.8},
 	{0.2, 0.2, 1.0, 0.8},
 	{0.8, 0.7, 0.4, 0.8},
-	{0.7, 0.4, 0.7, 0.8},
+	{0.7, 0.4, 0.7, 0.8}, // HS
+	{0.5, 0.4, 0.3, 0.0}, // HP, alpha unused
+	{0.3, 0.5, 0.4, 0.0}, // LP, alpha unused
 };
 
 static const float c_ann[4] = {0.5, 0.5, 0.5, 1.0}; // text annotation color
@@ -1479,32 +1482,39 @@ static RobWidget* m0_mouse_up (RobWidget* handle, RobTkBtnEvent *ev) {
 
 static RobWidget* m0_mouse_scroll (RobWidget* handle, RobTkBtnEvent *ev) {
 	Fil4UI* ui = (Fil4UI*)GET_HANDLE(handle);
-	int sect = -1;
+
+	RobTkDial *bwctl = NULL;
 
 	for (int i = 0; i < NCTRL; ++i) {
 		if (abs(ev->x - ui->flt[i].x0) <= DOTRADIUS && abs(ev->y - ui->flt[i].y0) <= DOTRADIUS) {
-			sect = i;
+			bwctl = ui->spn_bw[i];
 			break;
 		}
 	}
+	if (fabsf(ev->y - ui->m0_ym) <= DOTRADIUS && fabsf(ev->x - ui->hilo[0].x0) <= DOTRADIUS) {
+			bwctl = ui->spn_g_hiq;
+	}
+	if (fabsf(ev->y - ui->m0_ym) <= DOTRADIUS && fabsf(ev->x - ui->hilo[1].x0) <= DOTRADIUS) {
+			bwctl = ui->spn_g_loq;
+	}
 
-	if (sect < 0) {
+	if (!bwctl) {
 		return NULL;
 	}
 
-	float v = robtk_dial_get_value (ui->spn_bw[sect]);
-	const float delta = (ev->state & ROBTK_MOD_CTRL) ? ui->spn_bw[sect]->acc : ui->spn_bw[sect]->scroll_mult * ui->spn_bw[sect]->acc;
+	float v = robtk_dial_get_value (bwctl);
+	const float delta = (ev->state & ROBTK_MOD_CTRL) ? bwctl->acc : bwctl->scroll_mult * bwctl->acc;
 
 	switch (ev->direction) {
 		case ROBTK_SCROLL_RIGHT:
 		case ROBTK_SCROLL_UP:
 			v += delta;
-			robtk_dial_set_value (ui->spn_bw[sect], v);
+			robtk_dial_set_value (bwctl, v);
 			break;
 		case ROBTK_SCROLL_LEFT:
 		case ROBTK_SCROLL_DOWN:
 			v -= delta;
-			robtk_dial_set_value (ui->spn_bw[sect], v);
+			robtk_dial_set_value (bwctl, v);
 			break;
 		default:
 			break;
@@ -1515,6 +1525,7 @@ static RobWidget* m0_mouse_scroll (RobWidget* handle, RobTkBtnEvent *ev) {
 static RobWidget* m0_mouse_down (RobWidget* handle, RobTkBtnEvent *ev) {
 	Fil4UI* ui = (Fil4UI*)GET_HANDLE(handle);
 	// TODO right-click -> toggle ??
+	// double click -> en/disable band ??
 	if (ev->button != 1) {
 		return NULL;
 	}
@@ -1529,22 +1540,19 @@ static RobWidget* m0_mouse_down (RobWidget* handle, RobTkBtnEvent *ev) {
 		}
 	}
 
-	if (fabsf(ev->x - 30) <= DOTRADIUS && fabsf(ev->y - ui->hilo[0].y0) <= DOTRADIUS) {
-		if (robtk_ibtn_get_active(ui->btn_g_hipass)) {
-			ui->dragging = NCTRL;
-			update_filter_display (ui);
-		}
+	if (fabsf(ev->y - ui->m0_ym) <= DOTRADIUS && fabsf(ev->x - ui->hilo[0].x0) <= DOTRADIUS) {
+		ui->dragging = NCTRL;
+		update_filter_display (ui);
 	}
 
-	if (fabsf(ev->x - (30 + ui->m0_xw)) <= DOTRADIUS && fabsf(ev->y - ui->hilo[1].y0) <= DOTRADIUS) {
-		if (robtk_ibtn_get_active(ui->btn_g_lopass)) {
-			ui->dragging = NCTRL + 1;
-			update_filter_display (ui);
-		}
+	if (fabsf(ev->y - ui->m0_ym) <= DOTRADIUS && fabsf(ev->x - ui->hilo[1].x0) <= DOTRADIUS) {
+		ui->dragging = NCTRL + 1;
+		update_filter_display (ui);
 	}
 
 	if (ev->state & ROBTK_MOD_SHIFT && ui->dragging == NCTRL) {
 		robtk_dial_set_value (ui->spn_g_hifreq, ui->spn_g_hifreq->dfl);
+		robtk_dial_set_value (ui->spn_g_hiq, ui->spn_g_hiq->dfl);
 		ui->dragging = -1;
 		update_filter_display (ui);
 		return NULL;
@@ -1552,6 +1560,7 @@ static RobWidget* m0_mouse_down (RobWidget* handle, RobTkBtnEvent *ev) {
 
 	if (ev->state & ROBTK_MOD_SHIFT && ui->dragging > NCTRL) {
 		robtk_dial_set_value (ui->spn_g_lofreq, ui->spn_g_lofreq->dfl);
+		robtk_dial_set_value (ui->spn_g_loq, ui->spn_g_loq->dfl);
 		ui->dragging = -1;
 		update_filter_display (ui);
 		return NULL;
@@ -1590,35 +1599,29 @@ static RobWidget* m0_mouse_move (RobWidget* handle, RobTkBtnEvent *ev) {
 #endif
 	const int sect = ui->dragging;
 
-	if (sect == NCTRL) {
-		//high pass special case
-		if (!robtk_ibtn_get_active(ui->btn_g_hipass)) {
-			return handle;
-		}
-		float delta = (ev->y - ui->hilo[0].y0) / ui->m0_yr;
-		robtk_dial_set_value (ui->spn_g_hifreq, robtk_dial_get_value (ui->spn_g_hifreq) + delta / 180.);
-		//robtk_dial_set_value (ui->spn_g_hifreq, freq_to_dial (&lphp[0], v));
-		return handle;
+	RobTkDial *fctl = NULL;
+	RobTkDial *gctl = NULL;
+	FilterFreq *ffq = NULL;
+
+	if (sect == NCTRL) { //high pass special case
+		fctl = ui->spn_g_hifreq;
+		ffq = &lphp[0];
+	} else if (sect > NCTRL) {
+		fctl = ui->spn_g_lofreq;
+		ffq = &lphp[1];
+	} else {
+		fctl = ui->spn_freq[sect];
+		gctl = ui->spn_gain[sect];
+		ffq = &freqs[sect];
 	}
 
-	if (sect > NCTRL) {
-		//low pass special case
-		if (!robtk_ibtn_get_active(ui->btn_g_lopass)) {
-			return handle;
-		}
-		float delta = (ui->hilo[1].y0 - ev->y) / ui->m0_yr;
-		robtk_dial_set_value (ui->spn_g_lofreq, robtk_dial_get_value (ui->spn_g_lofreq) + delta / 180.);
-		//robtk_dial_set_value (ui->spn_g_hifreq, freq_to_dial (&lphp[1], v));
-		return handle;
-	}
-
-	if (ev->x >= x0 && ev->x <= x1) {
+	if (fctl && ev->x >= x0 && ev->x <= x1) {
 		const float hz = freq_at_x (ev->x - x0, ui->m0_xw);
-		robtk_dial_set_value (ui->spn_freq[sect], freq_to_dial (&freqs[sect], hz));
+		robtk_dial_set_value (fctl, freq_to_dial (ffq, hz));
 	}
-	if (ev->y >= y0 && ev->y <= y1) {
+	if (gctl && ev->y >= y0 && ev->y <= y1) {
 		const float db = (ui->m0_ym - ev->y) / ui->m0_yr;
-		robtk_dial_set_value (ui->spn_gain[sect], db - g_gain);
+		robtk_dial_set_value (gctl, db - g_gain);
 	}
 	return handle;
 }
@@ -1654,7 +1657,7 @@ static void draw_filters (Fil4UI* ui) {
 	const float yr = ui->m0_yr;
 	const float x0 = 30;
 
-	/* draw dots */
+	/* draw dots for peaking EQ, boxes for shelves */
 	cairo_set_operator (cr, CAIRO_OPERATOR_ADD);
 	cairo_set_line_width(cr, 1.0);
 	for (int j = 0 ; j < NCTRL; ++j) {
@@ -1668,18 +1671,115 @@ static void draw_filters (Fil4UI* ui) {
 		const float xx = x_at_freq(fq, xw) - .5f;
 		const float yy = rintf(ym + .5 - yr * (db + g_gain)) - .5;
 		cairo_set_source_rgba (cr, c_fil[j][0], c_fil[j][1], c_fil[j][2], .6 * fshade);
-		cairo_arc (cr, xx, yy, DOTRADIUS, 0, 2 * M_PI);
+		if (j == 0 || j == NCTRL - 1) {
+			cairo_rectangle (cr, xx - BOXRADIUS, yy - BOXRADIUS, 2 * BOXRADIUS, 2 * BOXRADIUS);
+		} else {
+			cairo_arc (cr, xx, yy, DOTRADIUS, 0, 2 * M_PI);
+		}
 		cairo_fill_preserve (cr);
 		cairo_set_source_rgba (cr, c_fil[j][0], c_fil[j][1], c_fil[j][2], .3 * fshade);
 		cairo_stroke (cr);
+
 		/* cache position (for drag) */
 		ui->flt[j].x0 = x0 + xx;
 		ui->flt[j].y0 = yy;
 	}
 
-	/* draw filters */
+	/* hi/low pass triangles */
+	{
+		const float xx = x_at_freq (ui->hilo[0].f, xw);
+		cairo_move_to (cr, xx            , ym + BOXRADIUS);
+		cairo_line_to (cr, xx - BOXRADIUS, ym - BOXRADIUS);
+		cairo_line_to (cr, xx + BOXRADIUS, ym - BOXRADIUS);
+		cairo_close_path (cr);
+		if (robtk_ibtn_get_active(ui->btn_g_hipass)) {
+			cairo_set_source_rgba (cr, c_fil[NCTRL][0], c_fil[NCTRL][1], c_fil[NCTRL][2], .8 * shade);
+		} else {
+			cairo_set_source_rgba (cr, c_fil[NCTRL][0], c_fil[NCTRL][1], c_fil[NCTRL][2], .4 * shade);
+		}
+		cairo_fill_preserve (cr);
+		cairo_set_source_rgba (cr, c_fil[NCTRL][0], c_fil[NCTRL][1], c_fil[NCTRL][2], .6 * shade);
+		cairo_stroke (cr);
+		ui->hilo[0].x0 = x0 + xx;
+	}
+
+	{
+		const float xx = x_at_freq (ui->hilo[1].f, xw);
+		cairo_move_to (cr, xx            , ym + BOXRADIUS);
+		cairo_line_to (cr, xx - BOXRADIUS, ym - BOXRADIUS);
+		cairo_line_to (cr, xx + BOXRADIUS, ym - BOXRADIUS);
+		cairo_close_path (cr);
+		if (robtk_ibtn_get_active(ui->btn_g_hipass)) {
+			cairo_set_source_rgba (cr, c_fil[NCTRL+1][0], c_fil[NCTRL+1][1], c_fil[NCTRL+1][2], .8 * shade);
+		} else {
+			cairo_set_source_rgba (cr, c_fil[NCTRL+1][0], c_fil[NCTRL+1][1], c_fil[NCTRL+1][2], .4 * shade);
+		}
+		cairo_fill_preserve (cr);
+		cairo_set_source_rgba (cr, c_fil[NCTRL+1][0], c_fil[NCTRL+1][1], c_fil[NCTRL+1][2], .6 * shade);
+		cairo_stroke (cr);
+		ui->hilo[1].x0 = x0 + xx;
+	}
+
+	/* draw filters , hi/lo first (only when dragging)*/
 	cairo_set_operator (cr, CAIRO_OPERATOR_ADD);
 	cairo_set_line_width(cr, 1.0);
+
+	{
+		float fshade = shade;
+		if (!robtk_ibtn_get_active(ui->btn_g_hipass)) {
+			fshade = .5;
+		}
+		float yy = ym - yr * g_gain - yr * get_highpass_response (ui, freq_at_x(0, xw));
+		cairo_move_to (cr, 0, yy);
+		for (int i = 1 ; i < xw; ++i) {
+			const float xf = freq_at_x(i, xw);
+			float y = yr * g_gain;
+			y += yr * get_highpass_response (ui, xf);
+			cairo_line_to (cr, i, ym - y);
+		}
+		cairo_set_source_rgba (cr, c_fil[NCTRL][0], c_fil[NCTRL][1], c_fil[NCTRL][2], fshade);
+		if (ui->dragging == NCTRL) {
+			cairo_stroke_preserve(cr);
+			cairo_line_to (cr, xw, ym);
+			cairo_line_to (cr, xw, ym + yr * 30);
+			if (yy < ym + yr * 30) {
+				cairo_line_to (cr, 0, ym + yr * 30);
+			}
+			cairo_set_source_rgba (cr, c_fil[NCTRL][0], c_fil[NCTRL][1], c_fil[NCTRL][2], .4 * fshade);
+			cairo_fill (cr);
+		} else {
+			cairo_stroke(cr);
+		}
+	}
+	{
+		float fshade = shade;
+		if (!robtk_ibtn_get_active(ui->btn_g_lopass)) {
+			fshade = .5;
+		}
+		cairo_move_to (cr, 0, ym - yr * g_gain - yr * get_lowpass_response (ui, freq_at_x(0, xw)));
+		for (int i = 1 ; i < xw; ++i) {
+			const float xf = freq_at_x(i, xw);
+			float y = yr * g_gain;
+			y += yr * get_lowpass_response (ui, xf);
+			cairo_line_to (cr, i, ym - y);
+		}
+			cairo_set_source_rgba (cr, c_fil[NCTRL+1][0], c_fil[NCTRL+1][1], c_fil[NCTRL+1][2], fshade);
+		if (ui->dragging == NCTRL + 1) {
+			cairo_stroke_preserve(cr);
+			float yy = ym - yr * g_gain - yr * get_lowpass_response (ui, freq_at_x(xw, xw));
+			if (yy < ym + yr * 30) {
+				cairo_line_to (cr, xw, ym + yr * 30);
+			}
+			cairo_line_to (cr, 0, ym + yr * 30);
+			cairo_line_to (cr, 0, ym);
+			cairo_set_source_rgba (cr, c_fil[NCTRL+1][0], c_fil[NCTRL+1][1], c_fil[NCTRL+1][2], .4 * fshade);
+			cairo_fill (cr);
+		} else {
+			cairo_stroke(cr);
+		}
+	}
+
+	/* draw filters */
 	for (int j = 0 ; j < NCTRL; ++j) {
 		float fshade = shade;
 		if (!robtk_cbtn_get_active(ui->btn_enable[j])) {
@@ -1747,14 +1847,10 @@ static void draw_filters (Fil4UI* ui) {
 			y += yr * get_lowpass_response (ui, xf);
 		}
 		if (i == 0) {
+			// TODO optimize '0'/moveto out of the loop
 			cairo_move_to (cr, i, ym - y);
-			ui->hilo[0].y0 = ym - y;
-			// cache HiP position
 		} else {
 			cairo_line_to (cr, i, ym - y);
-			if (i == xw - 1) {
-				ui->hilo[1].y0 = ym - y;
-			}
 		}
 	}
 	cairo_set_operator (cr, CAIRO_OPERATOR_ADD);
@@ -1764,28 +1860,6 @@ static void draw_filters (Fil4UI* ui) {
 	cairo_line_to (cr, 0, ym - yr * g_gain);
 	cairo_set_source_rgba (cr, 0.5, 0.5, 0.5, 0.33 * shade);
 	cairo_fill (cr);
-
-	if (robtk_ibtn_get_active(ui->btn_g_hipass)) {
-		cairo_rectangle (cr, 0, ui->hilo[0].y0 - DOTRADIUS, DOTRADIUS, 2 * DOTRADIUS);
-		if (ui->dragging == NCTRL) {
-			cairo_set_source_rgba (cr, .5, .4, .3, 0.8 * shade);
-			cairo_fill_preserve (cr);
-		}
-		cairo_set_source_rgba (cr, .5, .4, .3, 0.6 * shade);
-		cairo_stroke (cr);
-	}
-
-	if (robtk_ibtn_get_active(ui->btn_g_lopass)) {
-		cairo_set_source_rgba (cr, .3, .5, .4, 0.6 * shade);
-		cairo_rectangle (cr, ui->m0_xw - DOTRADIUS, ui->hilo[1].y0 - DOTRADIUS, DOTRADIUS, 2 * DOTRADIUS);
-		if (ui->dragging == NCTRL + 1) {
-			cairo_set_source_rgba (cr, .5, .4, .3, 0.8 * shade);
-			cairo_fill_preserve (cr);
-		}
-		cairo_set_source_rgba (cr, .5, .4, .3, 0.6 * shade);
-		cairo_stroke (cr);
-	}
-
 	cairo_destroy (cr);
 }
 
@@ -1925,7 +1999,7 @@ static RobWidget * toplevel(Fil4UI* ui, void * const top) {
 
 	int col = 0;
 
-	/* Global section */
+	/* Global section, far left*/
 	ui->btn_g_enable = robtk_cbtn_new ("Enable", GBT_LED_LEFT, false);
 	ui->spn_g_gain   = robtk_dial_new_with_size (-18, 18, .2,
 			GED_WIDTH + 12, GED_HEIGHT + 20, GED_CX + 6, GED_CY + 15, GED_RADIUS);
@@ -1994,7 +2068,7 @@ static RobWidget * toplevel(Fil4UI* ui, void * const top) {
 	/* HPF & LPF */
 	++col;
 	ui->btn_g_hipass = robtk_ibtn_new (ui->hpf_btn[0], ui->hpf_btn[1]);
-	ui->btn_g_lopass = robtk_ibtn_new (ui->lpf_btn[0], ui->lpf_btn[1]); // XXX
+	ui->btn_g_lopass = robtk_ibtn_new (ui->lpf_btn[0], ui->lpf_btn[1]);
 	ui->lbl_hilo[0]  = robtk_lbl_new ("XXXX Hz");
 	ui->lbl_hilo[1]  = robtk_lbl_new ("XXXX Hz");
 
@@ -2021,12 +2095,12 @@ static RobWidget * toplevel(Fil4UI* ui, void * const top) {
 	robtk_dial_set_callback (ui->spn_g_hiq, cb_spn_g_hiq, ui);
 	robtk_dial_set_callback (ui->spn_g_loq, cb_spn_g_loq, ui);
 
+	/* trigger update of hi/lo labels */
 	ui->disable_signals = true;
-	// trigger update of hi/lo labels
 	robtk_dial_set_value (ui->spn_g_hifreq, freq_to_dial (&lphp[0], lphp[0].dflt));
 	robtk_dial_set_value (ui->spn_g_lofreq, freq_to_dial (&lphp[1], lphp[1].dflt));
 	robtk_dial_set_value (ui->spn_g_hiq, hplp_to_dial(.7));
-	robtk_dial_set_value (ui->spn_g_loq, hplp_to_dial(.7));
+	robtk_dial_set_value (ui->spn_g_loq, hplp_to_dial(1.0));
 	ui->disable_signals = false;
 
 	robtk_dial_set_constained (ui->spn_g_hifreq, false);
@@ -2034,7 +2108,7 @@ static RobWidget * toplevel(Fil4UI* ui, void * const top) {
 	robtk_dial_set_default(ui->spn_g_hifreq, freq_to_dial (&lphp[0], lphp[0].dflt));
 	robtk_dial_set_default(ui->spn_g_lofreq, freq_to_dial (&lphp[1], lphp[1].dflt));
 	robtk_dial_set_default(ui->spn_g_hiq, hplp_to_dial(.7));
-	robtk_dial_set_default(ui->spn_g_loq, hplp_to_dial(.7));
+	robtk_dial_set_default(ui->spn_g_loq, hplp_to_dial(1.0));
 
 	robtk_dial_set_scroll_mult (ui->spn_g_hifreq, 4.f);
 	robtk_dial_set_scroll_mult (ui->spn_g_lofreq, 4.f);
@@ -2046,12 +2120,13 @@ static RobWidget * toplevel(Fil4UI* ui, void * const top) {
 	robtk_dial_set_surface (ui->spn_g_hiq, ui->dial_hplp[2]);
 	robtk_dial_set_surface (ui->spn_g_loq, ui->dial_hplp[3]);
 
+	/* HPF on the left side */
 	rob_table_attach (ui->ctbl, GBI_W(ui->btn_g_hipass), col, col+1, 0, 2, 5, 0, RTK_EXANDF, RTK_SHRINK);
 	rob_table_attach (ui->ctbl, GLB_W(ui->lbl_hilo[0]),  col, col+1, 2, 3, 5, 0, RTK_EXANDF, RTK_EXANDF);
 	rob_table_attach (ui->ctbl, GSP_W(ui->spn_g_hiq),    col, col+1, 3, 5, 5, 0, RTK_EXANDF, RTK_SHRINK);
 	rob_table_attach (ui->ctbl, GSP_W(ui->spn_g_hifreq), col, col+1, 5, 7, 5, 0, RTK_EXANDF, RTK_SHRINK);
 
-	// LPF AT END
+	/* LPF at the far right */
 	rob_table_attach (ui->ctbl, GBI_W(ui->btn_g_lopass), col + NCTRL + 2, col + NCTRL + 3, 0, 2, 5, 0, RTK_EXANDF, RTK_SHRINK);
 	rob_table_attach (ui->ctbl, GLB_W(ui->lbl_hilo[1]),  col + NCTRL + 2, col + NCTRL + 3, 2, 3, 5, 0, RTK_EXANDF, RTK_EXANDF);
 	rob_table_attach (ui->ctbl, GSP_W(ui->spn_g_loq),    col + NCTRL + 2, col + NCTRL + 3, 3, 5, 5, 0, RTK_EXANDF, RTK_SHRINK);
@@ -2187,7 +2262,6 @@ static void gui_cleanup(Fil4UI* ui) {
 	robwidget_destroy (ui->m0);
 	rob_table_destroy (ui->ctbl);
 	rob_box_destroy(ui->rw);
-
 }
 
 /******************************************************************************
