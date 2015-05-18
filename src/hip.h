@@ -107,6 +107,9 @@ static void hip_compute (HighPass *f, uint32_t n_samples, float *buf) {
 	const float q = f->q;
 	const float g = f->g;
 
+	const float m1 = g/a;
+	const float m2 = g*q;
+
 	if (a == 1.0 && q == 0.0 && g == 1.0) {
 		// might as well save some computing
 		// (all values incl state are filtered)
@@ -121,7 +124,7 @@ static void hip_compute (HighPass *f, uint32_t n_samples, float *buf) {
 		const float _z1 = z1; // remember previous input
 		const float _z2 = z2; // since buf[] is processed in-place
 
-		z1 = g * (buf[i] / a - q * (y2 - z2)); // TODO cache (1/a) use mult. Maybe even cache g/a, g*q
+		z1 = m1 * buf[i] - m2 * (y2 - z2); // == g * (buf[i] / a - q * (y2 - z2))
 		z2 = a * (z2 + z1 - _z1);
 		y2 = a * (y2 + z2 - _z2);
 		buf[i] = y2;
