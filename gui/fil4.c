@@ -1703,8 +1703,6 @@ static RobWidget* m0_mouse_move (RobWidget* handle, RobTkBtnEvent *ev) {
 
 	const float x0 = 30;
 	const float x1 = x0 + ui->m0_xw;
-	const float y0 = ui->m0_y0;
-	const float y1 = ui->m0_y1;
 
 #ifdef VISUAL_GAIN_OFFSET
 	float g_gain = robtk_dial_get_value (ui->spn_g_gain);
@@ -1741,9 +1739,13 @@ static RobWidget* m0_mouse_move (RobWidget* handle, RobTkBtnEvent *ev) {
 		const float hz = freq_at_x (ev->x - x0, ui->m0_xw);
 		robtk_dial_set_value (fctl, freq_to_dial (ffq, hz));
 	}
-	if (gctl && ev->y >= y0 && ev->y <= y1) {
+	if (gctl) {
 		const float db = (ui->m0_ym - ev->y) / ui->m0_yr;
 		robtk_dial_set_value (gctl, db - g_gain);
+
+		if (fabsf(robtk_dial_get_value(gctl)) + 1 >= ui->ydBrange) {
+			y_axis_zoom (handle, ui->ydBrange + 1);
+		}
 	}
 	return handle;
 }
