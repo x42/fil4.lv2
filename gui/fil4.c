@@ -176,6 +176,7 @@ typedef struct {
 	int dragging;
 	int drag_y;
 	int hover;
+	bool fft_change;
 	bool filter_redisplay;
 	bool disable_signals;
 
@@ -826,8 +827,16 @@ static void update_spectrum_history (Fil4UI* ui, const size_t n_elem, float cons
 			cairo_move_to (cr, f0, yy);
 			cairo_line_to (cr, f1, yy);
 			cairo_stroke (cr);
-
 		}
+
+		if (ui->fft_change) {
+			ui->fft_change = false;
+			cairo_set_operator (cr, CAIRO_OPERATOR_OVER);
+			cairo_set_source_rgba(cr, 1, 1, 1, .6);
+			cairo_rectangle (cr, 0, yy, ui->m0_xw, 1);
+			cairo_fill (cr);
+		}
+
 		cairo_destroy (cr);
 		queue_draw(ui->m0);
 	}
@@ -1284,8 +1293,18 @@ static bool cb_spn_g_gain (RobWidget *w, void* handle) {
 	return TRUE;
 }
 
+static bool cb_spn_fftgain (RobWidget *w, void* handle) {
+	Fil4UI* ui = (Fil4UI*)handle;
+	const float mode = robtk_select_get_value(ui->sel_fft);
+	if (mode >= 5) {
+		ui->fft_change = true;
+	}
+	return TRUE;
+}
+
 static bool cb_set_fft (RobWidget* w, void *handle) {
 	Fil4UI* ui = (Fil4UI*)handle;
+	ui->fft_change = true;
 	if (ui->disable_signals) return TRUE;
 	const float val = robtk_select_get_value(ui->sel_fft);
 
@@ -1547,6 +1566,7 @@ static void y_axis_zoom (RobWidget* handle, float dbRange) {
 	if (ui->ydBrange == dbRange) {
 		return;
 	}
+	ui->fft_change = true;
 	ui->ydBrange = dbRange;
 	m0_size_allocate (handle, ui->m0_width, ui->m0_height);
 }
@@ -2160,6 +2180,7 @@ static RobWidget * toplevel(Fil4UI* ui, void * const top) {
 	robtk_dial_annotation_callback(ui->spn_fftgain, dial_annotation_db, ui);
 	robtk_cbtn_set_callback (ui->btn_g_enable, cb_btn_g_en, ui);
 	robtk_dial_set_callback (ui->spn_g_gain,   cb_spn_g_gain, ui);
+	robtk_dial_set_callback (ui->spn_fftgain,  cb_spn_fftgain, ui);
 	robtk_dial_set_surface (ui->spn_g_gain, ui->dial_bg[0]);
 
 	robtk_cbtn_set_color_on(ui->btn_g_enable,  1.0, 1.0, 1.0);
