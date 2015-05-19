@@ -175,6 +175,7 @@ typedef struct {
 
 	int dragging;
 	int drag_y;
+	int hover;
 	bool filter_redisplay;
 	bool disable_signals;
 
@@ -1699,6 +1700,15 @@ static RobWidget* m0_mouse_down (RobWidget* handle, RobTkBtnEvent *ev) {
 
 static RobWidget* m0_mouse_move (RobWidget* handle, RobTkBtnEvent *ev) {
 	Fil4UI* ui = (Fil4UI*)GET_HANDLE(handle);
+
+	int hover = find_control_point (ui, ev->x, ev->y);
+	if (hover != ui->hover) {
+		ui->hover = hover;
+		if (ui->dragging < 0) {
+			update_filter_display (ui);
+		}
+	}
+
 	if (ui->dragging < 0) return NULL;
 
 	const float x0 = 30;
@@ -1789,7 +1799,11 @@ static void draw_filters (Fil4UI* ui) {
 
 		const float xx = x_at_freq(fq, xw) - .5f;
 		const float yy = rintf(ym + .5 - yr * (db + g_gain)) - .5;
-		cairo_set_source_rgba (cr, c_fil[j][0], c_fil[j][1], c_fil[j][2], .6 * fshade);
+		if (ui->dragging == j || (ui->dragging < 0 && ui->hover == j)) {
+			cairo_set_source_rgba (cr, c_fil[j][0], c_fil[j][1], c_fil[j][2], fshade);
+		} else {
+			cairo_set_source_rgba (cr, c_fil[j][0], c_fil[j][1], c_fil[j][2], .6 * fshade);
+		}
 		if (j == 0 || j == NCTRL - 1) {
 			cairo_rectangle (cr, xx - BOXRADIUS, yy - BOXRADIUS, 2 * BOXRADIUS, 2 * BOXRADIUS);
 		} else {
@@ -1811,13 +1825,17 @@ static void draw_filters (Fil4UI* ui) {
 		cairo_line_to (cr, xx - BOXRADIUS, ym - BOXRADIUS);
 		cairo_line_to (cr, xx + BOXRADIUS, ym - BOXRADIUS);
 		cairo_close_path (cr);
-		if (robtk_ibtn_get_active(ui->btn_g_hipass)) {
-			cairo_set_source_rgba (cr, c_fil[NCTRL][0], c_fil[NCTRL][1], c_fil[NCTRL][2], .8 * shade);
+		float fshade = shade;
+		if (!robtk_ibtn_get_active(ui->btn_g_hipass)) {
+			fshade = .5;
+		}
+		if (ui->dragging == Ctrl_HPF || (ui->dragging < 0 && ui->hover == Ctrl_HPF)) {
+			cairo_set_source_rgba (cr, c_fil[NCTRL][0], c_fil[NCTRL][1], c_fil[NCTRL][2], fshade);
 		} else {
-			cairo_set_source_rgba (cr, c_fil[NCTRL][0], c_fil[NCTRL][1], c_fil[NCTRL][2], .4 * shade);
+			cairo_set_source_rgba (cr, c_fil[NCTRL][0], c_fil[NCTRL][1], c_fil[NCTRL][2], .6 * fshade);
 		}
 		cairo_fill_preserve (cr);
-		cairo_set_source_rgba (cr, c_fil[NCTRL][0], c_fil[NCTRL][1], c_fil[NCTRL][2], .6 * shade);
+		cairo_set_source_rgba (cr, c_fil[NCTRL][0], c_fil[NCTRL][1], c_fil[NCTRL][2], .3 * fshade);
 		cairo_stroke (cr);
 		ui->hilo[0].x0 = x0 + xx;
 	}
@@ -1828,13 +1846,17 @@ static void draw_filters (Fil4UI* ui) {
 		cairo_line_to (cr, xx - BOXRADIUS, ym - BOXRADIUS);
 		cairo_line_to (cr, xx + BOXRADIUS, ym - BOXRADIUS);
 		cairo_close_path (cr);
-		if (robtk_ibtn_get_active(ui->btn_g_hipass)) {
-			cairo_set_source_rgba (cr, c_fil[NCTRL+1][0], c_fil[NCTRL+1][1], c_fil[NCTRL+1][2], .8 * shade);
+		float fshade = shade;
+		if (!robtk_ibtn_get_active(ui->btn_g_hipass)) {
+			fshade = .5;
+		}
+		if (ui->dragging == Ctrl_LPF || (ui->dragging < 0 && ui->hover == Ctrl_LPF)) {
+			cairo_set_source_rgba (cr, c_fil[NCTRL+1][0], c_fil[NCTRL+1][1], c_fil[NCTRL+1][2], fshade);
 		} else {
-			cairo_set_source_rgba (cr, c_fil[NCTRL+1][0], c_fil[NCTRL+1][1], c_fil[NCTRL+1][2], .4 * shade);
+			cairo_set_source_rgba (cr, c_fil[NCTRL+1][0], c_fil[NCTRL+1][1], c_fil[NCTRL+1][2], .6 * fshade);
 		}
 		cairo_fill_preserve (cr);
-		cairo_set_source_rgba (cr, c_fil[NCTRL+1][0], c_fil[NCTRL+1][1], c_fil[NCTRL+1][2], .6 * shade);
+		cairo_set_source_rgba (cr, c_fil[NCTRL+1][0], c_fil[NCTRL+1][1], c_fil[NCTRL+1][2], .3 * fshade);
 		cairo_stroke (cr);
 		ui->hilo[1].x0 = x0 + xx;
 	}
@@ -2008,6 +2030,12 @@ static bool m0_expose_event (RobWidget* handle, cairo_t* cr, cairo_rectangle_t *
 	cairo_set_operator (cr, CAIRO_OPERATOR_OVER);
 	cairo_set_source_surface(cr, ui->m0_grid, 0, 0);
 	cairo_paint (cr);
+
+	if (ui->hover == Ctrl_Yaxis) {
+		rounded_rectangle (cr, 8, ui->m0_y0 - 4, 20, 8 + ui->m0_y1 - ui->m0_y0, 2);
+		cairo_set_source_rgba (cr, 1, 1, 1, .25);
+		cairo_fill (cr);
+	}
 
 	const int fft_mode = robtk_select_get_value(ui->sel_fft);
 	cairo_set_line_cap(cr, CAIRO_LINE_CAP_BUTT);
