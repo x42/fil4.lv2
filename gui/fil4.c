@@ -1706,6 +1706,19 @@ static RobWidget* m0_mouse_down (RobWidget* handle, RobTkBtnEvent *ev) {
 			return NULL;
 			break;
 		default:
+			if (ev->button == 3) {
+				if (cp == Ctrl_LPF) {
+					robtk_ibtn_set_active (ui->btn_g_lopass, !robtk_ibtn_get_active(ui->btn_g_lopass));
+				}
+				else if (cp == Ctrl_HPF) {
+					robtk_ibtn_set_active (ui->btn_g_hipass, !robtk_ibtn_get_active(ui->btn_g_hipass));
+				}
+				else {
+					assert(cp >= 0 && cp < NCTRL);
+					robtk_cbtn_set_active (ui->btn_enable[cp], !robtk_cbtn_get_active(ui->btn_enable[cp]));
+				}
+				update_filter_display (ui);
+			}
 			if (ev->button != 1) {
 				return NULL;
 			}
