@@ -34,6 +34,8 @@
 #define DOTRADIUS (9) // radius of draggable nodes on the plot
 #define BOXRADIUS (7)
 
+#define DEFAULT_YZOOM (30) // [dB] -30..+30, 60dB total range per default
+
 #define NCTRL (NSECT + 2) // number of filter-bands + 2 (lo,hi-shelf)
 #define FFT_MAX 512
 
@@ -52,6 +54,12 @@
 #ifndef HYPOTF
 #define HYPOTF(X,Y) (sqrtf (SQUARE(X) + SQUARE(Y)))
 #endif
+
+enum {
+	Ctrl_HPF = NCTRL,
+	Ctrl_LPF = NCTRL + 1,
+	Ctrl_Yaxis = NCTRL + 2
+};
 
 /* cached filter state */
 typedef struct {
@@ -166,11 +174,13 @@ typedef struct {
 	FilterSection lphs;
 
 	int dragging;
+	int drag_y;
 	bool filter_redisplay;
 	bool disable_signals;
 
 	bool scale_cached;
 	float xscale[FFT_MAX + 1];
+	float ydBrange;
 
 	int n_channels;
 	float mixdown[8192];
@@ -677,7 +687,7 @@ static void reinitialize_fft (Fil4UI* ui) {
 	}
 
 	for (int i = 1; i < FFT_MAX; ++i) {
-		ui->_bwcorr [i] = 1.f / (30.0f * (ui->_fscale [i + 1] - ui->_fscale [i - 1]) / ui->_fscale [i]);
+		ui->_bwcorr [i] = 1.f / (ui->ydBrange * (ui->_fscale [i + 1] - ui->_fscale [i - 1]) / ui->_fscale [i]);
 	}
 	ui->_bwcorr [0]       = ui->_bwcorr [1];
 	ui->_bwcorr [FFT_MAX] = ui->_bwcorr [FFT_MAX - 1];
@@ -703,7 +713,7 @@ static void update_fft_scale (Fil4UI* ui) {
 	cairo_fill (cr);
 
 #define FFT_DB(db, len) { \
-	const float yy = rintf(ui->m0_ym + .5 - ui->m0_yr * db) - .5; \
+	const float yy = rintf(ui->m0_ym + .5 + (db - ui->ydBrange) * ui->m0_yr) - .5; \
 	cairo_move_to (cr, 0,   yy); \
 	cairo_line_to (cr, len, yy); \
 	cairo_stroke(cr); \
@@ -715,13 +725,21 @@ static void update_fft_scale (Fil4UI* ui) {
 	if (mode < 5) {
 		cairo_set_line_width(cr, 1.0);
 		CairoSetSouerceRGBA(c_g30);
-		FFT_DB(-30, 5.5);
-		FFT_DB(-20, 4.5);
-		FFT_DB(-10, 4.5);
-		FFT_DB(0, 3.5);
-		FFT_DB(10, 4.5);
-		FFT_DB(20, 4.5);
-		FFT_DB(30, 5.5);
+
+		for (int i = 0; i < 2 * ui->ydBrange; ++i) {
+			if (i + align == 0) {
+				CairoSetSouerceRGBA(c_g60);
+				FFT_DB(i, 5.5);
+				CairoSetSouerceRGBA(c_g30);
+			}
+			else if ((i + align) % 10 == 0) {
+				FFT_DB(i, 4.5);
+			}
+			else if ((i + align) % 5 == 0) {
+				FFT_DB(i, 2.5);
+			}
+		}
+
 		txt_c = &c_ann[0];
 		txt_x = 3;
 	} else {
@@ -742,13 +760,12 @@ static void update_fft_scale (Fil4UI* ui) {
 	}
 
 	char tmp[16];
-	sprintf(tmp, "%+3d", align);
+	sprintf(tmp, "%+3.0f", align + 0.f);
 	write_text_full(cr, tmp, ui->font[0], txt_x, ui->m0_y0 + 2, 1.5 * M_PI, 7, txt_c);
 
-	sprintf(tmp, "%+3d dBFS", align - 30);
-	write_text_full(cr, tmp, ui->font[0], txt_x, ui->m0_y0 + 30 * ui->m0_yr, 1.5 * M_PI, 8, txt_c);
+	write_text_full(cr, "dbFS", ui->font[0], txt_x, ui->m0_y0 + ui->ydBrange * ui->m0_yr, 1.5 * M_PI, 8, txt_c);
 
-	sprintf(tmp, "%+3d", align - 60);
+	sprintf(tmp, "%+3.0f", align - 2 * ui->ydBrange);
 	write_text_full(cr, tmp, ui->font[0], txt_x, ui->m0_y1 + 1, 1.5 * M_PI, 9, txt_c);
 	cairo_destroy (cr);
 }
@@ -778,6 +795,7 @@ static void update_spectrum_history (Fil4UI* ui, const size_t n_elem, float cons
 
 		const uint32_t b = fftx_bins(ui->fa);
 		const float yy = ui->fft_hist_line;
+		const float db = ui->ydBrange;
 
 		// clear current line
 		cairo_set_operator (cr, CAIRO_OPERATOR_CLEAR);
@@ -798,8 +816,8 @@ static void update_spectrum_history (Fil4UI* ui, const size_t n_elem, float cons
 			const float norm = i;
 #endif
 			const float level = gain + fftx_power_to_dB (ui->fa->power[i] * norm);
-			if (level < -60) continue;
-			const float pk = level > 0.0 ? 1.0 : (60 + level) / 60.0; // TODO Range
+			if (level < -db) continue;
+			const float pk = level > 0.0 ? 1.0 : (db + level) / db;
 			float clr[3];
 			hsl2rgb(clr, .70 - .72 * pk, .9, .3 + pk * .4);
 			cairo_set_source_rgba(cr, clr[0], clr[1], clr[2], .3 + pk * .2);
@@ -1337,57 +1355,80 @@ static void draw_grid (Fil4UI* ui) {
 
 	write_text_full(cr, "dB", ui->font[0], x0 - 22, ui->m0_ym, M_PI * -.5, 8, c_ann);
 
-#ifdef GRID10
-	if (ui->m0_height > 400) {
-		cairo_set_line_width(cr, .75);
-		CairoSetSouerceRGBA(c_g20);
-		for (int i = -29; i <= 29; i +=1) {
-			if (i%5 == 0) continue;
-		GRID_DB_DOT(i);
+	/* calculate grid
+	 *
+	 * 1) find max possible major [numerical] grid lines - depending on height
+	 * 2) calc stride of numeric grid - depending on dB-range and (1)
+	 * 3) set sub-grid stride
+	 */
+	const int m0_h = ui->m0_y1 - ui->m0_y0; // [px/dB]
+	const int max_lines = MIN(8, MAX(2, floorf (8 * m0_h / (m0_h + 160.f))));
+	const int numgrid = 3 * ceilf (ui->ydBrange / (float)(max_lines * 3)); // [dB]
+	const int numspace = ceilf (9.75 / ui->m0_yr); // skip entries this close to the border [dB]
+	const float griddist = (numgrid * ui->m0_yr); // numeric-grid spacing in [px].
+	int subgrid = 0; // resulting subgrid stride [db]
+
+	/* max density of sub-grid lines (px space based) */
+	const int max_subgrid = floor (griddist / 10.0); // [number of lines]
+	/* those lines need to span 'numgrid' dB ..*/
+	if (max_subgrid > numgrid) {
+		subgrid = 1; // yes we can.
+	} else if (max_subgrid >= 1) {
+		/* subgrid is spaced (numgrid / 2) rounded down to next mult of 3, or one */
+		const float sg = MAX(1, 3 * floor(numgrid / 6.0)); // [db]
+		/* does it fit? */
+		if (numgrid <= max_subgrid * sg) {
+			subgrid = sg;
 		}
 	}
 
-	cairo_set_line_width(cr, 1.0);
-	CairoSetSouerceRGBA(c_g30);
-
-	GRID_DB(30, "+30");
-	GRID_DB(25, "+25");
-	GRID_DB(20, "+20");
-	GRID_DB(15, "+15");
-	GRID_DB(10, "+10");
-	GRID_DB(5, "+5");
-	GRID_DB(0, "0");
-	GRID_DB(-5, "-5");
-	GRID_DB(-10, "-10");
-	GRID_DB(-15, "-15");
-	GRID_DB(-20, "-20");
-	GRID_DB(-25, "-25");
-	GRID_DB(-30, "-30");
-
-#else
-	if (ui->m0_height > 300) {
-		cairo_set_line_width(cr, .75);
-		CairoSetSouerceRGBA(c_g20);
-		for (int i = -24; i <= 24; i +=3) {
-			if (i%9 == 0) continue;
-		GRID_DB_DOT(i);
-		}
-	}
-
-	cairo_set_line_width(cr, 1.0);
-	CairoSetSouerceRGBA(c_g30);
-
-	GRID_DB_DOT(27);
-	GRID_DB_DOT(-27);
-
-	GRID_DB(30, "+30");
-	GRID_DB(18, "+18");
-	GRID_DB(9, "+9");
-	GRID_DB(0, "0");
-	GRID_DB(-9, "-9");
-	GRID_DB(-18, "-18");
-	GRID_DB(-30, "-30");
+#if 0 // DEBUG
+	const float sgriddist = subgrid * ui->m0_yr;
+	printf("GRID: H:%d[px] R:%.1f[db] -> #G:%d MX:%d || NG: %d SG: %d NS: %d [dB] || (px/db:%.3f) GRD: %.2f[px] SGRD: %.2f[px]\n",
+			m0_h, ui->ydBrange, max_lines, max_subgrid,
+			numgrid, subgrid, numspace,
+			ui->m0_yr, griddist, sgriddist);
 #endif
+
+	if (subgrid > 0) {
+		cairo_set_line_width(cr, .75);
+		CairoSetSouerceRGBA(c_g20);
+		for (int i = subgrid; i <= ui->ydBrange; i += subgrid) {
+			if (ui->ydBrange - i < subgrid) break;
+			if (i % numgrid == 0) {
+					continue;
+			}
+			GRID_DB_DOT(i);
+			GRID_DB_DOT(-i);
+		}
+	}
+
+	cairo_set_line_width(cr, 1.0);
+	CairoSetSouerceRGBA(c_g30);
+
+	GRID_DB(0, "0");
+
+	for (int i = numgrid; i < ui->ydBrange; i += numgrid) {
+		if (ui->ydBrange - i < numspace) {
+			GRID_DB_DOT(i);
+			GRID_DB_DOT(-i);
+			break;
+		}
+		char txt[8];
+		snprintf (txt, 8, "%+d", i);
+		GRID_DB(i, txt);
+		snprintf (txt, 8, "%+d", -i);
+		GRID_DB(-i, txt);
+	}
+
+	// outer limits
+	{
+		char txt[8];
+		snprintf (txt, 8, "%+.0f", ui->ydBrange);
+		GRID_DB(ui->ydBrange, txt);
+		snprintf (txt, 8, "%+.0f", -ui->ydBrange);
+		GRID_DB(-ui->ydBrange, txt);
+	}
 
 	CairoSetSouerceRGBA(c_g30);
 
@@ -1463,10 +1504,12 @@ m0_size_allocate (RobWidget* handle, int w, int h) {
 
 	const int m0h = h & ~1;
 	ui->m0_xw = ui->m0_width - 48;
-	ui->m0_ym = rintf((m0h - 12) * .5f) - .5;
-	ui->m0_yr = (m0h - 20) / 64.f;
-	ui->m0_y0 = floor (ui->m0_ym - 30.f * ui->m0_yr);
-	ui->m0_y1 = ceil  (ui->m0_ym + 30.f * ui->m0_yr);
+	ui->m0_ym = rintf((m0h - 10) * .5f) - .5;
+	ui->m0_yr = (m0h - 30) / ceilf(2 * ui->ydBrange);
+	ui->m0_y0 = floor (ui->m0_ym - ui->ydBrange * ui->m0_yr);
+	ui->m0_y1 = ceil  (ui->m0_ym + ui->ydBrange * ui->m0_yr);
+
+	//printf("Y0 %.1f YM %.1f Y1 %.1f YR %.3f\n", ui->m0_y0, ui->m0_ym, ui->m0_y1, ui->m0_yr);
 
 	const int m0_H = ui->m0_y1 - ui->m0_y0; // new height
 
@@ -1492,6 +1535,39 @@ m0_size_allocate (RobWidget* handle, int w, int h) {
 
 		ui->fft_scale = cairo_image_surface_create (CAIRO_FORMAT_ARGB32, 12, ui->m0_height);
 	}
+	update_filter_display (ui);
+}
+
+static void y_axis_zoom (RobWidget* handle, float dbRange) {
+	Fil4UI* ui = (Fil4UI*)GET_HANDLE(handle);
+
+	if (dbRange >= 50) dbRange = 50;
+	if (dbRange <= 12) dbRange = 12;
+	if (ui->ydBrange == dbRange) {
+		return;
+	}
+	ui->ydBrange = dbRange;
+	m0_size_allocate (handle, ui->m0_width, ui->m0_height);
+}
+
+static int find_control_point (Fil4UI* ui, const int x, const int y) {
+	if (x > 8 && x < 29 && y > ui->m0_y0 && y < ui->m0_y1) {
+		return Ctrl_Yaxis;
+	}
+
+	if (fabsf(y - ui->m0_ym) <= DOTRADIUS && fabsf(x - ui->hilo[0].x0) <= DOTRADIUS) {
+		return Ctrl_HPF;
+	}
+	if (fabsf(y - ui->m0_ym) <= DOTRADIUS && fabsf(x - ui->hilo[1].x0) <= DOTRADIUS) {
+		return Ctrl_LPF;
+	}
+
+	for (int i = 0; i < NCTRL; ++i) {
+		if (fabsf(x - ui->flt[i].x0) <= DOTRADIUS && fabsf(y - ui->flt[i].y0) <= DOTRADIUS) {
+			return i;
+		}
+	}
+	return -1;
 }
 
 static RobWidget* m0_mouse_up (RobWidget* handle, RobTkBtnEvent *ev) {
@@ -1506,17 +1582,32 @@ static RobWidget* m0_mouse_scroll (RobWidget* handle, RobTkBtnEvent *ev) {
 
 	RobTkDial *bwctl = NULL;
 
-	for (int i = 0; i < NCTRL; ++i) {
-		if (abs(ev->x - ui->flt[i].x0) <= DOTRADIUS && abs(ev->y - ui->flt[i].y0) <= DOTRADIUS) {
-			bwctl = ui->spn_bw[i];
+	int cp = find_control_point (ui, ev->x, ev->y);
+
+	switch (cp) {
+		case -1:
+			return NULL;
 			break;
-		}
-	}
-	if (fabsf(ev->y - ui->m0_ym) <= DOTRADIUS && fabsf(ev->x - ui->hilo[0].x0) <= DOTRADIUS) {
+		case Ctrl_Yaxis:
+			/* y-axis zoom in the header */
+			if (ev->direction == ROBTK_SCROLL_UP) {
+				y_axis_zoom (handle, ui->ydBrange + 1);
+			}
+			else if (ev->direction == ROBTK_SCROLL_DOWN) {
+				y_axis_zoom (handle, ui->ydBrange - 1);
+			}
+			return NULL;
+			break;
+		case Ctrl_HPF:
 			bwctl = ui->spn_g_hiq;
-	}
-	if (fabsf(ev->y - ui->m0_ym) <= DOTRADIUS && fabsf(ev->x - ui->hilo[1].x0) <= DOTRADIUS) {
+			break;
+		case Ctrl_LPF:
 			bwctl = ui->spn_g_loq;
+			break;
+		default:
+			assert (cp >= 0 && cp < NCTRL);
+			bwctl = ui->spn_bw[cp];
+			break;
 	}
 
 	if (!bwctl) {
@@ -1547,31 +1638,36 @@ static RobWidget* m0_mouse_down (RobWidget* handle, RobTkBtnEvent *ev) {
 	Fil4UI* ui = (Fil4UI*)GET_HANDLE(handle);
 	// TODO right-click -> toggle ??
 	// double click -> en/disable band ??
-	if (ev->button != 1) {
-		return NULL;
-	}
 
 	assert (ui->dragging == -1);
 
-	for (int i = 0; i < NCTRL; ++i) {
-		if (fabsf(ev->x - ui->flt[i].x0) <= DOTRADIUS && fabsf(ev->y - ui->flt[i].y0) <= DOTRADIUS) {
-			ui->dragging = i;
-			update_filter_display (ui);
+	int cp = find_control_point (ui, ev->x, ev->y);
+
+	switch (cp) {
+		case -1:
+			return NULL;
 			break;
-		}
+		case Ctrl_Yaxis:
+			if (ev->button == 3) {
+				y_axis_zoom (handle, DEFAULT_YZOOM);
+			}
+			else if (ev->button == 1) {
+				ui->dragging = Ctrl_Yaxis;
+				ui->drag_y = ev->y;
+				return handle;
+			}
+			return NULL;
+			break;
+		default:
+			if (ev->button != 1) {
+				return NULL;
+			}
+			update_filter_display (ui);
+			ui->dragging = cp;
+			break;
 	}
 
-	if (fabsf(ev->y - ui->m0_ym) <= DOTRADIUS && fabsf(ev->x - ui->hilo[0].x0) <= DOTRADIUS) {
-		ui->dragging = NCTRL;
-		update_filter_display (ui);
-	}
-
-	if (fabsf(ev->y - ui->m0_ym) <= DOTRADIUS && fabsf(ev->x - ui->hilo[1].x0) <= DOTRADIUS) {
-		ui->dragging = NCTRL + 1;
-		update_filter_display (ui);
-	}
-
-	if (ev->state & ROBTK_MOD_SHIFT && ui->dragging == NCTRL) {
+	if (ev->state & ROBTK_MOD_SHIFT && ui->dragging == Ctrl_HPF) {
 		robtk_dial_set_value (ui->spn_g_hifreq, ui->spn_g_hifreq->dfl);
 		robtk_dial_set_value (ui->spn_g_hiq, ui->spn_g_hiq->dfl);
 		ui->dragging = -1;
@@ -1579,7 +1675,7 @@ static RobWidget* m0_mouse_down (RobWidget* handle, RobTkBtnEvent *ev) {
 		return NULL;
 	}
 
-	if (ev->state & ROBTK_MOD_SHIFT && ui->dragging > NCTRL) {
+	if (ev->state & ROBTK_MOD_SHIFT && ui->dragging == Ctrl_LPF) {
 		robtk_dial_set_value (ui->spn_g_lofreq, ui->spn_g_lofreq->dfl);
 		robtk_dial_set_value (ui->spn_g_loq, ui->spn_g_loq->dfl);
 		ui->dragging = -1;
@@ -1597,11 +1693,8 @@ static RobWidget* m0_mouse_down (RobWidget* handle, RobTkBtnEvent *ev) {
 		return NULL;
 	}
 
-	if (ui->dragging < 0) {
-		return NULL;
-	} else {
-		return handle;
-	}
+	assert (ui->dragging >= 0);
+	return handle;
 }
 
 static RobWidget* m0_mouse_move (RobWidget* handle, RobTkBtnEvent *ev) {
@@ -1624,16 +1717,24 @@ static RobWidget* m0_mouse_move (RobWidget* handle, RobTkBtnEvent *ev) {
 	RobTkDial *gctl = NULL;
 	FilterFreq *ffq = NULL;
 
-	if (sect == NCTRL) { //high pass special case
+	if (sect == Ctrl_HPF) { //high pass special case
 		fctl = ui->spn_g_hifreq;
 		ffq = &lphp[0];
-	} else if (sect > NCTRL) {
+	} else if (sect == Ctrl_LPF) { // low pass
 		fctl = ui->spn_g_lofreq;
 		ffq = &lphp[1];
-	} else {
+	} else if (sect < NCTRL) {
 		fctl = ui->spn_freq[sect];
 		gctl = ui->spn_gain[sect];
 		ffq = &freqs[sect];
+	} else if (sect == Ctrl_Yaxis) { // header y-zoom
+		float delta = floor ((ui->drag_y - ev->y) / ui->m0_yr);
+		if (delta != 0) {
+			if (ui->drag_y < ui->m0_ym) delta *= -1;
+			y_axis_zoom (handle, ui->ydBrange + delta);
+			ui->drag_y = ev->y;
+		}
+		return handle;
 	}
 
 	if (fctl && ev->x >= x0 && ev->x <= x1) {
@@ -1645,11 +1746,6 @@ static RobWidget* m0_mouse_move (RobWidget* handle, RobTkBtnEvent *ev) {
 		robtk_dial_set_value (gctl, db - g_gain);
 	}
 	return handle;
-}
-
-inline float x_power_to_dB (float a) {
-	/* 10 instead of 20 because of squared signal -- no sqrt(powerp[]) */
-	return a > 1e-10 ? 10.0 * fast_log10(a) : -60;
 }
 
 static void draw_filters (Fil4UI* ui) {
@@ -1759,12 +1855,12 @@ static void draw_filters (Fil4UI* ui) {
 			cairo_line_to (cr, i, ym - y);
 		}
 		cairo_set_source_rgba (cr, c_fil[NCTRL][0], c_fil[NCTRL][1], c_fil[NCTRL][2], fshade);
-		if (ui->dragging == NCTRL) {
+		if (ui->dragging == Ctrl_HPF) {
 			cairo_stroke_preserve(cr);
 			cairo_line_to (cr, xw, ym);
-			cairo_line_to (cr, xw, ym + yr * 30);
-			if (yy < ym + yr * 30) {
-				cairo_line_to (cr, 0, ym + yr * 30);
+			cairo_line_to (cr, xw, ym + yr * ui->ydBrange);
+			if (yy < ym + yr * ui->ydBrange) {
+				cairo_line_to (cr, 0, ym + yr * ui->ydBrange);
 			}
 			cairo_set_source_rgba (cr, c_fil[NCTRL][0], c_fil[NCTRL][1], c_fil[NCTRL][2], .4 * fshade);
 			cairo_fill (cr);
@@ -1785,13 +1881,13 @@ static void draw_filters (Fil4UI* ui) {
 			cairo_line_to (cr, i, ym - y);
 		}
 			cairo_set_source_rgba (cr, c_fil[NCTRL+1][0], c_fil[NCTRL+1][1], c_fil[NCTRL+1][2], fshade);
-		if (ui->dragging == NCTRL + 1) {
+		if (ui->dragging == Ctrl_LPF) {
 			cairo_stroke_preserve(cr);
 			float yy = ym - yr * g_gain - yr * get_lowpass_response (ui, freq_at_x(xw, xw));
-			if (yy < ym + yr * 30) {
-				cairo_line_to (cr, xw, ym + yr * 30);
+			if (yy < ym + yr * ui->ydBrange) {
+				cairo_line_to (cr, xw, ym + yr * ui->ydBrange);
 			}
-			cairo_line_to (cr, 0, ym + yr * 30);
+			cairo_line_to (cr, 0, ym + yr * ui->ydBrange);
 			cairo_line_to (cr, 0, ym);
 			cairo_set_source_rgba (cr, c_fil[NCTRL+1][0], c_fil[NCTRL+1][1], c_fil[NCTRL+1][2], .4 * fshade);
 			cairo_fill (cr);
@@ -1961,7 +2057,7 @@ static bool m0_expose_event (RobWidget* handle, cairo_t* cr, cairo_rectangle_t *
 				ui->xscale[i] = x0 + x_at_freq(ui->_fscale[i] * ui->samplerate, xw) - .5;
 			}
 		}
-		const float align = 30 + robtk_dial_get_value (ui->spn_fftgain);
+		const float align = ui->ydBrange + robtk_dial_get_value (ui->spn_fftgain);
 		if (fft_mode > 2) {
 			cairo_move_to (cr, ui->xscale[0], ym - yr * y_power_prop(ui, d[0], align, ui->_bwcorr[0]));
 			for (int i = 1; i <= FFT_MAX; ++i) {
@@ -2354,6 +2450,7 @@ instantiate(
 	ui->controller = controller;
 	ui->dragging   = -1;
 	ui->samplerate = 48000;
+	ui->ydBrange   = DEFAULT_YZOOM;
 	ui->filter_redisplay = true;
 
 	ui->hilo[0].f = lphp[0].dflt;
