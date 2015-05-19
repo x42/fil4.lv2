@@ -34,8 +34,6 @@
 #define DOTRADIUS (9) // radius of draggable nodes on the plot
 #define BOXRADIUS (7)
 
-#define DEFAULT_YZOOM (30) // [dB] -30..+30, 60dB total range per default
-
 #define NCTRL (NSECT + 2) // number of filter-bands + 2 (lo,hi-shelf)
 #define FFT_MAX 512
 
@@ -1129,6 +1127,28 @@ static float get_lowpass_response (Fil4UI *ui, const float freq) {
 
 ///////////////////////////////////////////////////////////////////////////////
 
+static void tx_state (Fil4UI* ui) {
+	uint8_t obj_buf[1024];
+	lv2_atom_forge_set_buffer(&ui->forge, obj_buf, 1024);
+	LV2_Atom_Forge_Frame frame;
+	lv2_atom_forge_frame_time(&ui->forge, 0);
+	LV2_Atom* msg = (LV2_Atom*)x_forge_object(&ui->forge, &frame, 1, ui->uris.state);
+
+	lv2_atom_forge_property_head(&ui->forge, ui->uris.s_fftmode, 0);
+	lv2_atom_forge_int(&ui->forge, robtk_select_get_value(ui->sel_fft));
+
+	lv2_atom_forge_property_head(&ui->forge, ui->uris.s_fftgain, 0);
+	lv2_atom_forge_float(&ui->forge, robtk_dial_get_value (ui->spn_fftgain));
+
+	lv2_atom_forge_property_head(&ui->forge, ui->uris.s_fftchan, 0);
+	lv2_atom_forge_int(&ui->forge, robtk_select_get_value(ui->sel_chn));
+
+	lv2_atom_forge_property_head(&ui->forge, ui->uris.s_dbscale, 0);
+	lv2_atom_forge_float(&ui->forge, ui->ydBrange);
+
+	lv2_atom_forge_pop(&ui->forge, &frame);
+	ui->write(ui->controller, FIL_ATOM_CONTROL, lv2_atom_total_size(msg), ui->uris.atom_eventTransfer, msg);
+}
 
 /*** knob & button callbacks ****/
 
@@ -1299,27 +1319,30 @@ static bool cb_spn_fftgain (RobWidget *w, void* handle) {
 	if (mode >= 5) {
 		ui->fft_change = true;
 	}
+	if (ui->disable_signals) return TRUE;
+	tx_state (ui);
+	return TRUE;
+}
+
+static bool cb_set_chn (RobWidget* w, void *handle) {
+	Fil4UI* ui = (Fil4UI*)handle;
+	const float mode = robtk_select_get_value(ui->sel_fft);
+	if (mode >= 5) {
+		ui->fft_change = true;
+	}
+	if (ui->disable_signals) return TRUE;
+	tx_state (ui);
 	return TRUE;
 }
 
 static bool cb_set_fft (RobWidget* w, void *handle) {
 	Fil4UI* ui = (Fil4UI*)handle;
 	ui->fft_change = true;
+	update_filter_display (ui);
 	if (ui->disable_signals) return TRUE;
 	const float val = robtk_select_get_value(ui->sel_fft);
-
 	robtk_dial_set_sensitive (ui->spn_fftgain, val > 0);
-
-	uint8_t obj_buf[64];
-	lv2_atom_forge_set_buffer(&ui->forge, obj_buf, 64);
-	LV2_Atom_Forge_Frame frame;
-	lv2_atom_forge_frame_time(&ui->forge, 0);
-	LV2_Atom* msg = (LV2_Atom*)x_forge_object(&ui->forge, &frame, 1, ui->uris.fftmode);
-	lv2_atom_forge_property_head(&ui->forge, ui->uris.fftmode, 0);
-	lv2_atom_forge_int(&ui->forge, val);
-	lv2_atom_forge_pop(&ui->forge, &frame);
-	ui->write(ui->controller, FIL_ATOM_CONTROL, lv2_atom_total_size(msg), ui->uris.atom_eventTransfer, msg);
-	update_filter_display (ui);
+	tx_state (ui);
 	return TRUE;
 }
 
@@ -1569,6 +1592,9 @@ static void y_axis_zoom (RobWidget* handle, float dbRange) {
 	ui->fft_change = true;
 	ui->ydBrange = dbRange;
 	m0_size_allocate (handle, ui->m0_width, ui->m0_height);
+
+	if (ui->disable_signals) return;
+	tx_state (ui);
 }
 
 static int find_control_point (Fil4UI* ui, const int x, const int y) {
@@ -2207,6 +2233,7 @@ static RobWidget * toplevel(Fil4UI* ui, void * const top) {
 	robtk_select_add_item (ui->sel_chn, -1, "All");
 	robtk_select_set_default_item (ui->sel_chn, 0);
 	robtk_select_set_value (ui->sel_chn, -1);
+	robtk_select_set_callback(ui->sel_chn, cb_set_chn, ui);
 
 	if (ui->n_channels == 2) {
 		robtk_select_add_item (ui->sel_chn, 0, "L");
@@ -2453,6 +2480,8 @@ static void ui_enable(LV2UI_Handle handle) {
 static void ui_disable(LV2UI_Handle handle) {
 	Fil4UI* ui = (Fil4UI*)handle;
 
+	tx_state (ui); // too late?
+
 	uint8_t obj_buf[64];
 	lv2_atom_forge_set_buffer(&ui->forge, obj_buf, 64);
 	LV2_Atom_Forge_Frame frame;
@@ -2500,6 +2529,7 @@ instantiate(
 	ui->write      = write_function;
 	ui->controller = controller;
 	ui->dragging   = -1;
+	ui->hover      = -1;
 	ui->samplerate = 48000;
 	ui->ydBrange   = DEFAULT_YZOOM;
 	ui->filter_redisplay = true;
@@ -2546,9 +2576,9 @@ port_event(LV2UI_Handle handle,
 		if (atom->type == ui->uris.atom_Blank || atom->type == ui->uris.atom_Object) {
 			/* cast the buffer to Atom Object */
 			LV2_Atom_Object* obj = (LV2_Atom_Object*)atom;
-			LV2_Atom *a0 = NULL;
-			LV2_Atom *a1 = NULL;
-			LV2_Atom *a2 = NULL;
+			const LV2_Atom *a0 = NULL;
+			const LV2_Atom *a1 = NULL;
+			const LV2_Atom *a2 = NULL;
 			if (
 					/* handle raw-audio data objects */
 					obj->body.otype == ui->uris.rawaudio
@@ -2577,17 +2607,33 @@ port_event(LV2UI_Handle handle,
 				}
 				handle_audio_data (ui, chn, n_elem, data);
 			}
-			else if (
-					obj->body.otype == ui->uris.state
-					&& 1 == lv2_atom_object_get(obj, ui->uris.samplerate, &a0, NULL)
-					&& a0
-					&& a0->type == ui->uris.atom_Float
-				 )
-			{
-				const float sr = ((LV2_Atom_Float*)a0)->body;
-				if (ui->samplerate != sr) {
-					ui->samplerate = sr;
-					samplerate_changed (ui);
+			else if (obj->body.otype == ui->uris.state) {
+				if (1 == lv2_atom_object_get(obj, ui->uris.samplerate, &a0, NULL) && a0) {
+					const float sr = ((LV2_Atom_Float*)a0)->body;
+					if (ui->samplerate != sr) {
+						ui->samplerate = sr;
+						samplerate_changed (ui);
+					}
+				}
+				a0 = NULL;
+				if (1 == lv2_atom_object_get(obj, ui->uris.s_dbscale, &a0, NULL) && a0) {
+					const float ys = ((LV2_Atom_Float*)a0)->body;
+					y_axis_zoom (ui->m0, ys);
+				}
+				a0 = NULL;
+				if (1 == lv2_atom_object_get(obj, ui->uris.s_fftgain, &a0, NULL) && a0) {
+					const float fa = ((LV2_Atom_Float*)a0)->body;
+					robtk_dial_set_value (ui->spn_fftgain, fa);
+				}
+				a0 = NULL;
+				if (1 == lv2_atom_object_get(obj, ui->uris.s_fftmode, &a0, NULL) && a0) {
+					const int fm = ((LV2_Atom_Int*)a0)->body;
+					robtk_select_set_value (ui->sel_fft, fm);
+				}
+				a0 = NULL;
+				if (1 == lv2_atom_object_get(obj, ui->uris.s_fftchan, &a0, NULL) && a0) {
+					const int fm = ((LV2_Atom_Int*)a0)->body;
+					robtk_select_set_value (ui->sel_chn, fm);
 				}
 			}
 		}

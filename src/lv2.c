@@ -56,7 +56,13 @@ typedef struct {
 	Fil4LV2URIs              uris;
 	LV2_Atom_Forge           forge;
 	LV2_Atom_Forge_Frame     frame;
+
+	/* GUI state */
+	bool                     ui_active;
 	int                      fft_mode;
+	int                      fft_chan;
+	float                    fft_gain;
+	float                    db_scale;
 
 } Fil4;
 
@@ -116,6 +122,12 @@ instantiate(const LV2_Descriptor*     descriptor,
 	for (uint32_t c = 0; c < self->n_channels; ++c) {
 		init_filter_channel (&self->fc[c], rate);
 	}
+
+	self->ui_active = false;
+	self->fft_mode = 0;
+	self->fft_gain = 0;
+	self->fft_chan = -1;
+	self->db_scale = DEFAULT_YZOOM;
 
 	return (LV2_Handle)self;
 }
@@ -177,6 +189,18 @@ static void tx_state (Fil4* self)
 
 	lv2_atom_forge_property_head(&self->forge, self->uris.samplerate, 0);
 	lv2_atom_forge_float(&self->forge, self->rate);
+
+	lv2_atom_forge_property_head(&self->forge, self->uris.s_dbscale, 0);
+	lv2_atom_forge_float(&self->forge, self->db_scale);
+
+	lv2_atom_forge_property_head(&self->forge, self->uris.s_fftgain, 0);
+	lv2_atom_forge_float(&self->forge, self->fft_gain);
+
+	lv2_atom_forge_property_head(&self->forge, self->uris.s_fftmode, 0);
+	lv2_atom_forge_int(&self->forge, self->fft_mode);
+
+	lv2_atom_forge_property_head(&self->forge, self->uris.s_fftchan, 0);
+	lv2_atom_forge_int(&self->forge, self->fft_chan);
 
 	lv2_atom_forge_pop(&self->forge, &frame);
 }
@@ -335,25 +359,38 @@ run(LV2_Handle instance, uint32_t n_samples)
 			if (ev->body.type == self->uris.atom_Blank || ev->body.type == self->uris.atom_Object) {
 				const LV2_Atom_Object* obj = (LV2_Atom_Object*)&ev->body;
 				if (obj->body.otype == self->uris.ui_off) {
-					self->fft_mode = 0;
+					self->ui_active = false;
 				}
 				else if (obj->body.otype == self->uris.ui_on) {
+					self->ui_active = true;
 					tx_state (self);
 				}
-				else if (obj->body.otype == self->uris.fftmode) {
+				else if (obj->body.otype == self->uris.state) {
 					const LV2_Atom* v = NULL;
-					lv2_atom_object_get(obj, self->uris.fftmode, &v, 0);
-					if (v) {
-						self->fft_mode = ((LV2_Atom_Int*)v)->body;
-					}
+					lv2_atom_object_get(obj, self->uris.s_fftmode, &v, 0);
+					if (v) { self->fft_mode = ((LV2_Atom_Int*)v)->body; }
+
+					v = NULL;
+					lv2_atom_object_get(obj, self->uris.s_fftgain, &v, 0);
+					if (v) { self->fft_gain = ((LV2_Atom_Float*)v)->body; }
+
+					v = NULL;
+					lv2_atom_object_get(obj, self->uris.s_fftchan, &v, 0);
+					if (v) { self->fft_chan = ((LV2_Atom_Int*)v)->body; }
+
+					v = NULL;
+					lv2_atom_object_get(obj, self->uris.s_dbscale, &v, 0);
+					if (v) { self->db_scale = ((LV2_Atom_Float*)v)->body; }
 				}
 				ev = lv2_atom_sequence_next(ev);
 			}
 		}
 	}
 
+	const int fft_mode = self->ui_active ? self->fft_mode : 0;
+
 	// send raw input
-	if ((self->fft_mode & 1) == 1 && capacity_ok) {
+	if ((fft_mode & 1) == 1 && capacity_ok) {
 		for (uint32_t c = 0; c < self->n_channels; ++c) {
 			tx_rawaudio (&self->forge, &self->uris, self->rate, c, n_samples, self->_port [FIL_INPUT0 + (c<<1)]);
 		}
@@ -365,7 +402,7 @@ run(LV2_Handle instance, uint32_t n_samples)
 	}
 
 	// send processed output
-	if (self->fft_mode > 0 && (self->fft_mode & 1) == 0 && capacity_ok) {
+	if (fft_mode > 0 && (fft_mode & 1) == 0 && capacity_ok) {
 		for (uint32_t c = 0; c < self->n_channels; ++c) {
 			tx_rawaudio (&self->forge, &self->uris, self->rate, c, n_samples, self->_port [FIL_OUTPUT0 + (c<<1)]);
 		}

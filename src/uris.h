@@ -42,10 +42,13 @@ typedef struct {
 	LV2_URID channelid;
 	LV2_URID audiodata;
 	LV2_URID samplerate;
-	LV2_URID fftmode;
 	LV2_URID ui_on;
 	LV2_URID ui_off;
 	LV2_URID state;
+	LV2_URID s_dbscale;
+	LV2_URID s_fftmode;
+	LV2_URID s_fftgain;
+	LV2_URID s_fftchan;
 } Fil4LV2URIs;
 
 static inline void
@@ -60,10 +63,13 @@ map_fil4_uris(LV2_URID_Map* map, Fil4LV2URIs* uris) {
 	uris->audiodata          = map->map(map->handle, FIL4_URI "audiodata");
 	uris->samplerate         = map->map(map->handle, FIL4_URI "samplerate");
 	uris->channelid          = map->map(map->handle, FIL4_URI "channelid");
-	uris->fftmode            = map->map(map->handle, FIL4_URI "fftmode");
 	uris->ui_on              = map->map(map->handle, FIL4_URI "ui_on");
 	uris->ui_off             = map->map(map->handle, FIL4_URI "ui_off");
 	uris->state              = map->map(map->handle, FIL4_URI "state");
+	uris->s_dbscale          = map->map(map->handle, FIL4_URI "dbscale");
+	uris->s_fftgain          = map->map(map->handle, FIL4_URI "fftgain");
+	uris->s_fftmode          = map->map(map->handle, FIL4_URI "fftmode");
+	uris->s_fftchan          = map->map(map->handle, FIL4_URI "fftchannel");
 }
 
 /* common definitions UI and DSP */
@@ -88,6 +94,8 @@ typedef enum {
 	FIL_INPUT1, FIL_OUTPUT1,
 	FIL_LAST
 } PortIndex;
+
+#define DEFAULT_YZOOM (30) // [dB] -30..+30, 60dB total range per default
 
 #define NSECT (4)
 
