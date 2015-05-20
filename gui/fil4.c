@@ -362,6 +362,7 @@ static void prepare_faceplates(Fil4UI* ui) {
 	cairo_set_line_width (cr, 3.0);
 	cairo_stroke_preserve (cr);
 	CairoSetSouerceRGBA (c_grn);
+	cairo_set_source_rgba (cr, c_fil[Ctrl_HPF][0], c_fil[Ctrl_HPF][1], c_fil[Ctrl_HPF][2], 1.0);
 	cairo_set_line_width (cr, 1.5);
 	cairo_stroke (cr);
 	cairo_destroy (cr);
@@ -389,7 +390,7 @@ static void prepare_faceplates(Fil4UI* ui) {
 	CairoSetSouerceRGBA (c_blk);
 	cairo_set_line_width (cr, 3.0);
 	cairo_stroke_preserve (cr);
-	CairoSetSouerceRGBA (c_grn);
+	cairo_set_source_rgba (cr, c_fil[Ctrl_LPF][0], c_fil[Ctrl_LPF][1], c_fil[Ctrl_LPF][2], 1.0);
 	cairo_set_line_width (cr, 1.5);
 	cairo_stroke (cr);
 	cairo_destroy (cr);
@@ -752,7 +753,7 @@ static void update_fft_scale (Fil4UI* ui) {
 			hsl2rgb(clr, .70 - .72 * pk, .9, .3 + pk * .4);
 			cairo_set_source_rgba(cr, clr[0], clr[1], clr[2], 1.0);
 			cairo_move_to(cr, 2, ui->m0_y0 + i + .5);
-			cairo_line_to(cr, 11, ui->m0_y0 + i + .5);
+			cairo_line_to(cr, 12, ui->m0_y0 + i + .5);
 			cairo_stroke(cr);
 		}
 		txt_c = &c_blk[0];
@@ -1396,7 +1397,7 @@ static void draw_grid (Fil4UI* ui) {
 	write_text_full(cr, tx, ui->font[0], x0-5, yy, 0, 1, c_ann); \
 }
 
-	write_text_full(cr, "dB", ui->font[0], x0 - 22, ui->m0_ym, M_PI * -.5, 8, c_ann);
+	write_text_full(cr, "dB", ui->font[0], x0 - 20, ui->m0_ym, M_PI * -.5, 8, c_ann);
 
 	/* calculate grid
 	 *
@@ -1547,8 +1548,8 @@ m0_size_allocate (RobWidget* handle, int w, int h) {
 
 	const int m0h = h & ~1;
 	ui->m0_xw = ui->m0_width - 48;
-	ui->m0_ym = rintf((m0h - 10) * .5f) - .5;
-	ui->m0_yr = (m0h - 30) / ceilf(2 * ui->ydBrange);
+	ui->m0_ym = rintf((m0h - 8) * .5f) - .5;
+	ui->m0_yr = (m0h - 32) / ceilf(2 * ui->ydBrange);
 	ui->m0_y0 = floor (ui->m0_ym - ui->ydBrange * ui->m0_yr);
 	ui->m0_y1 = ceil  (ui->m0_ym + ui->ydBrange * ui->m0_yr);
 
@@ -1880,9 +1881,9 @@ static void draw_filters (Fil4UI* ui) {
 	/* hi/low pass triangles */
 	{
 		const float xx = x_at_freq (ui->hilo[0].f, xw);
-		cairo_move_to (cr, xx            , ym + BOXRADIUS);
-		cairo_line_to (cr, xx - BOXRADIUS, ym - BOXRADIUS);
-		cairo_line_to (cr, xx + BOXRADIUS, ym - BOXRADIUS);
+		cairo_move_to (cr, xx - .5            , ym + BOXRADIUS);
+		cairo_line_to (cr, xx - .5 - BOXRADIUS, ym - BOXRADIUS);
+		cairo_line_to (cr, xx - .5 + BOXRADIUS, ym - BOXRADIUS);
 		cairo_close_path (cr);
 		float fshade = shade;
 		if (!robtk_ibtn_get_active(ui->btn_g_hipass)) {
@@ -1901,9 +1902,9 @@ static void draw_filters (Fil4UI* ui) {
 
 	{
 		const float xx = x_at_freq (ui->hilo[1].f, xw);
-		cairo_move_to (cr, xx            , ym + BOXRADIUS);
-		cairo_line_to (cr, xx - BOXRADIUS, ym - BOXRADIUS);
-		cairo_line_to (cr, xx + BOXRADIUS, ym - BOXRADIUS);
+		cairo_move_to (cr, xx - .5            , ym + BOXRADIUS);
+		cairo_line_to (cr, xx - .5 - BOXRADIUS, ym - BOXRADIUS);
+		cairo_line_to (cr, xx - .5 + BOXRADIUS, ym - BOXRADIUS);
 		cairo_close_path (cr);
 		float fshade = shade;
 		if (!robtk_ibtn_get_active(ui->btn_g_hipass)) {
@@ -2073,7 +2074,7 @@ static bool m0_expose_event (RobWidget* handle, cairo_t* cr, cairo_rectangle_t *
 	CairoSetSouerceRGBA(c_trs);
 	cairo_fill (cr);
 
-	rounded_rectangle (cr, 4, 4, ui->m0_width - 8 , ui->m0_height - 8, 8);
+	rounded_rectangle (cr, 4, 4, ui->m0_width - 8 , ui->m0_height - 8, 9);
 	CairoSetSouerceRGBA(c_blk);
 	cairo_fill (cr);
 
@@ -2090,8 +2091,8 @@ static bool m0_expose_event (RobWidget* handle, cairo_t* cr, cairo_rectangle_t *
 	cairo_set_source_surface(cr, ui->m0_grid, 0, 0);
 	cairo_paint (cr);
 
-	if (ui->hover == Ctrl_Yaxis) {
-		rounded_rectangle (cr, 8, ui->m0_y0 - 4, 20, 8 + ui->m0_y1 - ui->m0_y0, 2);
+	if (ui->dragging == Ctrl_Yaxis || (ui->dragging < 0 && ui->hover == Ctrl_Yaxis)) {
+		rounded_rectangle (cr, 7, ui->m0_y0 - 4, 20, 9 + ui->m0_y1 - ui->m0_y0, 2);
 		cairo_set_source_rgba (cr, 1, 1, 1, .25);
 		cairo_fill (cr);
 	}
