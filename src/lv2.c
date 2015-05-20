@@ -27,6 +27,7 @@
 #include "lop.h"
 
 #include "lv2/lv2plug.in/ns/lv2core/lv2.h"
+#include "lv2/lv2plug.in/ns/ext/state/state.h"
 
 static bool printed_capacity_warning = false;
 
@@ -59,6 +60,8 @@ typedef struct {
 
 	/* GUI state */
 	bool                     ui_active;
+	bool                     send_state_to_ui;
+
 	int                      fft_mode;
 	int                      fft_chan;
 	float                    fft_gain;
@@ -363,7 +366,7 @@ run(LV2_Handle instance, uint32_t n_samples)
 				}
 				else if (obj->body.otype == self->uris.ui_on) {
 					self->ui_active = true;
-					tx_state (self);
+					self->send_state_to_ui = true;
 				}
 				else if (obj->body.otype == self->uris.state) {
 					const LV2_Atom* v = NULL;
@@ -385,6 +388,11 @@ run(LV2_Handle instance, uint32_t n_samples)
 				ev = lv2_atom_sequence_next(ev);
 			}
 		}
+	}
+
+	if (self->ui_active && self->send_state_to_ui) {
+		self->send_state_to_ui = false;
+		tx_state (self);
 	}
 
 	const int fft_mode = self->ui_active ? self->fft_mode : 0;
@@ -412,6 +420,58 @@ run(LV2_Handle instance, uint32_t n_samples)
 	lv2_atom_forge_pop(&self->forge, &self->frame);
 }
 
+#define STATESTORE(URI, TYPE, VALUE) \
+	store(handle, self->uris.URI, \
+			(void*) &(VALUE), sizeof(uint32_t), \
+			self->uris.atom_ ## TYPE, \
+			LV2_STATE_IS_POD | LV2_STATE_IS_PORTABLE); \
+
+static LV2_State_Status
+fil4_save(LV2_Handle                instance,
+          LV2_State_Store_Function  store,
+          LV2_State_Handle          handle,
+          uint32_t                  flags,
+          const LV2_Feature* const* features)
+{
+	Fil4* self = (Fil4*)instance;
+
+	STATESTORE(s_dbscale, Float, self->db_scale)
+	STATESTORE(s_fftgain, Float, self->fft_gain)
+	STATESTORE(s_fftmode, Int, self->fft_mode)
+	STATESTORE(s_fftchan, Int, self->fft_chan)
+
+	return LV2_STATE_SUCCESS;
+}
+
+#define STATEREAD(URI, TYPE, CAST, PARAM) \
+	value = retrieve(handle, self->uris.URI, &size, &type, &valflags); \
+	if (value && size == sizeof(uint32_t) && type == self->uris.atom_ ## TYPE) { \
+		PARAM = *((const CAST *)value); \
+	}
+
+
+static LV2_State_Status
+fil4_restore(LV2_Handle                  instance,
+             LV2_State_Retrieve_Function retrieve,
+             LV2_State_Handle            handle,
+             uint32_t                    flags,
+             const LV2_Feature* const*   features)
+{
+	Fil4* self = (Fil4*)instance;
+	const void* value;
+	size_t   size;
+	uint32_t type;
+	uint32_t valflags;
+
+	STATEREAD(s_dbscale, Float, float, self->db_scale)
+	STATEREAD(s_fftgain, Float, float, self->fft_gain)
+	STATEREAD(s_fftmode, Int,   int,   self->fft_mode)
+	STATEREAD(s_fftchan, Int,   int,   self->fft_chan)
+
+	self->send_state_to_ui = true;
+	return LV2_STATE_SUCCESS;
+}
+
 static void
 cleanup(LV2_Handle instance)
 {
@@ -421,6 +481,10 @@ cleanup(LV2_Handle instance)
 const void*
 extension_data(const char* uri)
 {
+	static const LV2_State_Interface  state  = { fil4_save, fil4_restore };
+	if (!strcmp(uri, LV2_STATE__interface)) {
+		return &state;
+	}
 	return NULL;
 }
 
