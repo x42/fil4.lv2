@@ -2348,9 +2348,9 @@ static RobWidget * toplevel(Fil4UI* ui, void * const top) {
 	++col;
 	for (int i = 0; i < NCTRL; ++i, ++col) {
 #ifdef _WIN32
-		ui->btn_enable[i] = robtk_cbtn_new("\u2abc88.8KHz", GBT_LED_LEFT, false);
-#else
 		ui->btn_enable[i] = robtk_cbtn_new("H 88.8KHz", GBT_LED_LEFT, false);
+#else
+		ui->btn_enable[i] = robtk_cbtn_new("\u2abc88.8KHz", GBT_LED_LEFT, false);
 #endif
 
 		ui->spn_freq[i] = robtk_dial_new_with_size (0, 1, .00625,
