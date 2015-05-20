@@ -2230,6 +2230,8 @@ static RobWidget * toplevel(Fil4UI* ui, void * const top) {
 	robtk_dial_set_default(ui->spn_fftgain, 0.0);
 	robtk_dial_set_detent_default (ui->spn_fftgain, true);
 
+	robtk_cbtn_set_temporary_mode (ui->btn_g_enable, 1);
+
 	ui->sel_fft = robtk_select_new();
 	robtk_select_add_item (ui->sel_fft, 0, "FFT\nOff");
 	robtk_select_add_item (ui->sel_fft, 1, "Flat\nPre.");
@@ -2280,6 +2282,8 @@ static RobWidget * toplevel(Fil4UI* ui, void * const top) {
 	ui->lbl_hilo[0]  = robtk_lbl_new ("XXXX Hz");
 	ui->lbl_hilo[1]  = robtk_lbl_new ("XXXX Hz");
 
+	robtk_ibtn_set_temporary_mode (ui->btn_g_hipass, 1);
+	robtk_ibtn_set_temporary_mode (ui->btn_g_lopass, 1);
 	robtk_ibtn_set_alignment(ui->btn_g_hipass, .5, 0);
 	robtk_ibtn_set_alignment(ui->btn_g_lopass, .5, 0);
 
@@ -2389,6 +2393,7 @@ static RobWidget * toplevel(Fil4UI* ui, void * const top) {
 			robtk_dial_set_surface (ui->spn_bw[i],   ui->dial_bg[1]);
 		}
 
+		robtk_cbtn_set_temporary_mode (ui->btn_enable[i], 1);
 		robtk_dial_set_detent_default (ui->spn_gain[i], true);
 		robtk_dial_set_scroll_mult (ui->spn_freq[i], 4.f); // 24 clicks per octave
 		robtk_dial_set_scroll_mult (ui->spn_gain[i], 5.f); // 1dB per click
