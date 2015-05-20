@@ -1798,7 +1798,7 @@ static RobWidget* m0_mouse_move (RobWidget* handle, RobTkBtnEvent *ev) {
 	} else if (sect == Ctrl_Yaxis) { // header y-zoom
 		float delta = floor ((ui->drag_y - ev->y) / ui->m0_yr);
 		if (delta != 0) {
-			if (ui->drag_y < ui->m0_ym) delta *= -1;
+			//if (ui->drag_y < ui->m0_ym) delta *= -1; // drag away from '0'
 			y_axis_zoom (handle, ui->ydBrange + delta);
 			ui->drag_y = ev->y;
 		}
