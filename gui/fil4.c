@@ -2266,7 +2266,7 @@ static RobWidget * toplevel(Fil4UI* ui, void * const top) {
 		rob_table_attach (ui->ctbl, robtk_select_widget(ui->sel_chn), col,   col+1, 5, 6, 5, 0, RTK_EXANDF, RTK_SHRINK);
 		rob_table_attach (ui->ctbl, robtk_select_widget(ui->sel_fft), col,   col+1, 6, 7, 5, 0, RTK_EXANDF, RTK_SHRINK);
 	} else {
-		rob_table_attach (ui->ctbl, robtk_select_widget(ui->sel_fft), col,   col+1, 5, 6, 5, 0, RTK_EXANDF, RTK_SHRINK);
+		rob_table_attach (ui->ctbl, robtk_select_widget(ui->sel_fft), col,   col+1, 5, 7, 5, 0, RTK_EXANDF, RTK_SHRINK);
 	}
 	rob_table_attach (ui->ctbl, GLB_W(ui->lbl_fftgain),             col+1, col+2, 5, 6, 5, 0, RTK_EXANDF, RTK_SHRINK);
 	rob_table_attach (ui->ctbl, GSP_W(ui->spn_fftgain),             col+1, col+2, 6, 7, 5, 0, RTK_EXANDF, RTK_SHRINK);
