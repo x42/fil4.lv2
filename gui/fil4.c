@@ -706,7 +706,7 @@ static void hsl2rgb(float c[3], const float hue, const float sat, const float lu
 static void update_fft_scale (Fil4UI* ui) {
 	assert(ui->fft_scale);
 	const float mode = robtk_select_get_value(ui->sel_fft);
-	const int align = - robtk_dial_get_value (ui->spn_fftgain);
+	const int align = - DEFAULT_YZOOM - robtk_dial_get_value (ui->spn_fftgain);
 
 	cairo_t *cr = cairo_create (ui->fft_scale);
 	cairo_rectangle (cr, 0, ui->m0_y0, 12,  ui->m0_y1 -  ui->m0_y0);
@@ -728,15 +728,16 @@ static void update_fft_scale (Fil4UI* ui) {
 		CairoSetSouerceRGBA(c_g30);
 
 		for (int i = 0; i < 2 * ui->ydBrange; ++i) {
-			if (i + align == 0) {
+			int dB = align + ui->ydBrange - i;
+			if (dB == 0) {
 				CairoSetSouerceRGBA(c_g60);
 				FFT_DB(i, 5.5);
 				CairoSetSouerceRGBA(c_g30);
 			}
-			else if ((i + align) % 10 == 0) {
+			else if (dB % 10 == 0) {
 				FFT_DB(i, 4.5);
 			}
-			else if ((i + align) % 5 == 0) {
+			else if (dB % 5 == 0) {
 				FFT_DB(i, 2.5);
 			}
 		}
@@ -761,12 +762,12 @@ static void update_fft_scale (Fil4UI* ui) {
 	}
 
 	char tmp[16];
-	sprintf(tmp, "%+3.0f", align + 0.f);
+	sprintf(tmp, "%+3.0f", align + ui->ydBrange);
 	write_text_full(cr, tmp, ui->font[0], txt_x, ui->m0_y0 + 2, 1.5 * M_PI, 7, txt_c);
 
-	write_text_full(cr, "dbFS", ui->font[0], txt_x, ui->m0_y0 + ui->ydBrange * ui->m0_yr, 1.5 * M_PI, 8, txt_c);
+	write_text_full(cr, "dBFS", ui->font[0], txt_x, ui->m0_y0 + ui->ydBrange * ui->m0_yr, 1.5 * M_PI, 8, txt_c);
 
-	sprintf(tmp, "%+3.0f", align - 2 * ui->ydBrange);
+	sprintf(tmp, "%+3.0f", align - ui->ydBrange);
 	write_text_full(cr, tmp, ui->font[0], txt_x, ui->m0_y1 + 1, 1.5 * M_PI, 9, txt_c);
 	cairo_destroy (cr);
 }
@@ -796,7 +797,7 @@ static void update_spectrum_history (Fil4UI* ui, const size_t n_elem, float cons
 
 		const uint32_t b = fftx_bins(ui->fa);
 		const float yy = ui->fft_hist_line;
-		const float db = ui->ydBrange;
+		const float db = 2 * ui->ydBrange;
 
 		// clear current line
 		cairo_set_operator (cr, CAIRO_OPERATOR_CLEAR);
@@ -804,7 +805,7 @@ static void update_spectrum_history (Fil4UI* ui, const size_t n_elem, float cons
 		cairo_fill (cr);
 
 		cairo_set_operator (cr, CAIRO_OPERATOR_SOURCE);
-		float gain = -6 + robtk_dial_get_value (ui->spn_fftgain);
+		float gain = robtk_dial_get_value (ui->spn_fftgain) + DEFAULT_YZOOM - ui->ydBrange; // XXX
 		for (uint32_t i = 1; i < b-1; ++i) {
 			const float freq = fftx_freq_at_bin (ui->fa, i);
 			const float f0 = x_at_freq (MAX (5, freq - 2 * ui->fa->freq_per_bin), ui->m0_xw);
@@ -2147,7 +2148,7 @@ static bool m0_expose_event (RobWidget* handle, cairo_t* cr, cairo_rectangle_t *
 				ui->xscale[i] = x0 + x_at_freq(ui->_fscale[i] * ui->samplerate, xw) - .5;
 			}
 		}
-		const float align = ui->ydBrange + robtk_dial_get_value (ui->spn_fftgain);
+		const float align = DEFAULT_YZOOM + robtk_dial_get_value (ui->spn_fftgain);
 		if (fft_mode > 2) {
 			cairo_move_to (cr, ui->xscale[0], ym - yr * y_power_prop(ui, d[0], align, ui->_bwcorr[0]));
 			for (int i = 1; i <= FFT_MAX; ++i) {
