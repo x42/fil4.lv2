@@ -721,6 +721,7 @@ static void update_fft_scale (Fil4UI* ui) {
 }
 
 	const float *txt_c;
+	const float *txt_b;
 	int txt_x;
 
 	if (mode < 5) {
@@ -743,6 +744,7 @@ static void update_fft_scale (Fil4UI* ui) {
 		}
 
 		txt_c = &c_ann[0];
+		txt_b = &c_ann[0];
 		txt_x = 3;
 	} else {
 		cairo_set_line_width(cr, 1.0);
@@ -758,6 +760,7 @@ static void update_fft_scale (Fil4UI* ui) {
 			cairo_stroke(cr);
 		}
 		txt_c = &c_blk[0];
+		txt_b = &c_wht[0];
 		txt_x = 2;
 	}
 
@@ -768,7 +771,7 @@ static void update_fft_scale (Fil4UI* ui) {
 	write_text_full(cr, "dBFS", ui->font[0], txt_x, ui->m0_y0 + ui->ydBrange * ui->m0_yr, 1.5 * M_PI, 8, txt_c);
 
 	sprintf(tmp, "%+3.0f", align - ui->ydBrange);
-	write_text_full(cr, tmp, ui->font[0], txt_x, ui->m0_y1 + 1, 1.5 * M_PI, 9, txt_c);
+	write_text_full(cr, tmp, ui->font[0], txt_x, ui->m0_y1 + 1, 1.5 * M_PI, 9, txt_b);
 	cairo_destroy (cr);
 }
 
@@ -824,15 +827,15 @@ static void update_spectrum_history (Fil4UI* ui, const size_t n_elem, float cons
 			hsl2rgb(clr, .70 - .72 * pk, .9, .3 + pk * .4);
 			cairo_set_source_rgba(cr, clr[0], clr[1], clr[2], .3 + pk * .2);
 
-			cairo_move_to (cr, f0, yy);
-			cairo_line_to (cr, f1, yy);
+			cairo_move_to (cr, f0, yy+.5);
+			cairo_line_to (cr, f1, yy+.5);
 			cairo_stroke (cr);
 		}
 
 		if (ui->fft_change) {
 			ui->fft_change = false;
 			cairo_set_operator (cr, CAIRO_OPERATOR_OVER);
-			cairo_set_source_rgba(cr, 1, 1, 1, .6);
+			cairo_set_source_rgba(cr, 1, 1, 1, 1);
 			cairo_rectangle (cr, 0, yy, ui->m0_xw, 1);
 			cairo_fill (cr);
 		}
