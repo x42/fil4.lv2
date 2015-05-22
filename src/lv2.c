@@ -127,7 +127,7 @@ instantiate(const LV2_Descriptor*     descriptor,
 	}
 
 	self->ui_active = false;
-	self->fft_mode = 0;
+	self->fft_mode = 0x1201;
 	self->fft_gain = 0;
 	self->fft_chan = -1;
 	self->db_scale = DEFAULT_YZOOM;
@@ -395,10 +395,10 @@ run(LV2_Handle instance, uint32_t n_samples)
 		tx_state (self);
 	}
 
-	const int fft_mode = self->ui_active ? self->fft_mode : 0;
+	const int fft_mode = self->ui_active ? (self->fft_mode & 0xf) : 0;
 
 	// send raw input
-	if ((fft_mode & 1) == 1 && capacity_ok) {
+	if (fft_mode > 0 && (fft_mode & 1) == 0 && capacity_ok) {
 		for (uint32_t c = 0; c < self->n_channels; ++c) {
 			tx_rawaudio (&self->forge, &self->uris, self->rate, c, n_samples, self->_port [FIL_INPUT0 + (c<<1)]);
 		}
@@ -410,7 +410,7 @@ run(LV2_Handle instance, uint32_t n_samples)
 	}
 
 	// send processed output
-	if (fft_mode > 0 && (fft_mode & 1) == 0 && capacity_ok) {
+	if ((fft_mode & 1) == 1 && capacity_ok) {
 		for (uint32_t c = 0; c < self->n_channels; ++c) {
 			tx_rawaudio (&self->forge, &self->uris, self->rate, c, n_samples, self->_port [FIL_OUTPUT0 + (c<<1)]);
 		}
