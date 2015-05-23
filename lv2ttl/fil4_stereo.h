@@ -10,12 +10,14 @@ static const RtkLv2Description _plugin_stereo = {
 	, 1 // uint32_t dsp_descriptor_id
 	, 0 // uint32_t gui_descriptor_id
 	, "4 Band Parametric EQ Stereo" // const char *plugin_human_id
-	, (const struct LV2Port[38])
+	, (const struct LV2Port[40])
 	{
 		{ "control", ATOM_IN, nan},
 		{ "notify", ATOM_OUT, nan},
-		{ "filter", CONTROL_IN, 0.000000},
+		{ "enable", CONTROL_IN, 1.000000},
 		{ "gain", CONTROL_IN, 0.000000},
+		{ "peak", CONTROL_OUT, nan},
+		{ "peakreset", CONTROL_IN, 1.000000},
 		{ "HighPass", CONTROL_IN, 0.000000},
 		{ "HPfreq", CONTROL_IN, 20.000000},
 		{ "HPQ", CONTROL_IN, 0.700000},
@@ -51,16 +53,16 @@ static const RtkLv2Description _plugin_stereo = {
 		{ "inR", AUDIO_IN, nan},
 		{ "outR", AUDIO_OUT, nan},
 	}
-	, 38 // uint32_t nports_total
+	, 40 // uint32_t nports_total
 	, 2 // uint32_t nports_audio_in
 	, 2 // uint32_t nports_audio_out
 	, 0 // uint32_t nports_midi_in
 	, 0 // uint32_t nports_midi_out
 	, 1 // uint32_t nports_atom_in
 	, 1 // uint32_t nports_atom_out
-	, 32 // uint32_t nports_ctrl
-	, 32 // uint32_t nports_ctrl_in
-	, 0 // uint32_t nports_ctrl_out
+	, 34 // uint32_t nports_ctrl
+	, 33 // uint32_t nports_ctrl_in
+	, 1 // uint32_t nports_ctrl_out
 	, 65888 // uint32_t min_atom_bufsiz
 	, false // bool send_time_info
 };

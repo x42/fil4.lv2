@@ -28,6 +28,8 @@
 #define WITH_FFTW_LOCK
 #include "analyser.cc"
 
+#define OPTIMIZE_FOR_BROKEN_HOSTS // which send updates for non-changed values every cycle
+
 #define MTR_URI "http://gareus.org/oss/lv2/fil4#"
 #define MTR_GUI "ui"
 
@@ -124,6 +126,10 @@ typedef struct {
 
 	RobTkLbl  *lbl_hilo[2];
 
+	// peak display
+	RobTkLbl  *lbl_peak;
+	RobTkPBtn *btn_peak;
+
 	// filter section
 	RobTkCBtn *btn_enable[NCTRL];
 	RobTkDial *spn_freq[NCTRL];
@@ -181,6 +187,10 @@ typedef struct {
 	bool fft_change;
 	bool filter_redisplay;
 	bool disable_signals;
+	int peak_reset_val;
+#ifdef OPTIMIZE_FOR_BROKEN_HOSTS
+	float last_peak;
+#endif
 
 	bool scale_cached;
 	float xscale[FFT_MAX + 1];
@@ -281,6 +291,29 @@ static float dial_to_freq (FilterFreq *m, float f) {
 }
 
 /*** faceplates and annotation ***/
+
+static void format_button_dbfs (RobTkPBtn *p, const float db) {
+	char buf[32];
+	if (db > 99.f) {
+		snprintf(buf, 32, "++++");
+	} else if (db < -119.f) {
+		snprintf(buf, 32, " -\u221E dBFS");
+	} else if (fabsf(db) > 9.94f) {
+		snprintf(buf, 32, "%+.0f dBFS", db);
+	} else {
+		snprintf(buf, 32, "%+.1f dBFS", db);
+	}
+
+	if (db >= 0.f) {
+		robtk_pbtn_set_bg (p, 1.0, 0.0, 0.0, 1.0);
+	} else if (db > -1.f) {
+		robtk_pbtn_set_bg (p, 0.9, 0.6, 0.05, 1.0);
+	} else {
+		robtk_pbtn_set_bg (p, 0.2, 0.2, 0.2, 1.0);
+	}
+
+	robtk_pbtn_set_text (p, buf);
+}
 
 static void dial_annotation_db (RobTkDial * d, cairo_t *cr, void *data) {
 	Fil4UI* ui = (Fil4UI*) (data);
@@ -1377,6 +1410,14 @@ static bool cb_spn_g_gain (RobWidget *w, void* handle) {
 	return TRUE;
 }
 
+static bool cb_peak_rest (RobWidget *w, void* handle) {
+	Fil4UI* ui = (Fil4UI*)handle;
+	if (ui->disable_signals) return TRUE;
+	ui->peak_reset_val = ui->peak_reset_val ? 0 : 1;
+	float val = ui->peak_reset_val;
+	ui->write(ui->controller, FIL_PEAK_RESET, sizeof(float), 0, (const void*) &val);
+	return TRUE;
+}
 
 static bool cb_fft_change (RobWidget *w, void* handle) {
 	Fil4UI* ui = (Fil4UI*)handle;
@@ -2267,6 +2308,7 @@ static RobWidget * toplevel(Fil4UI* ui, void * const top) {
 #define GSP_W(PTR) robtk_dial_widget(PTR)
 #define GLB_W(PTR) robtk_lbl_widget(PTR)
 #define GSL_W(PTR) robtk_select_widget(PTR)
+#define GBP_W(PTR) robtk_pbtn_widget(PTR)
 
 	int col = 0;
 
@@ -2274,12 +2316,14 @@ static RobWidget * toplevel(Fil4UI* ui, void * const top) {
 	ui->btn_g_enable = robtk_cbtn_new ("Enable", GBT_LED_LEFT, false);
 	ui->spn_g_gain   = robtk_dial_new_with_size (-18, 18, .2,
 			GED_WIDTH + 12, GED_HEIGHT + 20, GED_CX + 6, GED_CY + 15, GED_RADIUS);
-
-	ui->lbl_g_gain  = robtk_lbl_new ("Output Gain");
+	ui->lbl_g_gain  = robtk_lbl_new ("Output");
+	ui->lbl_peak    = robtk_lbl_new ("Peak:");
+	ui->btn_peak    = robtk_pbtn_new_with_colors ("-XXg.| dBFS", c_g20, c_wht);
 
 	robtk_dial_annotation_callback(ui->spn_g_gain, dial_annotation_db, ui);
 	robtk_cbtn_set_callback (ui->btn_g_enable, cb_btn_g_en, ui);
 	robtk_dial_set_callback (ui->spn_g_gain,   cb_spn_g_gain, ui);
+	robtk_pbtn_set_callback (ui->btn_peak,     cb_peak_rest, ui);
 
 	robtk_cbtn_set_temporary_mode (ui->btn_g_enable, 1);
 	robtk_cbtn_set_color_on(ui->btn_g_enable,  1.0, 1.0, 1.0);
@@ -2292,7 +2336,10 @@ static RobWidget * toplevel(Fil4UI* ui, void * const top) {
 
 	rob_table_attach (ui->ctbl, GBT_W(ui->btn_g_enable), col, col+1, 0, 1, 5, 0, RTK_EXANDF, RTK_SHRINK);
 	rob_table_attach (ui->ctbl, GSP_W(ui->spn_g_gain),   col, col+1, 1, 3, 5, 0, RTK_EXANDF, RTK_SHRINK);
-	rob_table_attach (ui->ctbl, GLB_W(ui->lbl_g_gain),   col, col+1, 3, 4, 5, 0, RTK_EXANDF, RTK_SHRINK);
+	rob_table_attach (ui->ctbl, GLB_W(ui->lbl_g_gain),   col, col+1, 3, 5, 5, 0, RTK_EXANDF, RTK_SHRINK);
+	rob_table_attach (ui->ctbl, GLB_W(ui->lbl_peak),     col, col+1, 5, 6, 5, 0, RTK_EXANDF, RTK_SHRINK);
+	rob_table_attach (ui->ctbl, GBP_W(ui->btn_peak),     col, col+1, 6, 7, 5, 0, RTK_EXANDF, RTK_SHRINK);
+
 	/* separator */
 	++col;
 	ui->sep_v0 = robtk_sep_new(FALSE);
@@ -2553,6 +2600,9 @@ static void gui_cleanup(Fil4UI* ui) {
 	robtk_lbl_destroy (ui->lbl_hilo[0]);
 	robtk_lbl_destroy (ui->lbl_hilo[1]);
 
+	robtk_lbl_destroy  (ui->lbl_peak);
+	robtk_pbtn_destroy (ui->btn_peak);
+
 	pango_font_description_free(ui->font[0]);
 	pango_font_description_free(ui->font[1]);
 
@@ -2665,6 +2715,9 @@ instantiate(
 	ui->samplerate = 48000;
 	ui->ydBrange   = DEFAULT_YZOOM;
 	ui->filter_redisplay = true;
+#ifdef OPTIMIZE_FOR_BROKEN_HOSTS
+	ui->last_peak = 9999;
+#endif
 
 	ui->hilo[0].f = lphp[0].dflt;
 	ui->hilo[1].f = lphp[1].dflt;
@@ -2801,6 +2854,19 @@ port_event(LV2UI_Handle handle,
 	}
 	else if (port_index == FIL_LOQ) {
 		robtk_dial_set_value (ui->spn_g_loq, hplp_to_dial(v));
+	}
+	else if (port_index == FIL_PEAK_RESET) {
+		ui->peak_reset_val = (int)floorf(v);
+	}
+	else if (port_index == FIL_PEAK_DB) {
+#ifdef OPTIMIZE_FOR_BROKEN_HOSTS
+		if (ui->last_peak != v) {
+			ui->last_peak = v;
+#endif
+			format_button_dbfs (ui->btn_peak, v);
+#ifdef OPTIMIZE_FOR_BROKEN_HOSTS
+		}
+#endif
 	}
 	else if (port_index >= IIR_LS_EN && port_index <= IIR_HS_GAIN) {
 		const int param = (port_index - IIR_LS_EN) % 4;

@@ -58,6 +58,10 @@ typedef struct {
 	LV2_Atom_Forge           forge;
 	LV2_Atom_Forge_Frame     frame;
 
+	/* peak hold */
+	int                      peak_reset;
+	float                    peak_signal;
+
 	/* GUI state */
 	bool                     ui_active;
 	bool                     send_state_to_ui;
@@ -397,19 +401,36 @@ run(LV2_Handle instance, uint32_t n_samples)
 
 	const int fft_mode = self->ui_active ? (self->fft_mode & 0xf) : 0;
 
-	// send raw input
+	// send raw input to GUI (for spectrum analysis)
 	if (fft_mode > 0 && (fft_mode & 1) == 0 && capacity_ok) {
 		for (uint32_t c = 0; c < self->n_channels; ++c) {
 			tx_rawaudio (&self->forge, &self->uris, self->rate, c, n_samples, self->_port [FIL_INPUT0 + (c<<1)]);
 		}
 	}
 
-	// audio processing
-	for (uint32_t c = 0; c < self->n_channels; ++c) {
-		process_channel (self, &self->fc[c], n_samples, c);
+	if (self->peak_reset != (int)(floorf (self->_port [FIL_PEAK_RESET][0]))) {
+		self->peak_signal = 0;
+		self->peak_reset = (int)(floorf (self->_port [FIL_PEAK_RESET][0]));
 	}
 
-	// send processed output
+	// audio processing & peak calc.
+	float peak = self->peak_signal;
+	for (uint32_t c = 0; c < self->n_channels; ++c) {
+		process_channel (self, &self->fc[c], n_samples, c);
+
+		const float * const d = self->_port [FIL_OUTPUT0 + (c<<1)];
+		for (uint32_t i = 0; i < n_samples; ++i) {
+			const float pk = fabsf (d[i]);
+			if (pk > peak) {
+				peak = pk;
+			}
+		}
+	}
+
+	self->peak_signal = peak;
+	*self->_port [FIL_PEAK_DB] = (peak > 1e-6) ? 20.f * log10f (peak) : -120;
+
+	// send processed output to GUI (for analysis)
 	if ((fft_mode & 1) == 1 && capacity_ok) {
 		for (uint32_t c = 0; c < self->n_channels; ++c) {
 			tx_rawaudio (&self->forge, &self->uris, self->rate, c, n_samples, self->_port [FIL_OUTPUT0 + (c<<1)]);
