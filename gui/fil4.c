@@ -2011,7 +2011,7 @@ static void draw_filters (Fil4UI* ui) {
 		cairo_line_to (cr, xx - .5 + BOXRADIUS, ym - BOXRADIUS);
 		cairo_close_path (cr);
 		float fshade = shade;
-		if (!robtk_ibtn_get_active(ui->btn_g_hipass)) {
+		if (!robtk_ibtn_get_active(ui->btn_g_lopass)) {
 			fshade = .5;
 		}
 		if (ui->dragging == Ctrl_LPF || (ui->dragging < 0 && ui->hover == Ctrl_LPF)) {
