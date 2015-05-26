@@ -155,7 +155,12 @@ static void lop_compute (LowPass *f, uint32_t n_samples, float *buf) {
 	const float b = f->b;
 	const float r = f->r * f->g;
 
-	if (a == 1.0 && b == 1.0 && f->g == 0.0 && f->iir_hs.gain == 0) {
+	if (a == 1.0 && b == 1.0 && f->g == 0.0
+#ifdef LP_EXTRA_SHELF
+			&& f->iir_hs.gain == 0
+#endif
+		 )
+	{
 		// might as well save some computing power
 		return;
 	}
