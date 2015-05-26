@@ -73,10 +73,12 @@ static float * ft_hann_window(struct FFTAnalysis *ft) {
 }
 
 static void ft_analyze(struct FFTAnalysis *ft) {
+#ifndef NO_HANN_WINDOW
 	float *window = ft_hann_window(ft);
 	for (uint32_t i = 0; i < ft->window_size; i++) {
 		ft->fft_in[i] *= window[i];
 	}
+#endif
 
 	fftwf_execute(ft->fftplan);
 
@@ -228,6 +230,34 @@ int fftx_run(struct FFTAnalysis *ft,
 	}
 	return rv;
 }
+
+
+FFTX_FN_PREFIX
+void fa_analyze_dsp(struct FFTAnalysis *ft,
+		void (*run)(void *, uint32_t, float*), void *handle)
+{
+	float *buf = ft->fft_in;
+
+	/* pre-run 8K samples... (re-init/flush effect) */
+	int prerun_n_samples = 8192;
+	while (prerun_n_samples > 0) {
+		int n_samples = MIN(prerun_n_samples, ft->window_size);
+		memset(buf, 0, sizeof(float) * n_samples);
+		run (handle, n_samples, buf);
+		prerun_n_samples -= n_samples;
+	}
+
+	/* delta impulse */
+	memset(buf, 0, sizeof(float) * ft->window_size);
+	*buf = 1.0;
+	/* call plugin's run() function -- in-place processing */
+	run (handle, ft->window_size, buf);
+	ft->step = ft->window_size;
+
+	/* ..and analyze */
+	ft_analyze(ft);
+}
+
 
 
 /*****************************************************************************
