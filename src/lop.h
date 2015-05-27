@@ -37,8 +37,8 @@
 
 typedef struct {
 	float z1, z2, z3, z4;
-	float a, b, r;
-	float alpha, beta, fb, g;
+	float a, b, r, g;
+	float alpha, beta, fb, tg;
 
 	float freq, res;
 	float rate;
@@ -67,6 +67,10 @@ static void lop_setup (LowPass *f, float rate, float freq, float res) {
 	float fs = freq / sqrt(1 + f->fb);
 	f->alpha = calc_lop_alpha (f->rate, fs);
 	f->beta  = calc_lop_alpha (f->rate, .25 * f->rate + .5 * fs);
+
+	const float w2 = 4 * f->freq / f->rate;
+	const float w3 = f->freq / (.25 * f->rate + .5 + f->freq);
+	f->tg = (1 + SQUARE(w3)) / (1 + SQUARE(w2));
 
 	f->a = 1.0;
 	f->b = 1.0;
@@ -99,6 +103,9 @@ static void lop_interpolate (LowPass *f, bool en, float freq, float res) {
 		f->beta = calc_lop_alpha (f->rate, .25 * f->rate + .5 * fs);
 		f->freq = freq;
 		//printf("FREQ: %f a:%f b:%f\n", freq, f->alpha, f->beta);
+		const float w2 = 4 * f->freq / f->rate;
+		const float w3 = f->freq / (.25 * f->rate + .5 + f->freq);
+		f->tg = (1 + SQUARE(w3)) / (1 + SQUARE(w2));
 	}
 
 	const float ta= en ? f->alpha : 1.0;
@@ -122,10 +129,7 @@ static void lop_interpolate (LowPass *f, bool en, float freq, float res) {
 		f->r += .01 * (tr - f->r);
 	}
 
-	const float w2 = 4 * f->freq / f->rate;
-	const float w3 = f->freq / (.25 * f->rate + .5 + freq);
-	const float tg = en ? (1 + SQUARE(w3)) / (1 + SQUARE(w2)) : 0.0;
-
+	const float tg = en ? f->tg : 0.0;
 	if (fabsf(tg - f->g) < 1e-5) {
 		f->g = tg;
 	} else {
@@ -143,6 +147,18 @@ static void lop_interpolate (LowPass *f, bool en, float freq, float res) {
 	if (isnan(f->z2)) f->z2 = 0;
 	if (isnan(f->z3)) f->z3 = 0;
 	if (isnan(f->z4)) f->z4 = 0;
+#endif
+}
+
+static void lop_set (LowPass *f, float freq, float res) {
+	lop_interpolate (f, true, freq, res);
+	f->g = f->tg;
+	f->r = f->fb;
+	f->a = f->alpha;
+	f->b = f->beta;
+#ifdef LP_EXTRA_SHELF
+	f->iir_hs.gain = .5;
+	iir_calc_highshelf (&f->iir_hs);
 #endif
 }
 
