@@ -24,11 +24,13 @@
 #include <assert.h>
 
 #include "../src/uris.h"
+#include "../src/lop.h"
 #include "fft.c"
 #define WITH_FFTW_LOCK
 #include "analyser.cc"
 
 #define OPTIMIZE_FOR_BROKEN_HOSTS // which send updates for non-changed values every cycle
+#define USE_LOP_FFT // measure LowPass response rather than calculate its magnitude
 
 #define MTR_URI "http://gareus.org/oss/lv2/fil4#"
 #define MTR_GUI "ui"
@@ -179,7 +181,9 @@ typedef struct {
 
 	FilterSection flt[NCTRL];
 	HoLoFilter hilo[2];
+#if (defined LP_EXTRA_SHELF && ! defined USE_LOP_FFT)
 	FilterSection lphs;
+#endif
 
 	int dragging;
 	int drag_y;
@@ -198,7 +202,10 @@ typedef struct {
 
 	int n_channels;
 	float mixdown[8192];
-
+#ifdef USE_LOP_FFT
+	LowPass lop;
+	struct FFTAnalysis *lopfft;
+#endif
 	const char *nfo;
 } Fil4UI;
 
@@ -1089,6 +1096,13 @@ static void update_iir (FilterSection *flt, const int hs, const float freq, cons
 	}
 }
 
+#ifdef USE_LOP_FFT
+static void lop_run (void* handle, uint32_t n_samples, float *inout) {
+	LowPass *lop = (LowPass*) handle;
+	lop_compute(lop, n_samples, inout);
+}
+#endif
+
 static void update_hilo (Fil4UI *ui) {
 	float q, r;
 
@@ -1113,6 +1127,13 @@ static void update_hilo (Fil4UI *ui) {
 	// low-pass
 	r = RESLP(ui->hilo[1].q);
 	ui->hilo[1].R = sqrtf(4.f * r / (1 + r));
+
+#ifdef USE_LOP_FFT
+	if (ui->lopfft) {
+		lop_set (&ui->lop, ui->hilo[1].f, ui->hilo[1].q);
+		fa_analyze_dsp (ui->lopfft, &lop_run, &ui->lop);
+	}
+#endif
 }
 
 static void update_filters (Fil4UI *ui) {
@@ -1140,11 +1161,20 @@ static void samplerate_changed (Fil4UI *ui) {
 	for (int i = 0; i < NCTRL; ++i) {
 		ui->flt[i].rate = 48000;
 	}
+
+#ifdef USE_LOP_FFT
+	lop_setup (&ui->lop, ui->samplerate, ui->hilo[1].f, ui->hilo[1].q);
+	fftx_free(ui->lopfft);
+	ui->lopfft = (FFTAnalysis*) malloc(sizeof(struct FFTAnalysis));
+	fftx_init (ui->lopfft, 8192, ui->samplerate, 25);
+#elif defined LP_EXTRA_SHELF
 	ui->lphs.rate = ui->samplerate;
 	update_iir (&ui->lphs, 1, ui->samplerate / 3., .5 /*.444*/, -6);
+#endif
 	update_filters (ui);
 	update_hilo (ui);
 	reinitialize_fft (ui);
+
 	// what else ?
 }
 
@@ -1200,24 +1230,20 @@ static float get_highpass_response (Fil4UI *ui, const float freq) {
 }
 
 static float get_lowpass_response (Fil4UI *ui, const float freq) {
-#if 1
+#ifdef USE_LOP_FFT
+	const int i = freq / ui->lopfft->freq_per_bin;
+	assert (i > 0 && i < fftx_bins(ui->lopfft));
+	return fftx_power_to_dB (ui->lopfft->power[i]);
+#else
 	// TODO limit in case SR < 40K, also lop.h w2
-	const float wr = freq / ui->hilo[1].f;
-	const float w2 = freq / (.25 * ui->samplerate + .5 * ui->hilo[1].f);
+	const float w  = sin (M_PI * freq /ui->samplerate);
+	const float wc = sin (M_PI * ui->hilo[1].f /ui->samplerate);
 	const float q = ui->hilo[1].R;
 	float xhs = 0;
-#if 1 // LP_EXTRA_SHELF  in src/lop.h
+#ifdef LP_EXTRA_SHELF
 	xhs = get_shelf_response (&ui->lphs, freq);
 #endif
-	// XXX not yet exact > sr/3 with resonance due to 'w2' filter
-	return -10.f * log10f (SQUARE(1 + SQUARE(wr)) - SQUARE(q * wr))
-	       -10.f * log10f (SQUARE(1 + SQUARE(w2)))
-	       + xhs;
-#else
-	// exact rolloff near nyquist w/o feedback (knee)
-	const float w0 = freq / ui->hilo[1].f;
-	const float w1 = 2 * freq / ui->samplerate;
-	return  -20.f * log10f ( (1 + SQUARE(w0)) / (1 + SQUARE(w1)) );
+	return -10.f * log10f (SQUARE(1 + SQUARE(w/wc)) - SQUARE(q * w/wc)) + xhs;
 #endif
 }
 
@@ -1359,6 +1385,7 @@ static bool cb_spn_g_lofreq (RobWidget *w, void* handle) {
 	Fil4UI* ui = (Fil4UI*)handle;
 	const float val = dial_to_freq (&lphp[1], robtk_dial_get_value (ui->spn_g_lofreq));
 	ui->hilo[1].f = val;
+	update_hilo (ui);
 	update_filter_display (ui);
 	set_lopass_label (ui);
 	if (ui->disable_signals) return TRUE;
@@ -2627,6 +2654,9 @@ static void gui_cleanup(Fil4UI* ui) {
 	if (ui->fft_scale) {
 		cairo_surface_destroy (ui->fft_scale);
 	}
+#ifdef USE_LOP_FFT
+	fftx_free(ui->lopfft);
+#endif
 	fftx_free(ui->fa);
 	free(ui->ffy);
 
