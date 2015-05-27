@@ -303,6 +303,8 @@ static void format_button_dbfs (RobTkPBtn *p, const float db) {
 	char buf[32];
 	if (db > 99.f) {
 		snprintf(buf, 32, "++++");
+	} else if (db < -120.f) {
+		snprintf(buf, 32, "----");
 	} else if (db < -119.f) {
 		snprintf(buf, 32, " -\u221E dBFS");
 	} else if (fabsf(db) > 9.94f) {

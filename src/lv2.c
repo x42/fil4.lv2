@@ -65,6 +65,7 @@ typedef struct {
 	/* GUI state */
 	bool                     ui_active;
 	bool                     send_state_to_ui;
+	uint32_t                 resend_peak;
 
 	int                      fft_mode;
 	int                      fft_chan;
@@ -134,6 +135,7 @@ instantiate(const LV2_Descriptor*     descriptor,
 	self->fft_mode = 0x1201;
 	self->fft_gain = 0;
 	self->fft_chan = -1;
+	self->resend_peak = 0;
 	self->db_scale = DEFAULT_YZOOM;
 
 	return (LV2_Handle)self;
@@ -396,6 +398,7 @@ run(LV2_Handle instance, uint32_t n_samples)
 
 	if (self->ui_active && self->send_state_to_ui) {
 		self->send_state_to_ui = false;
+		self->resend_peak = self->rate / n_samples;
 		tx_state (self);
 	}
 
@@ -428,7 +431,12 @@ run(LV2_Handle instance, uint32_t n_samples)
 	}
 
 	self->peak_signal = peak;
-	*self->_port [FIL_PEAK_DB] = (peak > 1e-6) ? 20.f * log10f (peak) : -120;
+	if (self->resend_peak > 0) {
+		--self->resend_peak;
+		*self->_port [FIL_PEAK_DB] = -120 - self->resend_peak / 100.f;
+	} else {
+		*self->_port [FIL_PEAK_DB] = (peak > 1e-6) ? 20.f * log10f (peak) : -120;
+	}
 
 	// send processed output to GUI (for analysis)
 	if ((fft_mode & 1) == 1 && capacity_ok) {
