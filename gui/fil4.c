@@ -921,10 +921,14 @@ static void update_spectrum_history (Fil4UI* ui, const size_t n_elem, float cons
 
 		if (ui->fft_change) {
 			ui->fft_change = false;
+			double dash = 1;
 			cairo_set_operator (cr, CAIRO_OPERATOR_OVER);
-			cairo_set_source_rgba(cr, 1, 1, 1, 1);
-			cairo_rectangle (cr, 0, yy, ui->m0_xw, 1);
-			cairo_fill (cr);
+			cairo_set_line_cap(cr, CAIRO_LINE_CAP_BUTT);
+			cairo_set_source_rgba(cr, 1, 1, 1, .5);
+			cairo_set_dash (cr, &dash, 1, ui->fft_hist_line & 1);
+			cairo_move_to (cr, 0, yy+.5);
+			cairo_line_to (cr, ui->m0_xw, yy+.5);
+			cairo_stroke (cr);
 		}
 
 		cairo_destroy (cr);
