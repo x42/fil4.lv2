@@ -1233,9 +1233,12 @@ static float get_highpass_response (Fil4UI *ui, const float freq) {
 
 static float get_lowpass_response (Fil4UI *ui, const float freq) {
 #ifdef USE_LOP_FFT
-	const int i = freq / ui->lopfft->freq_per_bin;
-	assert (i > 0 && i < fftx_bins(ui->lopfft));
-	return fftx_power_to_dB (ui->lopfft->power[i]);
+	const float f = freq / ui->lopfft->freq_per_bin;
+	int i = floorf (f);
+	if (i >= fftx_bins (ui->lopfft)) {
+		return fftx_power_to_dB (ui->lopfft->power[fftx_bins (ui->lopfft) -1]);
+	}
+	return fftx_power_to_dB (ui->lopfft->power[i] * (1.f + i - f) + ui->lopfft->power[i+1] * (f - i));
 #else
 	// TODO limit in case SR < 40K, also lop.h w2
 	const float w  = sin (M_PI * freq /ui->samplerate);
