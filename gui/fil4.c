@@ -111,8 +111,7 @@ typedef struct {
 	float m0_y0;
 	float m0_y1;
 
-	RobTkSep  *sep_v0;
-	RobTkSep  *sep_v1;
+	RobTkSep  *sep_v[4];
 
 	// global section
 	RobTkCBtn *btn_g_enable;
@@ -350,15 +349,10 @@ static void dial_annotation_db (RobTkDial * d, cairo_t *cr, void *data) {
 
 static void dial_annotation_hz (RobTkCBtn *l, const int which, const float hz) {
 	char txt[24];
-#ifdef _WIN32
-	const char *pfx = (which == 0) ? "L " : ((which == NCTRL -1) ? "H " : "");
-#else
-	const char *pfx = (which == 0) ? "\u2abc" : ((which == NCTRL -1) ? "\u2abb" : "");
-#endif
 	if (hz > 5000) {
-		snprintf(txt, 16, "%s%.1fKHz", pfx, hz / 1000.f);
+		snprintf(txt, 16, "%.1fKHz", hz / 1000.f);
 	} else {
-		snprintf(txt, 16, "%s%.0fHz", pfx, hz);
+		snprintf(txt, 16, "%.0fHz", hz);
 	}
 	robtk_cbtn_set_text(l, txt);
 }
@@ -2337,7 +2331,7 @@ static RobWidget * toplevel(Fil4UI* ui, void * const top) {
 	robwidget_set_mousedown (ui->m0, m0_mouse_down);
 	robwidget_set_mousescroll (ui->m0, m0_mouse_scroll);
 
-	ui->ctbl = rob_table_new (/*rows*/7, /*cols*/ 2 * NCTRL + 6, FALSE);
+	ui->ctbl = rob_table_new (/*rows*/7, /*cols*/ 2 * NCTRL + 8, FALSE);
 
 #define GBT_W(PTR) robtk_cbtn_widget(PTR)
 #define GBI_W(PTR) robtk_ibtn_widget(PTR)
@@ -2376,10 +2370,17 @@ static RobWidget * toplevel(Fil4UI* ui, void * const top) {
 	rob_table_attach (ui->ctbl, GLB_W(ui->lbl_peak),     col, col+1, 5, 6, 5, 0, RTK_EXANDF, RTK_SHRINK);
 	rob_table_attach (ui->ctbl, GBP_W(ui->btn_peak),     col, col+1, 6, 7, 5, 0, RTK_EXANDF, RTK_SHRINK);
 
+	/* separators */
+	for (int i = 0; i < 4; ++i) {
+		ui->sep_v[i] = robtk_sep_new(FALSE);
+	}
+
+	robtk_sep_set_dash (ui->sep_v[1], 2, 0);
+	robtk_sep_set_dash (ui->sep_v[2], 2, 0);
+
 	/* separator */
 	++col;
-	ui->sep_v0 = robtk_sep_new(FALSE);
-	rob_table_attach_defaults (ui->ctbl, robtk_sep_widget(ui->sep_v0), col, col+1, 0, 7);
+	rob_table_attach_defaults (ui->ctbl, robtk_sep_widget(ui->sep_v[0]), col, col+1, 0, 7);
 
 	/* HPF & LPF */
 	++col;
@@ -2445,19 +2446,19 @@ static RobWidget * toplevel(Fil4UI* ui, void * const top) {
 	rob_table_attach (ui->ctbl, GSP_W(ui->spn_g_hifreq), col, col+1, 5, 7, 5, 0, RTK_EXANDF, RTK_SHRINK);
 
 	/* LPF at the far right */
-	rob_table_attach (ui->ctbl, GBI_W(ui->btn_g_lopass), col + NCTRL + 2, col + NCTRL + 3, 0, 2, 5, 0, RTK_EXANDF, RTK_SHRINK);
-	rob_table_attach (ui->ctbl, GLB_W(ui->lbl_hilo[1]),  col + NCTRL + 2, col + NCTRL + 3, 2, 3, 5, 0, RTK_EXANDF, RTK_EXANDF);
-	rob_table_attach (ui->ctbl, GSP_W(ui->spn_g_loq),    col + NCTRL + 2, col + NCTRL + 3, 3, 5, 5, 0, RTK_EXANDF, RTK_SHRINK);
-	rob_table_attach (ui->ctbl, GSP_W(ui->spn_g_lofreq), col + NCTRL + 2, col + NCTRL + 3, 5, 7, 5, 0, RTK_EXANDF, RTK_SHRINK);
+	rob_table_attach (ui->ctbl, GBI_W(ui->btn_g_lopass), col + NCTRL + 4, col + NCTRL + 5, 0, 2, 5, 0, RTK_EXANDF, RTK_SHRINK);
+	rob_table_attach (ui->ctbl, GLB_W(ui->lbl_hilo[1]),  col + NCTRL + 4, col + NCTRL + 5, 2, 3, 5, 0, RTK_EXANDF, RTK_EXANDF);
+	rob_table_attach (ui->ctbl, GSP_W(ui->spn_g_loq),    col + NCTRL + 4, col + NCTRL + 5, 3, 5, 5, 0, RTK_EXANDF, RTK_SHRINK);
+	rob_table_attach (ui->ctbl, GSP_W(ui->spn_g_lofreq), col + NCTRL + 4, col + NCTRL + 5, 5, 7, 5, 0, RTK_EXANDF, RTK_SHRINK);
 
 	/* Filter bands */
 	++col;
 	for (int i = 0; i < NCTRL; ++i, ++col) {
-#ifdef _WIN32
-		ui->btn_enable[i] = robtk_cbtn_new("H 88.8KHz", GBT_LED_LEFT, false);
-#else
-		ui->btn_enable[i] = robtk_cbtn_new("\u2abc88.8KHz", GBT_LED_LEFT, false);
-#endif
+		if (i == NCTRL - 1) {
+			rob_table_attach_defaults (ui->ctbl, robtk_sep_widget(ui->sep_v[1]), col, col+1, 1, 7);
+			++col;
+		}
+		ui->btn_enable[i] = robtk_cbtn_new("88.8KHz", GBT_LED_LEFT, false);
 
 		ui->spn_freq[i] = robtk_dial_new_with_size (0, 1, .00625,
 				GED_WIDTH + 12, GED_HEIGHT + 20, GED_CX + 6, GED_CY + 15, GED_RADIUS);
@@ -2504,6 +2505,11 @@ static RobWidget * toplevel(Fil4UI* ui, void * const top) {
 		robtk_dial_set_scroll_mult (ui->spn_freq[i], 4.f); // 24 clicks per octave
 		robtk_dial_set_scroll_mult (ui->spn_gain[i], 5.f); // 1dB per click
 		robtk_dial_set_scroll_mult (ui->spn_bw[i],   5.f); // 1/3 octave per click
+
+		if (i == 0) {
+			++col;
+			rob_table_attach_defaults (ui->ctbl, robtk_sep_widget(ui->sep_v[2]), col, col+1, 1, 7);
+		}
 	}
 
 	/* shelf filter range */
@@ -2518,8 +2524,7 @@ static RobWidget * toplevel(Fil4UI* ui, void * const top) {
 	/* spectrum analysis */
 	++col; // LPF
 	++col;
-	ui->sep_v1 = robtk_sep_new(FALSE);
-	rob_table_attach_defaults (ui->ctbl, robtk_sep_widget(ui->sep_v1), col, col+1, 0, 7);
+	rob_table_attach_defaults (ui->ctbl, robtk_sep_widget(ui->sep_v[3]), col, col+1, 0, 7);
 	++col;
 
 	ui->lbl_fft = robtk_lbl_new ("Spectrum");
@@ -2629,8 +2634,9 @@ static void gui_cleanup(Fil4UI* ui) {
 	robtk_select_destroy(ui->sel_res);
 	robtk_select_destroy(ui->sel_spd);
 
-	robtk_sep_destroy (ui->sep_v0);
-	robtk_sep_destroy (ui->sep_v1);
+	for (int i = 0; i < 4; ++i) {
+		robtk_sep_destroy (ui->sep_v[i]);
+	}
 	robtk_lbl_destroy (ui->lbl_g_gain);
 	robtk_lbl_destroy (ui->lbl_fft);
 	robtk_lbl_destroy (ui->lbl_hilo[0]);
