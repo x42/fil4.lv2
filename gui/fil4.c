@@ -1040,8 +1040,8 @@ static void update_filter (FilterSection *flt, const float freq, const float bw,
 static void update_iir (FilterSection *flt, const int hs, const float freq, const float bw, const float gain) {
 	float freq_ratio = freq / flt->rate;
 	float q = .2129f + bw / 2.25f; // map [2^-4 .. 2^2] to [2^(-3/2) .. 2^(1/2)]
-	if (freq_ratio < 0.0002) freq_ratio = 0.0002;
-	if (freq_ratio > 0.4998) freq_ratio = 0.4998;
+	if (freq_ratio < 0.0004) freq_ratio = 0.0004;
+	if (freq_ratio > 0.4700) freq_ratio = 0.4700;
 	if (q < .25f) { q = .25f; }
 	if (q > 2.0f) { q = 2.0f; }
 
@@ -1102,6 +1102,13 @@ static void lop_run (void* handle, uint32_t n_samples, float *inout) {
 static void update_hilo (Fil4UI *ui) {
 	float q, r;
 
+	if (ui->hilo[0].f < 5) {
+		ui->hilo[0].f = 5;
+	}
+	if (ui->hilo[0].f > ui->samplerate / 12.f) {
+		ui->hilo[0].f = ui->samplerate / 12.f;
+	}
+
 	// high-pass
 	//
 	/* High Pass resonance
@@ -1121,6 +1128,12 @@ static void update_hilo (Fil4UI *ui) {
 	ui->hilo[0].R = q;
 
 	// low-pass
+	if (ui->hilo[1].f < ui->samplerate * 0.0002) {
+		ui->hilo[1].f = ui->samplerate * 0.0002;;
+	}
+	if (ui->hilo[1].f > ui->samplerate * 0.4998f) {
+		ui->hilo[1].f = ui->samplerate * 0.4998;
+	}
 	r = RESLP(ui->hilo[1].q);
 	ui->hilo[1].R = sqrtf(4.f * r / (1 + r));
 
@@ -1155,7 +1168,7 @@ static void update_filters (Fil4UI *ui) {
 
 static void samplerate_changed (Fil4UI *ui) {
 	for (int i = 0; i < NCTRL; ++i) {
-		ui->flt[i].rate = 48000;
+		ui->flt[i].rate = ui->samplerate;
 	}
 
 #ifdef USE_LOP_FFT
@@ -1229,8 +1242,8 @@ static float get_lowpass_response (Fil4UI *ui, const float freq) {
 #ifdef USE_LOP_FFT
 	const float f = freq / ui->lopfft->freq_per_bin;
 	uint32_t i = floorf (f);
-	if (i >= fftx_bins (ui->lopfft)) {
-		return fftx_power_to_dB (ui->lopfft->power[fftx_bins (ui->lopfft) -1]);
+	if (i + 1 >= fftx_bins (ui->lopfft)) {
+		return fftx_power_to_dB (ui->lopfft->power[fftx_bins (ui->lopfft) - 2]);
 	}
 	return fftx_power_to_dB (ui->lopfft->power[i] * (1.f + i - f) + ui->lopfft->power[i+1] * (f - i));
 #else
@@ -1357,14 +1370,12 @@ static void set_lopass_label (Fil4UI* ui) {
 static bool cb_spn_g_hifreq (RobWidget *w, void* handle) {
 	Fil4UI* ui = (Fil4UI*)handle;
 	float val = dial_to_freq (&lphp[0], robtk_dial_get_value (ui->spn_g_hifreq));
-	if (val > ui->samplerate / 12.f) {
-		val = ui->samplerate / 12.f;
-	}
 	ui->hilo[0].f = val;
+	update_hilo (ui);
 	update_filter_display (ui);
 	set_hipass_label (ui);
 	if (ui->disable_signals) return TRUE;
-	ui->write(ui->controller, FIL_HIFREQ, sizeof(float), 0, (const void*) &val);
+	ui->write(ui->controller, FIL_HIFREQ, sizeof(float), 0, (const void*) &ui->hilo[0].f);
 	return TRUE;
 }
 
@@ -1388,7 +1399,7 @@ static bool cb_spn_g_lofreq (RobWidget *w, void* handle) {
 	update_filter_display (ui);
 	set_lopass_label (ui);
 	if (ui->disable_signals) return TRUE;
-	ui->write(ui->controller, FIL_LOFREQ, sizeof(float), 0, (const void*) &val);
+	ui->write(ui->controller, FIL_LOFREQ, sizeof(float), 0, (const void*) &ui->hilo[1].f);
 	return TRUE;
 }
 
@@ -1979,6 +1990,7 @@ static void draw_filters (Fil4UI* ui) {
 	const float ym = ui->m0_ym;
 	const float yr = ui->m0_yr;
 	const float x0 = 30;
+	const float ny = x_at_freq(.5 * ui->samplerate, xw);
 
 	/* draw dots for peaking EQ, boxes for shelves */
 	cairo_set_operator (cr, CAIRO_OPERATOR_ADD);
@@ -2055,6 +2067,11 @@ static void draw_filters (Fil4UI* ui) {
 		ui->hilo[1].x0 = x0 + xx;
 	}
 
+	if (ny < xw) {
+		cairo_rectangle (cr, 0, 0, ny, ui->m0_height);
+		cairo_clip (cr);
+	}
+
 	/* draw filters , hi/lo first (only when dragging)*/
 	cairo_set_operator (cr, CAIRO_OPERATOR_ADD);
 	cairo_set_line_width(cr, 1.0);
@@ -2066,7 +2083,7 @@ static void draw_filters (Fil4UI* ui) {
 		}
 		float yy = ym - yr * g_gain - yr * get_highpass_response (ui, freq_at_x(0, xw));
 		cairo_move_to (cr, 0, yy);
-		for (int i = 1 ; i < xw; ++i) {
+		for (int i = 1 ; i < xw && i < ny; ++i) {
 			const float xf = freq_at_x(i, xw);
 			float y = yr * g_gain;
 			y += yr * get_highpass_response (ui, xf);
@@ -2092,7 +2109,7 @@ static void draw_filters (Fil4UI* ui) {
 			fshade = .5;
 		}
 		cairo_move_to (cr, 0, ym - yr * g_gain - yr * get_lowpass_response (ui, freq_at_x(0, xw)));
-		for (int i = 1 ; i < xw; ++i) {
+		for (int i = 1 ; i < xw && i < ny; ++i) {
 			const float xf = freq_at_x(i, xw);
 			float y = yr * g_gain;
 			y += yr * get_lowpass_response (ui, xf);
@@ -2123,7 +2140,7 @@ static void draw_filters (Fil4UI* ui) {
 
 		cairo_set_source_rgba (cr, c_fil[j][0], c_fil[j][1], c_fil[j][2], fshade);
 
-		for (int i = 0 ; i < xw; ++i) {
+		for (int i = 0 ; i < xw && i < ny; ++i) {
 			const float xf = freq_at_x(i, xw);
 			float y = yr;
 			if (j == 0) {
@@ -2162,7 +2179,7 @@ static void draw_filters (Fil4UI* ui) {
 	/* draw total */
 	cairo_set_line_width(cr, 2.0 * shade);
 	cairo_set_source_rgba (cr, 1.0, 1.0, 1.0, shade);
-	for (int i = 0 ; i < xw; ++i) {
+	for (int i = 0 ; i < xw && i < ny; ++i) {
 		const float xf = freq_at_x(i, xw);
 		float y = yr * g_gain;
 		for (int j = 0 ; j < NCTRL; ++j) {

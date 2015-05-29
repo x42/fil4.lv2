@@ -40,8 +40,8 @@ static void iir_init (IIRProc *f, double rate) {
 	f->freq = 1000;
 	f->q    = 0.525;
 	f->lpf  = 440.f / rate;
-	f->f_l  = 0.0002 * rate;
-	f->f_u  = 0.4998 * rate;
+	f->f_l  = 0.0004 * rate;
+	f->f_u  = 0.4700 * rate;
 }
 
 static int iir_interpolate (IIRProc *f, const float gain, float freq, float q) {
