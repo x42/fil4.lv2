@@ -1,6 +1,6 @@
 #!/usr/bin/make -f
 
-OPTIMIZATIONS ?= -msse -msse2 -mfpmath=sse -ffast-math -fomit-frame-pointer -O3 -fno-finite-math-only
+OPTIMIZATIONS ?= -msse -msse2 -mfpmath=sse -ffast-math -fomit-frame-pointer -O3 -fno-finite-math-only -DNDEBUG
 
 PREFIX   ?= /usr/local
 CXXFLAGS ?= -Wall -g -Wno-unused-function
