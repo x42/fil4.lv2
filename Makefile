@@ -224,6 +224,8 @@ x42_fil4_JACKDESC = lv2ui_descriptor
 $(APPBLD)x42-fil4$(EXE_EXT): $(DSP_DEPS) $(GUI_DEPS) \
 	        $(x42_fil4_JACKGUI) $(x42_fil4_LV2HTTL)
 
+man: jackapps
+	help2man -N -o x42-fil4.1 -n "x42 JACK Parametric Equalizer" $(APPBLD)x42-fil4
 
 BUILDGTK=no
 
@@ -258,4 +260,4 @@ clean:
 distclean: clean
 	rm -f cscope.out cscope.files tags
 
-.PHONY: clean all install uninstall distclean jackapps
+.PHONY: clean all install uninstall distclean jackapps man
