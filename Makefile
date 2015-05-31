@@ -82,7 +82,7 @@ else
     $(error "fftw3f library was not found")
   endif
   FFTW_LIBS=`pkg-config --variable=libdir fftw3f`/libfftw3f.a
-  ifeq ($(shell test -f $(FFTWA) || echo no), no)
+  ifeq ($(shell test -f $(FFTW_LIBS) || echo no), no)
     FFTW_LIBS=`pkg-config --libs fftw3f`
   endif
   $(warning "**********************************************************")
