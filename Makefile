@@ -91,10 +91,12 @@ else
   $(info )
   $(info see https://github.com/FFTW/fftw3/issues/16 for further info.)
   $(info )
+  ifneq ("$(wildcard static_fft.sh)","")
   $(info   run    ./static_fft.sh)
   $(info   prior to make to create compile static lib specific for this)
   $(info   plugin to avoid the issue.)
   $(info )
+  endif
   $(warning "**********************************************************")
   $(info )
   $(eval FFTW_CFLAGS=`pkg-config --cflags fftw3f`)
