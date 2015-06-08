@@ -15,7 +15,8 @@
 		lv2:designation lv2:control ;
 		lv2:index 0 ;
 		lv2:symbol "control" ;
-		lv2:name "UI to plugin communication"
+		lv2:name "control" ;
+		rdfs:comment "UI to plugin communication"
 	] , [
 		a atom:AtomPort ,
 			lv2:OutputPort ;
@@ -23,6 +24,7 @@
 		lv2:designation lv2:control ;
 		lv2:index 1 ;
 		lv2:symbol "notify" ;
+		lv2:name "Notify" ;
 		rsz:minimumSize @CTLSIZE@;
 		rdfs:comment "Plugin to GUI communication"
 	] , [
