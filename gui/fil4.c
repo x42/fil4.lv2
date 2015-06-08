@@ -211,7 +211,7 @@ typedef struct {
 ///////////////////////////////////////////////////////////////////////////////
 
 /* frequency mapping */
-static FilterFreq freqs[NCTRL] = {
+static const FilterFreq freqs[NCTRL] = {
 	/*min    max   dflt*/
 	{  25,   400,    80,  16}, // LS
 	{  20,  2000,   160, 100},
@@ -221,7 +221,7 @@ static FilterFreq freqs[NCTRL] = {
 	{1000, 16000,  8000,  16}, // HS
 };
 
-static FilterFreq lphp[2] = {
+static const FilterFreq lphp[2] = {
 	{   10,  1000,   20,  100}, // HP
 	{  630, 20000, 20000,  32}, // LP
 };
@@ -286,13 +286,13 @@ static float dial_to_hplp (const float v) {
 }
 
 /* freq [min .. max] <> dial 0..1 */
-static float freq_to_dial (FilterFreq *m, float f) {
+static float freq_to_dial (const FilterFreq *m, float f) {
 	if (f < m->min) return 0.f;
 	if (f > m->max) return 1.f;
 	return log (1. + m->warp * (f - m->min) / (m->max - m->min)) / log (1. + m->warp);
 }
 
-static float dial_to_freq (FilterFreq *m, float f) {
+static float dial_to_freq (const FilterFreq *m, float f) {
 	return m->min + (m->max - m->min) * (pow((1. + m->warp), f) - 1.) / m->warp;
 }
 
@@ -340,7 +340,6 @@ static void dial_annotation_db (RobTkDial * d, cairo_t *cr, void *data) {
 	rounded_rectangle(cr, -1, -1, tw+3, th+1, 3);
 	cairo_fill(cr);
 	CairoSetSouerceRGBA(c_wht);
-	pango_cairo_layout_path(cr, pl);
 	pango_cairo_show_layout(cr, pl);
 	g_object_unref(pl);
 	cairo_restore(cr);
@@ -440,7 +439,7 @@ static void prepare_faceplates(Fil4UI* ui) {
 	cr = cairo_create (VAR); \
 	CairoSetSouerceRGBA(c_trs); \
 	cairo_set_operator (cr, CAIRO_OPERATOR_SOURCE); \
-	cairo_rectangle (cr, 0, 0, GED_WIDTH, GED_HEIGHT); \
+	cairo_rectangle (cr, 0, 0, W, H); \
 	cairo_fill (cr); \
 	cairo_set_operator (cr, CAIRO_OPERATOR_OVER); \
 
@@ -1928,7 +1927,7 @@ static RobWidget* m0_mouse_move (RobWidget* handle, RobTkBtnEvent *ev) {
 
 	RobTkDial *fctl = NULL;
 	RobTkDial *gctl = NULL;
-	FilterFreq *ffq = NULL;
+	FilterFreq const *ffq = NULL;
 
 	if (sect == Ctrl_HPF) { //high pass special case
 		fctl = ui->spn_g_hifreq;
@@ -2747,6 +2746,9 @@ instantiate(
 		const LV2_Feature* const* features)
 {
 	Fil4UI* ui = (Fil4UI*) calloc(1, sizeof(Fil4UI));
+	if (!ui) {
+		return NULL;
+	}
 
 	if (!strcmp(plugin_uri, MTR_URI "mono")) {
 		ui->n_channels = 1;
