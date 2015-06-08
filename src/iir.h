@@ -51,7 +51,6 @@ static int iir_interpolate (IIRProc *f, const float gain, float freq, float q) {
 	if (freq > f->f_u) { freq = f->f_u; }
 
 #ifndef NO_NAN_PROTECTION
-	if (isnan(f->y0)) f->y0 = 0;
 	if (isnan(f->y1)) f->y1 = 0;
 	if (isnan(f->y2)) f->y2 = 0;
 #endif
@@ -126,6 +125,5 @@ static void iir_compute (IIRProc *f, uint32_t n_samples, float *buf) {
 		f->y2 = f->y1;
 		f->y1 = f->y0;
 	}
-	if (fabs(f->y0) < (1e-12)) f->y0 = 0.0; // denormal FTZ
 }
 #endif
