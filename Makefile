@@ -1,17 +1,32 @@
 #!/usr/bin/make -f
 
-OPTIMIZATIONS ?= -msse -msse2 -mfpmath=sse -ffast-math -fomit-frame-pointer -O3 -fno-finite-math-only -DNDEBUG
+# these can be overridden using make variables. e.g.
+#   make CFLAGS=-O2
+#   make install DESTDIR=$(CURDIR)/debian/meters.lv2 PREFIX=/usr
+#
+PREFIX ?= /usr/local
+BINDIR ?= $(PREFIX)/bin
+MANDIR ?= $(PREFIX)/share/man/man1
+# see http://lv2plug.in/pages/filesystem-hierarchy-standard.html, don't use libdir
+LV2DIR ?= $(PREFIX)/lib/lv2
 
-PREFIX   ?= /usr/local
+OPTIMIZATIONS ?= -msse -msse2 -mfpmath=sse -ffast-math -fomit-frame-pointer -O3 -fno-finite-math-only -DNDEBUG
 CXXFLAGS ?= -Wall -g -Wno-unused-function
-STRIP    ?= strip
+STRIP  ?= strip
+
+EXTERNALUI?=yes
+BUILDGTK?=no
+KXURI?=yes
+
+fil4_VERSION ?= $(shell (git describe --tags HEAD || echo "0") | sed 's/-g.*$$//;s/^v//')
+
+###############################################################################
+
 BUILDDIR ?= build/
 APPBLD   ?= x42/
 RW       ?= robtk/
-LV2DIR   ?= $(PREFIX)/lib/lv2
 
 ###############################################################################
-fil4_VERSION ?= $(shell (git describe --tags HEAD || echo "0") | sed 's/-g.*$$//;s/^v//')
 
 LOADLIBES=-lm
 LV2NAME=fil4
@@ -146,8 +161,13 @@ ifneq ($(MAKECMDGOALS), submodules)
 endif
 
 # add library dependent flags and libs
-override CXXFLAGS += -fPIC $(OPTIMIZATIONS) -DVERSION="\"$(fil4_VERSION)\""
+override CXXFLAGS += $(OPTIMIZATIONS) -DVERSION="\"$(fil4_VERSION)\""
 override CXXFLAGS += `pkg-config --cflags lv2`
+ifeq ($(XWIN),)
+override CXXFLAGS += -fPIC -fvisibility=hidden
+else
+override CXXFLAGS += -DPTW32_STATIC_LIB
+endif
 
 
 GLUICFLAGS+=`pkg-config --cflags cairo pango` $(value FFTW_CFLAGS) $(CXXFLAGS)
@@ -187,7 +207,7 @@ submodule_check:
 submodules:
 	-test -d .git -a .gitmodules -a -f Makefile.git && $(MAKE) -f Makefile.git submodules
 
-all: submodule_check $(BUILDDIR)manifest.ttl $(BUILDDIR)$(LV2NAME).ttl $(targets)
+all: submodule_check $(BUILDDIR)manifest.ttl $(BUILDDIR)$(LV2NAME).ttl $(targets) $(APPBLD)x42-fil4
 
 $(BUILDDIR)manifest.ttl: lv2ttl/manifest.ttl.in Makefile
 	@mkdir -p $(BUILDDIR)
@@ -226,9 +246,6 @@ x42_fil4_JACKDESC = lv2ui_descriptor
 $(APPBLD)x42-fil4$(EXE_EXT): $(DSP_DEPS) $(GUI_DEPS) \
 	        $(x42_fil4_JACKGUI) $(x42_fil4_LV2HTTL)
 
-man: jackapps
-	help2man -N -o x42-fil4.1 -n "x42 JACK Parametric Equalizer" $(APPBLD)x42-fil4
-
 BUILDGTK=no
 
 -include $(RW)robtk.mk
@@ -238,17 +255,36 @@ $(BUILDDIR)$(LV2GUI)$(LIB_EXT): gui/fil4.c
 ###############################################################################
 # install/uninstall/clean target definitions
 
-install: all
+install: install-bin install-man
+
+uninstall: uninstall-bin uninstall-man
+
+install-bin: all
 	install -d $(DESTDIR)$(LV2DIR)/$(BUNDLE)
 	install -m755 $(BUILDDIR)$(LV2NAME)$(LIB_EXT) $(BUILDDIR)$(LV2GUI)$(LIB_EXT) $(DESTDIR)$(LV2DIR)/$(BUNDLE)
 	install -m644 $(BUILDDIR)manifest.ttl $(BUILDDIR)$(LV2NAME).ttl $(DESTDIR)$(LV2DIR)/$(BUNDLE)
+	install -d $(DESTDIR)$(BINDIR)
+	install -m755 $(APPBLD)x42-fil4 $(DESTDIR)$(BINDIR)
 
-uninstall:
+uninstall-bin:
 	rm -f $(DESTDIR)$(LV2DIR)/$(BUNDLE)/manifest.ttl
 	rm -f $(DESTDIR)$(LV2DIR)/$(BUNDLE)/$(LV2NAME).ttl
 	rm -f $(DESTDIR)$(LV2DIR)/$(BUNDLE)/$(LV2NAME)$(LIB_EXT)
 	rm -f $(DESTDIR)$(LV2DIR)/$(BUNDLE)/$(LV2GUI)$(LIB_EXT)
+	rm -f $(DESTDIR)$(BINDIR)/x42-fil4
 	-rmdir $(DESTDIR)$(LV2DIR)/$(BUNDLE)
+	-rmdir $(DESTDIR)$(BINDIR)
+
+install-man:
+	install -d $(DESTDIR)$(MANDIR)
+	install -m644 x42-fil4.1 $(DESTDIR)$(MANDIR)
+
+uninstall-man:
+	rm -f $(DESTDIR)$(MANDIR)/x42-fil4.1
+	-rmdir $(DESTDIR)$(MANDIR)
+
+man: $(APPBLD)x42-fil4
+	help2man -N -o x42-fil4.1 -n "x42 JACK Parametric Equalizer" $(APPBLD)x42-fil4
 
 clean:
 	rm -f $(BUILDDIR)manifest.ttl $(BUILDDIR)$(LV2NAME).ttl \
@@ -262,4 +298,6 @@ clean:
 distclean: clean
 	rm -f cscope.out cscope.files tags
 
-.PHONY: clean all install uninstall distclean jackapps man
+.PHONY: clean all install uninstall distclean jackapps man \
+        install-bin uninstall-bin install-man uninstall-man \
+        submodule_check submodules submodule_update submodule_pull

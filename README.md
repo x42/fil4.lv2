@@ -51,9 +51,9 @@ Optionally compile a standalone jack app (not covered by `make install`)
 ```
 
 Note to packagers: The Makefile honors `PREFIX` and `DESTDIR` variables as well
-as `CPPFLAGS`, `CFLAGS`, `CXXFLAGS`, `LDFLAGS`.
-Additionally there is `OPTIMIZATIONS` (custom additions to both `CFLAGS` and `CXXFLAGS`).
-
+as `CXXLAGS`, `LDFLAGS` and `OPTIMIZATIONS` (additions to `CXXFLAGS`), also
+see the first 10 lines of the Makefile.
+You really want to package the superset of [x42-plugins](https://github.com/x42/x42-plugins).
 
 Screenshots
 -----------
