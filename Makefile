@@ -207,7 +207,7 @@ submodule_check:
 submodules:
 	-test -d .git -a .gitmodules -a -f Makefile.git && $(MAKE) -f Makefile.git submodules
 
-all: submodule_check $(BUILDDIR)manifest.ttl $(BUILDDIR)$(LV2NAME).ttl $(targets) $(APPBLD)x42-fil4
+all: submodule_check $(BUILDDIR)manifest.ttl $(BUILDDIR)$(LV2NAME).ttl $(targets) $(APPBLD)x42-fil4$(EXE_EXT)
 
 $(BUILDDIR)manifest.ttl: lv2ttl/manifest.ttl.in Makefile
 	@mkdir -p $(BUILDDIR)
@@ -237,7 +237,7 @@ $(BUILDDIR)$(LV2NAME)$(LIB_EXT): $(DSP_DEPS) Makefile
 	  -shared $(LV2LDFLAGS) $(LDFLAGS) $(LOADLIBES)
 	$(STRIP) $(STRIPFLAGS) $(BUILDDIR)$(LV2NAME)$(LIB_EXT)
 
-jackapps: $(APPBLD)x42-fil4
+jackapps: $(APPBLD)x42-fil4$(EXE_EXT)
 
 $(eval x42_fil4_JACKSRC = -DX42_MULTIPLUGIN src/lv2.c)
 x42_fil4_JACKGUI = gui/fil4.c
@@ -264,14 +264,14 @@ install-bin: all
 	install -m755 $(BUILDDIR)$(LV2NAME)$(LIB_EXT) $(BUILDDIR)$(LV2GUI)$(LIB_EXT) $(DESTDIR)$(LV2DIR)/$(BUNDLE)
 	install -m644 $(BUILDDIR)manifest.ttl $(BUILDDIR)$(LV2NAME).ttl $(DESTDIR)$(LV2DIR)/$(BUNDLE)
 	install -d $(DESTDIR)$(BINDIR)
-	install -m755 $(APPBLD)x42-fil4 $(DESTDIR)$(BINDIR)
+	install -m755 $(APPBLD)x42-fil4$(EXE_EXT) $(DESTDIR)$(BINDIR)
 
 uninstall-bin:
 	rm -f $(DESTDIR)$(LV2DIR)/$(BUNDLE)/manifest.ttl
 	rm -f $(DESTDIR)$(LV2DIR)/$(BUNDLE)/$(LV2NAME).ttl
 	rm -f $(DESTDIR)$(LV2DIR)/$(BUNDLE)/$(LV2NAME)$(LIB_EXT)
 	rm -f $(DESTDIR)$(LV2DIR)/$(BUNDLE)/$(LV2GUI)$(LIB_EXT)
-	rm -f $(DESTDIR)$(BINDIR)/x42-fil4
+	rm -f $(DESTDIR)$(BINDIR)/x42-fil4$(EXE_EXT)
 	-rmdir $(DESTDIR)$(LV2DIR)/$(BUNDLE)
 	-rmdir $(DESTDIR)$(BINDIR)
 
