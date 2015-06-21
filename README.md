@@ -5,6 +5,9 @@ fil4.lv2 is a 4 band parametric equalizer with additional low+high shelf
 filters, Low and High-pass, as well as an optional, custom GUI displaying
 the transfer function and signal spectrum.
 
+It is available as [LV2 plugin](http://lv2plug.in/) and standalone
+[jack](http://jackaudio.org/)-application.
+
 
 Usage
 -----
@@ -33,7 +36,12 @@ of plugin control ports, such as Ardour, or for stage use.
 Install
 -------
 
-Compiling this plugin requires the LV2 SDK, gnu-make, a c-compiler,
+Binaries for Intel-platform (GNU/Linux, OSX and Windows) are available
+under [releases](https://github.com/x42/fil4.lv2/releases). Most GNU/Linux
+distributions include this plugin as part of the x42-plugins collection.
+
+
+Compiling fil4 requires the LV2 SDK, jack-headers, gnu-make, a c++-compiler,
 libpango, libcairo and openGL (sometimes called: glu, glx, mesa).
 
 ```bash
@@ -42,12 +50,6 @@ libpango, libcairo and openGL (sometimes called: glu, glx, mesa).
   make submodules
   make
   sudo make install PREFIX=/usr
-```
-
-Optionally compile a standalone jack app (not covered by `make install`)
-```bash
-  make jackapps
-  ./x42/x42-fil
 ```
 
 Note to packagers: The Makefile honors `PREFIX` and `DESTDIR` variables as well
