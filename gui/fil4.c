@@ -2364,7 +2364,7 @@ static RobWidget * toplevel(Fil4UI* ui, void * const top) {
 			GED_WIDTH + 12, GED_HEIGHT + 20, GED_CX + 6, GED_CY + 15, GED_RADIUS);
 	ui->lbl_g_gain  = robtk_lbl_new ("Output");
 	ui->lbl_peak    = robtk_lbl_new ("Peak:");
-	ui->btn_peak    = robtk_pbtn_new_with_colors ("-XXg.| dBFS", c_g20, c_wht);
+	ui->btn_peak    = robtk_pbtn_new_with_colors ("-8888.8 dBFS\n", c_g20, c_wht);
 
 	robtk_dial_annotation_callback(ui->spn_g_gain, dial_annotation_db, ui);
 	robtk_cbtn_set_callback (ui->btn_g_enable, cb_btn_g_en, ui);
@@ -2374,6 +2374,7 @@ static RobWidget * toplevel(Fil4UI* ui, void * const top) {
 	robtk_cbtn_set_temporary_mode (ui->btn_g_enable, 1);
 	robtk_cbtn_set_color_on(ui->btn_g_enable,  1.0, 1.0, 1.0);
 	robtk_cbtn_set_color_off(ui->btn_g_enable, .2, .2, .2);
+	robtk_pbtn_set_alignment(ui->btn_peak, .5, .5);
 
 	robtk_dial_set_default(ui->spn_g_gain, 0.0);
 	robtk_dial_set_surface (ui->spn_g_gain, ui->dial_bg[0]);
