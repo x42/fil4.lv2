@@ -6,7 +6,7 @@ filters, Low and High-pass, as well as an optional, custom GUI displaying
 the transfer function and signal spectrum.
 
 It is available as [LV2 plugin](http://lv2plug.in/) and standalone
-[jack](http://jackaudio.org/)-application.
+[JACK](http://jackaudio.org/)-application.
 
 
 Usage
