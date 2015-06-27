@@ -3,7 +3,7 @@ fil4.lv2 - Parametric Equalizer
 
 fil4.lv2 is a 4 band parametric equalizer with additional low+high shelf
 filters, Low and High-pass, as well as an optional, custom GUI displaying
-the transfer function and signal spectrum.
+the transfer function and realtime signal spectrum or spectrogram.
 
 It is available as [LV2 plugin](http://lv2plug.in/) and standalone
 [JACK](http://jackaudio.org/)-application.
@@ -16,8 +16,8 @@ The parameters can be set by moving the nodes in the graph or directly
 via control knobs:
 
 *   Shift + click: reset to default
-*   right-click on knob: toggle current value with default, 2nd click restore.
-*   right-click on button: temporarily toggle button, until release
+*   Right-click on knob: toggle current value with default, 2nd click restore.
+*   Right-click on button: temporarily toggle, until release
 
 The Ctrl key allows for fine-grained control when dragging or
 using the mouse-wheel on a knob.
@@ -37,8 +37,8 @@ Install
 -------
 
 Binaries for Intel-platform (GNU/Linux, OSX and Windows) are available
-under [releases](https://github.com/x42/fil4.lv2/releases). Most GNU/Linux
-distributions include this plugin as part of the x42-plugins collection.
+for [releases](https://github.com/x42/fil4.lv2/releases). Most GNU/Linux
+distributions include this fil4 as part of the x42-plugins collection.
 
 
 Compiling fil4 requires the LV2 SDK, jack-headers, gnu-make, a c++-compiler,
@@ -57,6 +57,7 @@ as `CXXLAGS`, `LDFLAGS` and `OPTIMIZATIONS` (additions to `CXXFLAGS`), also
 see the first 10 lines of the Makefile.
 You really want to package the superset of [x42-plugins](https://github.com/x42/x42-plugins).
 
+
 Screenshots
 -----------
 
@@ -66,7 +67,7 @@ Screenshots
 Details
 -------
 
-Fil4 is based on fil-pluins LADSPA.
+Fil4 is based on fil-pluins LADSPA by Fons Adriaensen.
 
 Fil4 consists of four 2nd order resonant filters using a Mitra-Regalia
 style lattice filter, which has the nice property of being stable
