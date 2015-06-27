@@ -135,10 +135,10 @@ ifeq ($(shell pkg-config --exists pango cairo $(PKG_GL_LIBS) || echo no), no)
   $(error "This plugin requires cairo pango $(PKG_GL_LIBS)")
 endif
 
-#ifeq ($(shell pkg-config --exists jack || echo no), no)
-#  $(warning *** libjack from http://jackaudio.org is required)
-#  $(error   Please install libjack-dev or libjack-jackd2-dev)
-#endif
+ifeq ($(shell pkg-config --exists jack || echo no), no)
+  $(warning *** libjack from http://jackaudio.org is required)
+  $(error   Please install libjack-dev or libjack-jackd2-dev)
+endif
 
 # check for LV2 idle thread
 ifeq ($(shell pkg-config --atleast-version=1.4.2 lv2 && echo yes), yes)
