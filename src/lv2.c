@@ -67,8 +67,8 @@ typedef struct {
 	bool                     send_state_to_ui;
 	uint32_t                 resend_peak;
 
-	int                      fft_mode;
-	int                      fft_chan;
+	int32_t                  fft_mode;
+	int32_t                  fft_chan;
 	float                    fft_gain;
 	float                    db_scale;
 
@@ -402,7 +402,7 @@ run(LV2_Handle instance, uint32_t n_samples)
 		tx_state (self);
 	}
 
-	const int fft_mode = self->ui_active ? (self->fft_mode & 0xf) : 0;
+	const int32_t fft_mode = self->ui_active ? (self->fft_mode & 0xf) : 0;
 
 	// send raw input to GUI (for spectrum analysis)
 	if (fft_mode > 0 && (fft_mode & 1) == 0 && capacity_ok) {
@@ -492,10 +492,10 @@ fil4_restore(LV2_Handle                  instance,
 	uint32_t type;
 	uint32_t valflags;
 
-	STATEREAD(s_dbscale, Float, float, self->db_scale)
-	STATEREAD(s_fftgain, Float, float, self->fft_gain)
-	STATEREAD(s_fftmode, Int,   int,   self->fft_mode)
-	STATEREAD(s_fftchan, Int,   int,   self->fft_chan)
+	STATEREAD(s_dbscale, Float, float,   self->db_scale)
+	STATEREAD(s_fftgain, Float, float,   self->fft_gain)
+	STATEREAD(s_fftmode, Int,   int32_t, self->fft_mode)
+	STATEREAD(s_fftchan, Int,   int32_t, self->fft_chan)
 
 	self->send_state_to_ui = true;
 	return LV2_STATE_SUCCESS;
