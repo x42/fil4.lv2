@@ -12,6 +12,12 @@ It is available as [LV2 plugin](http://lv2plug.in/) and standalone
 Usage
 -----
 
+Currently, convoLV2 is known to work in
+[Jalv](http://drobilla.net/software/jalv/) 1.4.6.
+
+    jalv.gtk http://gareus.org/oss/lv2/fil4#mono
+    jalv.gtk http://gareus.org/oss/lv2/fil4#stereo
+
 The parameters can be set by moving the nodes in the graph or directly
 via control knobs:
 
