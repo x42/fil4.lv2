@@ -14,9 +14,8 @@ OPTIMIZATIONS ?= -msse -msse2 -mfpmath=sse -ffast-math -fomit-frame-pointer -O3 
 CXXFLAGS ?= -Wall -g -Wno-unused-function
 STRIP  ?= strip
 
-EXTERNALUI?=yes
-BUILDGTK?=no
-KXURI?=yes
+BUILDOPENGL?=yes
+BUILDJACKAPP?=yes
 
 fil4_VERSION ?= $(shell (git describe --tags HEAD || echo "0") | sed 's/-g.*$$//;s/^v//')
 
@@ -84,7 +83,10 @@ ifeq ($(UI_TYPE),)
 endif
 
 targets+=$(BUILDDIR)$(LV2NAME)$(LIB_EXT)
-targets+=$(BUILDDIR)$(LV2GUI)$(LIB_EXT)
+
+ifneq ($(BUILDOPENGL), no)
+  targets+=$(BUILDDIR)$(LV2GUI)$(LIB_EXT)
+endif
 
 ###############################################################################
 # extract versions
@@ -135,9 +137,12 @@ ifeq ($(shell pkg-config --exists pango cairo $(PKG_GL_LIBS) || echo no), no)
   $(error "This plugin requires cairo pango $(PKG_GL_LIBS)")
 endif
 
-ifeq ($(shell pkg-config --exists jack || echo no), no)
+ifneq ($(BUILDJACKAPP), no)
+ ifeq ($(shell pkg-config --exists jack || echo no), no)
   $(warning *** libjack from http://jackaudio.org is required)
   $(error   Please install libjack-dev or libjack-jackd2-dev)
+ endif
+ JACKAPP=$(APPBLD)x42-fil4$(EXE_EXT)
 endif
 
 
@@ -213,7 +218,7 @@ submodule_check:
 submodules:
 	-test -d .git -a .gitmodules -a -f Makefile.git && $(MAKE) -f Makefile.git submodules
 
-all: submodule_check $(BUILDDIR)manifest.ttl $(BUILDDIR)$(LV2NAME).ttl $(targets) $(APPBLD)x42-fil4$(EXE_EXT)
+all: submodule_check $(BUILDDIR)manifest.ttl $(BUILDDIR)$(LV2NAME).ttl $(targets) $(JACKAPP)
 
 $(BUILDDIR)manifest.ttl: lv2ttl/manifest.ttl.in Makefile
 	@mkdir -p $(BUILDDIR)
@@ -243,7 +248,7 @@ $(BUILDDIR)$(LV2NAME)$(LIB_EXT): $(DSP_DEPS) Makefile
 	  -shared $(LV2LDFLAGS) $(LDFLAGS) $(LOADLIBES)
 	$(STRIP) $(STRIPFLAGS) $(BUILDDIR)$(LV2NAME)$(LIB_EXT)
 
-jackapps: $(APPBLD)x42-fil4$(EXE_EXT)
+jackapps: $(JACKAPP)
 
 $(eval x42_fil4_JACKSRC = -DX42_MULTIPLUGIN src/lv2.c)
 x42_fil4_JACKGUI = gui/fil4.c
@@ -251,8 +256,6 @@ x42_fil4_LV2HTTL = lv2ttl/plugins.h
 x42_fil4_JACKDESC = lv2ui_descriptor
 $(APPBLD)x42-fil4$(EXE_EXT): $(DSP_DEPS) $(GUI_DEPS) \
 	        $(x42_fil4_JACKGUI) $(x42_fil4_LV2HTTL)
-
-BUILDGTK=no
 
 -include $(RW)robtk.mk
 
@@ -267,10 +270,15 @@ uninstall: uninstall-bin uninstall-man
 
 install-bin: all
 	install -d $(DESTDIR)$(LV2DIR)/$(BUNDLE)
-	install -m755 $(BUILDDIR)$(LV2NAME)$(LIB_EXT) $(BUILDDIR)$(LV2GUI)$(LIB_EXT) $(DESTDIR)$(LV2DIR)/$(BUNDLE)
 	install -m644 $(BUILDDIR)manifest.ttl $(BUILDDIR)$(LV2NAME).ttl $(DESTDIR)$(LV2DIR)/$(BUNDLE)
+	install -m755 $(BUILDDIR)$(LV2NAME)$(LIB_EXT) $(DESTDIR)$(LV2DIR)/$(BUNDLE)
+ifneq ($(BUILDOPENGL), no)
+	install -m755 $(BUILDDIR)$(LV2GUI)$(LIB_EXT) $(DESTDIR)$(LV2DIR)/$(BUNDLE)
+endif
+ifneq ($(BUILDJACKAPP), no)
 	install -d $(DESTDIR)$(BINDIR)
 	install -m755 $(APPBLD)x42-fil4$(EXE_EXT) $(DESTDIR)$(BINDIR)
+endif
 
 uninstall-bin:
 	rm -f $(DESTDIR)$(LV2DIR)/$(BUNDLE)/manifest.ttl
@@ -282,8 +290,10 @@ uninstall-bin:
 	-rmdir $(DESTDIR)$(BINDIR)
 
 install-man:
+ifneq ($(BUILDJACKAPP), no)
 	install -d $(DESTDIR)$(MANDIR)
 	install -m644 x42-fil4.1 $(DESTDIR)$(MANDIR)
+endif
 
 uninstall-man:
 	rm -f $(DESTDIR)$(MANDIR)/x42-fil4.1
