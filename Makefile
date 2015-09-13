@@ -18,12 +18,12 @@ BUILDOPENGL?=yes
 BUILDJACKAPP?=yes
 
 fil4_VERSION ?= $(shell (git describe --tags HEAD || echo "0") | sed 's/-g.*$$//;s/^v//')
+RW ?= robtk/
 
 ###############################################################################
 
-BUILDDIR ?= build/
-APPBLD   ?= x42/
-RW       ?= robtk/
+BUILDDIR = build/
+APPBLD   = x42/
 
 ###############################################################################
 
