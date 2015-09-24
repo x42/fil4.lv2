@@ -46,6 +46,7 @@ typedef struct {
 typedef struct {
 	float        *_port [FIL_LAST];
 	float         rate;
+	float         below_nyquist;
 
 	FilterChannel fc[2];
 	uint32_t n_channels;
@@ -124,6 +125,7 @@ instantiate(const LV2_Descriptor*     descriptor,
 	}
 
 	self->rate = rate;
+	self->below_nyquist = rate * 0.4998;
 	lv2_atom_forge_init (&self->forge, self->map);
 	map_fil4_uris (self->map, &self->uris);
 
@@ -226,10 +228,10 @@ static void process_channel(Fil4* self, FilterChannel *fc, uint32_t p_samples, u
 	const float hs_q    = .2129f + self->_port[IIR_HS_Q][0] / 2.25f;
 	const bool  hipass  = *self->_port[FIL_HIPASS] > 0 ? true : false;
 	const bool  lopass  = *self->_port[FIL_LOPASS] > 0 ? true : false;
-	const float hifreq  = *self->_port[FIL_HIFREQ];
-	const float hi_q    = *self->_port[FIL_HIQ];
-	const float lofreq  = *self->_port[FIL_LOFREQ];
-	const float lo_q    = *self->_port[FIL_LOQ];
+	float hifreq  = *self->_port[FIL_HIFREQ];
+	float hi_q    = *self->_port[FIL_HIQ];
+	float lofreq  = *self->_port[FIL_LOFREQ];
+	float lo_q    = *self->_port[FIL_LOQ];
 
 	float *aip = self->_port [FIL_INPUT0 + (chn<<1)];
 	float *aop = self->_port [FIL_OUTPUT0 + (chn<<1)];
@@ -238,6 +240,21 @@ static void process_channel(Fil4* self, FilterChannel *fc, uint32_t p_samples, u
 	float sband [NSECT];
 	float sgain [NSECT];
 
+
+	/* clamp inputs to legal range - see lv2ttl/fil4.ports.ttl.in */
+	if (lofreq > self->below_nyquist) lofreq = self->below_nyquist;
+	if (lofreq < 630) lofreq = 630;
+	if (lofreq > 20000) lofreq = 20000;
+	if (lo_q < 0.0625) lo_q = 0.0625;
+	if (lo_q > 4.0)    lo_q = 4.0;
+
+	if (hifreq > self->below_nyquist) hifreq = self->below_nyquist;
+	if (hifreq < 10) hifreq = 10;
+	if (hifreq > 1000) hifreq = 1000;
+	if (hi_q < 0.0625) hi_q = 0.0625;
+	if (hi_q > 4.0)    hi_q = 4.0;
+
+	// shelf-filter freq,q is clamped in src/iir.h
 
 
 	/* calculate target values, parameter smoothing */
