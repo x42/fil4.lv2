@@ -23,8 +23,8 @@
 #include <math.h>
 
 typedef struct {
-	double a1, a2, b0, b1, b2;
-	double y0, y1, y2;
+	float a1, a2, b0, b1, b2;
+	float y0, y1, y2;
 
 	double rate;
 	float gain, freq, q;
@@ -119,11 +119,13 @@ static void iir_calc_highshelf (IIRProc *f) {
 }
 
 static void iir_compute (IIRProc *f, uint32_t n_samples, float *buf) {
+	// this depends on prior processors adding denormal protection
 	for (uint32_t i = 0; i < n_samples; ++i) {
-		f->y0 = buf[i] - f->a1 * f->y1 - f->a2 * f->y2;
-		buf[i] = f->b0 * f->y0 + f->b1 * f->y1 + f->b2 * f->y2;
-		f->y2 = f->y1;
-		f->y1 = f->y0;
+		const float xn = buf[i];
+		const float y = f->b0 * xn + f->y1;
+		f->y1         = f->b1 * xn - f->a1 * y + f->y2;
+		f->y2         = f->b2 * xn - f->a2 * y;
+		buf[i] = y;
 	}
 }
 #endif
