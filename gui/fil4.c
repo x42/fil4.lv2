@@ -2559,8 +2559,9 @@ static RobWidget * toplevel(Fil4UI* ui, void * const top) {
 
 	ui->sel_fft = robtk_select_new();
 	robtk_select_add_item (ui->sel_fft, 0, "Off");  // 0x0
-	robtk_select_add_item (ui->sel_fft, 1, "Flat"); // 0x2
-	robtk_select_add_item (ui->sel_fft, 2, "Prop"); // 0x4
+	//robtk_select_add_item (ui->sel_fft, 1, "Flat"); // 0x2
+	//robtk_select_add_item (ui->sel_fft, 2, "Prop"); // 0x4
+	robtk_select_add_item (ui->sel_fft, 2, "Spec"); // 0x4
 	robtk_select_add_item (ui->sel_fft, 3, "Hist"); // 0x6
 
 	robtk_select_set_default_item (ui->sel_fft, 0);
