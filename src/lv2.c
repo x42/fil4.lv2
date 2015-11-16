@@ -408,8 +408,8 @@ run(LV2_Handle instance, uint32_t n_samples)
 					lv2_atom_object_get(obj, self->uris.s_dbscale, &v, 0);
 					if (v) { self->db_scale = ((LV2_Atom_Float*)v)->body; }
 				}
-				ev = lv2_atom_sequence_next(ev);
 			}
+			ev = lv2_atom_sequence_next(ev);
 		}
 	}
 
