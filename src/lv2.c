@@ -72,6 +72,7 @@ typedef struct {
 	int32_t                  fft_chan;
 	float                    fft_gain;
 	float                    db_scale;
+	float                    ui_scale;
 
 } Fil4;
 
@@ -139,6 +140,7 @@ instantiate(const LV2_Descriptor*     descriptor,
 	self->fft_chan = -1;
 	self->resend_peak = 0;
 	self->db_scale = DEFAULT_YZOOM;
+	self->ui_scale = 1.0;
 
 	return (LV2_Handle)self;
 }
@@ -212,6 +214,9 @@ static void tx_state (Fil4* self)
 
 	lv2_atom_forge_property_head(&self->forge, self->uris.s_fftchan, 0);
 	lv2_atom_forge_int(&self->forge, self->fft_chan);
+
+	lv2_atom_forge_property_head(&self->forge, self->uris.s_uiscale, 0);
+	lv2_atom_forge_float(&self->forge, self->ui_scale);
 
 	lv2_atom_forge_pop(&self->forge, &frame);
 }
@@ -407,6 +412,10 @@ run(LV2_Handle instance, uint32_t n_samples)
 					v = NULL;
 					lv2_atom_object_get(obj, self->uris.s_dbscale, &v, 0);
 					if (v) { self->db_scale = ((LV2_Atom_Float*)v)->body; }
+
+					v = NULL;
+					lv2_atom_object_get(obj, self->uris.s_uiscale, &v, 0);
+					if (v) { self->ui_scale = ((LV2_Atom_Float*)v)->body; }
 				}
 			}
 			ev = lv2_atom_sequence_next(ev);
@@ -483,6 +492,7 @@ fil4_save(LV2_Handle                instance,
 
 	STATESTORE(s_dbscale, Float, self->db_scale)
 	STATESTORE(s_fftgain, Float, self->fft_gain)
+	STATESTORE(s_uiscale, Float, self->ui_scale)
 	STATESTORE(s_fftmode, Int, self->fft_mode)
 	STATESTORE(s_fftchan, Int, self->fft_chan)
 
@@ -511,6 +521,7 @@ fil4_restore(LV2_Handle                  instance,
 
 	STATEREAD(s_dbscale, Float, float,   self->db_scale)
 	STATEREAD(s_fftgain, Float, float,   self->fft_gain)
+	STATEREAD(s_uiscale, Float, float,   self->ui_scale)
 	STATEREAD(s_fftmode, Int,   int32_t, self->fft_mode)
 	STATEREAD(s_fftchan, Int,   int32_t, self->fft_chan)
 

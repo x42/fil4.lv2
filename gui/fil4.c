@@ -377,8 +377,11 @@ static void prepare_faceplates(Fil4UI* ui) {
 	cairo_t *cr;
 	float xlp, ylp;
 
-	ui->hpf_btn[0] = cairo_image_surface_create(CAIRO_FORMAT_ARGB32, 26, 20);
-	cr = cairo_create (ui->hpf_btn[0]);
+#define NEW_SF(VAR, W, H) \
+	VAR = cairo_image_surface_create(CAIRO_FORMAT_ARGB32, W, H); \
+	cr = cairo_create (VAR); \
+
+	NEW_SF(ui->hpf_btn[0], 26, 20);
 	cairo_move_to (cr,  4, 16);
 	cairo_line_to (cr,  9,  4);
 	cairo_line_to (cr, 22,  4);
@@ -391,8 +394,7 @@ static void prepare_faceplates(Fil4UI* ui) {
 	cairo_stroke (cr);
 	cairo_destroy (cr);
 
-	ui->hpf_btn[1] = cairo_image_surface_create(CAIRO_FORMAT_ARGB32, 26, 20);
-	cr = cairo_create (ui->hpf_btn[1]);
+	NEW_SF(ui->hpf_btn[1], 26, 20);
 	cairo_move_to (cr,  4, 16);
 	cairo_line_to (cr,  9, 4);
 	cairo_line_to (cr, 22, 4);
@@ -406,8 +408,7 @@ static void prepare_faceplates(Fil4UI* ui) {
 	cairo_stroke (cr);
 	cairo_destroy (cr);
 
-	ui->lpf_btn[0] = cairo_image_surface_create(CAIRO_FORMAT_ARGB32, 26, 20);
-	cr = cairo_create (ui->lpf_btn[0]);
+	NEW_SF(ui->lpf_btn[0], 26, 20);
 	cairo_move_to (cr,  4,  4);
 	cairo_line_to (cr, 17,  4);
 	cairo_line_to (cr, 22, 16);
@@ -420,8 +421,7 @@ static void prepare_faceplates(Fil4UI* ui) {
 	cairo_stroke (cr);
 	cairo_destroy (cr);
 
-	ui->lpf_btn[1] = cairo_image_surface_create(CAIRO_FORMAT_ARGB32, 26, 20);
-	cr = cairo_create (ui->lpf_btn[1]);
+	NEW_SF(ui->lpf_btn[1], 26, 20);
 	cairo_move_to (cr,  4, 4);
 	cairo_line_to (cr, 17, 4);
 	cairo_line_to (cr, 22, 16);
@@ -435,8 +435,9 @@ static void prepare_faceplates(Fil4UI* ui) {
 	cairo_destroy (cr);
 
 #define INIT_DIAL_SF(VAR, W, H) \
-	VAR = cairo_image_surface_create(CAIRO_FORMAT_ARGB32, W, H); \
+	VAR = cairo_image_surface_create(CAIRO_FORMAT_ARGB32, 2 * (W), 2 * (H)); \
 	cr = cairo_create (VAR); \
+	cairo_scale (cr, 2.0, 2.0); \
 	CairoSetSouerceRGBA(c_trs); \
 	cairo_set_operator (cr, CAIRO_OPERATOR_SOURCE); \
 	cairo_rectangle (cr, 0, 0, W, H); \
@@ -1283,6 +1284,9 @@ static void tx_state (Fil4UI* ui) {
 
 	lv2_atom_forge_property_head(&ui->forge, ui->uris.s_dbscale, 0);
 	lv2_atom_forge_float(&ui->forge, ui->ydBrange);
+
+	lv2_atom_forge_property_head(&ui->forge, ui->uris.s_uiscale, 0);
+	lv2_atom_forge_float(&ui->forge, ui->rw->widget_scale);
 
 	lv2_atom_forge_pop(&ui->forge, &frame);
 	ui->write(ui->controller, FIL_ATOM_CONTROL, lv2_atom_total_size(msg), ui->uris.atom_eventTransfer, msg);
@@ -2330,6 +2334,7 @@ static RobWidget * toplevel(Fil4UI* ui, void * const top) {
 	/* main widget: layout */
 	ui->rw = rob_vbox_new (FALSE, 2);
 	robwidget_make_toplevel (ui->rw, top);
+	robwidget_toplevel_enable_scaling (ui->rw);
 
 	ui->font[0] = pango_font_description_from_string("Mono 9px");
 	ui->font[1] = pango_font_description_from_string("Mono 10px");
@@ -2377,7 +2382,7 @@ static RobWidget * toplevel(Fil4UI* ui, void * const top) {
 	robtk_pbtn_set_alignment(ui->btn_peak, .5, .5);
 
 	robtk_dial_set_default(ui->spn_g_gain, 0.0);
-	robtk_dial_set_surface (ui->spn_g_gain, ui->dial_bg[0]);
+	robtk_dial_set_scaled_surface_scale (ui->spn_g_gain, ui->dial_bg[0], 2.0);
 	robtk_dial_set_detent_default (ui->spn_g_gain, true);
 	robtk_dial_set_scroll_mult (ui->spn_g_gain, 5.f);
 
@@ -2451,10 +2456,10 @@ static RobWidget * toplevel(Fil4UI* ui, void * const top) {
 	robtk_dial_set_scroll_mult (ui->spn_g_hiq, 5.f);
 	robtk_dial_set_scroll_mult (ui->spn_g_loq, 5.f);
 
-	robtk_dial_set_surface (ui->spn_g_hifreq, ui->dial_hplp[0]);
-	robtk_dial_set_surface (ui->spn_g_lofreq, ui->dial_hplp[1]);
-	robtk_dial_set_surface (ui->spn_g_hiq, ui->dial_hplp[2]);
-	robtk_dial_set_surface (ui->spn_g_loq, ui->dial_hplp[3]);
+	robtk_dial_set_scaled_surface_scale (ui->spn_g_hifreq, ui->dial_hplp[0], 2.0);
+	robtk_dial_set_scaled_surface_scale (ui->spn_g_lofreq, ui->dial_hplp[1], 2.0);
+	robtk_dial_set_scaled_surface_scale (ui->spn_g_hiq, ui->dial_hplp[2], 2.0);
+	robtk_dial_set_scaled_surface_scale (ui->spn_g_loq, ui->dial_hplp[3], 2.0);
 
 	/* HPF on the left side */
 	rob_table_attach (ui->ctbl, GBI_W(ui->btn_g_hipass), col, col+1, 0, 2, 5, 0, RTK_EXANDF, RTK_SHRINK);
@@ -2507,14 +2512,14 @@ static RobWidget * toplevel(Fil4UI* ui, void * const top) {
 		robtk_cbtn_set_color_on (ui->btn_enable[i],  c_fil[i][0], c_fil[i][1], c_fil[i][2]);
 		robtk_cbtn_set_color_off (ui->btn_enable[i], c_fil[i][0] * .3, c_fil[i][1] * .3, c_fil[i][2] * .3);
 
-		robtk_dial_set_surface (ui->spn_gain[i], ui->dial_bg[0]);
-		robtk_dial_set_surface (ui->spn_freq[i], ui->dial_fq[i]);
+		robtk_dial_set_scaled_surface_scale (ui->spn_gain[i], ui->dial_bg[0], 2.0);
+		robtk_dial_set_scaled_surface_scale (ui->spn_freq[i], ui->dial_fq[i], 2.0);
 		if (i == 0) {
-			robtk_dial_set_surface (ui->spn_bw[i],   ui->dial_bg[2]);
+			robtk_dial_set_scaled_surface_scale (ui->spn_bw[i],   ui->dial_bg[2], 2.0);
 		} else if (i == NCTRL -1) {
-			robtk_dial_set_surface (ui->spn_bw[i],   ui->dial_bg[3]);
+			robtk_dial_set_scaled_surface_scale (ui->spn_bw[i],   ui->dial_bg[3], 2.0);
 		} else {
-			robtk_dial_set_surface (ui->spn_bw[i],   ui->dial_bg[1]);
+			robtk_dial_set_scaled_surface_scale (ui->spn_bw[i],   ui->dial_bg[1], 2.0);
 		}
 
 		robtk_cbtn_set_temporary_mode (ui->btn_enable[i], 1);
@@ -2549,7 +2554,7 @@ static RobWidget * toplevel(Fil4UI* ui, void * const top) {
 
 	ui->spn_fftgain  = robtk_dial_new_with_size (-30, 30, 1.0,
 				GED_WIDTH, GED_HEIGHT + 4, GED_CX, GED_CY + 3, GED_RADIUS);
-	robtk_dial_set_surface (ui->spn_fftgain, ui->dial_bg[4]);
+	robtk_dial_set_scaled_surface_scale (ui->spn_fftgain, ui->dial_bg[4], 2.0);
 	robtk_dial_set_value (ui->spn_fftgain, 0);
 	robtk_dial_set_sensitive (ui->spn_fftgain, false);
 	robtk_dial_set_callback (ui->spn_fftgain,  cb_fft_change, ui);
@@ -2888,6 +2893,14 @@ port_event(LV2UI_Handle handle,
 				if (1 == lv2_atom_object_get(obj, ui->uris.s_fftchan, &a0, NULL) && a0) {
 					const int fm = ((LV2_Atom_Int*)a0)->body;
 					robtk_select_set_value (ui->sel_chn, fm);
+				}
+
+				a0 = NULL;
+				if (1 == lv2_atom_object_get(obj, ui->uris.s_uiscale, &a0, NULL) && a0) {
+					const float sc = ((LV2_Atom_Float*)a0)->body;
+					if (sc != ui->rw->widget_scale && sc >= 1.0 && sc <= 2.0) {
+						robtk_queue_scale_change (ui->rw, sc);
+					}
 				}
 			}
 		}
