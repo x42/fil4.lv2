@@ -32,8 +32,8 @@
 #define OPTIMIZE_FOR_BROKEN_HOSTS // which send updates for non-changed values every cycle
 #define USE_LOP_FFT // measure LowPass response rather than calculate its magnitude
 
-#define MTR_URI "http://gareus.org/oss/lv2/fil4#"
-#define MTR_GUI "ui"
+#define RTK_URI "http://gareus.org/oss/lv2/fil4#"
+#define RTK_GUI "ui"
 
 #define DOTRADIUS (9) // radius of draggable nodes on the plot
 #define BOXRADIUS (7)
@@ -2752,9 +2752,9 @@ instantiate(
 		return NULL;
 	}
 
-	if (!strcmp(plugin_uri, MTR_URI "mono")) {
+	if (!strcmp(plugin_uri, RTK_URI "mono")) {
 		ui->n_channels = 1;
-	} else if (!strcmp(plugin_uri, MTR_URI "stereo")) {
+	} else if (!strcmp(plugin_uri, RTK_URI "stereo")) {
 		ui->n_channels = 2;
 	} else {
 		free (ui);
