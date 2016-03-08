@@ -57,6 +57,10 @@
 #define HYPOTF(X,Y) (sqrtf (SQUARE(X) + SQUARE(Y)))
 #endif
 
+#ifdef _WIN32
+#define snprintf(s, l, ...) sprintf(s, __VA_ARGS__)
+#endif
+
 enum {
 	Ctrl_HPF = NCTRL,
 	Ctrl_LPF = NCTRL + 1,
