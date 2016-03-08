@@ -9,7 +9,7 @@ static const RtkLv2Description _plugin_stereo = {
 	&lv2ui_descriptor
 	, 1 // uint32_t dsp_descriptor_id
 	, 0 // uint32_t gui_descriptor_id
-	, "4 Band Parametric EQ Stereo" // const char *plugin_human_id
+	, "x42-eq - Parametric Equalizer Stereo" // const char *plugin_human_id
 	, (const struct LV2Port[40])
 	{
 		{ "control", ATOM_IN, nan, nan, nan, "UI to plugin communication"},

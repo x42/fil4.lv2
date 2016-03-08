@@ -4,7 +4,7 @@
 	doap:license <http://usefulinc.com/doap/licenses/gpl> ;
 	doap:maintainer <http://gareus.org/rgareus#me> ;
 	@VERSION@
-	doap:name "4 Band Parametric EQ@NAMESUFFIX@";
+	doap:name "x42-eq - Parametric Equalizer@NAMESUFFIX@";
 	lv2:requiredFeature urid:map ;
 	lv2:extensionData state:interface @SIGNATURE@;
 	lv2:optionalFeature lv2:hardRTCapable ;
