@@ -196,6 +196,11 @@ ifeq ($(GLTHREADSYNC), yes)
   GLUICFLAGS+=-DTHREADSYNC
 endif
 
+ifneq ($(LIC_CFLAGS),)
+  SIGNATURE=, <http:\\/\\/harrisonconsoles.com\\/lv2\\/license\#interface>
+  override CXXFLAGS += -I$(RW)
+endif
+
 ROBGL+= Makefile
 
 JACKCFLAGS=-I. $(CXXFLAGS) $(LIC_CFLAGS)
@@ -230,10 +235,10 @@ $(BUILDDIR)$(LV2NAME).ttl: Makefile lv2ttl/$(LV2NAME).ttl.in \
 	@mkdir -p $(BUILDDIR)
 	sed "s/@LV2NAME@/$(LV2NAME)/g;s/@UI_TYPE@/$(UI_TYPE)/;s/@UI_REQ@/$(LV2UIREQ)/" \
 	    lv2ttl/$(LV2NAME).ttl.in > $(BUILDDIR)$(LV2NAME).ttl
-	sed "s/@LV2NAME@/$(LV2NAME)/g;s/@URISUFFIX@/mono/;s/@NAMESUFFIX@/ Mono/;s/@CTLSIZE@/65888/;s/@VERSION@/lv2:microVersion $(LV2MIC) ;lv2:minorVersion $(LV2MIN) ;/g" \
+	sed "s/@LV2NAME@/$(LV2NAME)/g;s/@URISUFFIX@/mono/;s/@NAMESUFFIX@/ Mono/;s/@CTLSIZE@/65888/;s/@SIGNATURE@/$(SIGNATURE)/;s/@VERSION@/lv2:microVersion $(LV2MIC) ;lv2:minorVersion $(LV2MIN) ;/g" \
 	    lv2ttl/$(LV2NAME).ports.ttl.in >> $(BUILDDIR)$(LV2NAME).ttl
 	cat lv2ttl/$(LV2NAME).mono.ttl.in >> $(BUILDDIR)$(LV2NAME).ttl
-	sed "s/@LV2NAME@/$(LV2NAME)/g;s/@URISUFFIX@/stereo/;s/@NAMESUFFIX@/ Stereo/;s/@CTLSIZE@/131424/;s/@VERSION@/lv2:microVersion $(LV2MIC) ;lv2:minorVersion $(LV2MIN) ;/g" \
+	sed "s/@LV2NAME@/$(LV2NAME)/g;s/@URISUFFIX@/stereo/;s/@NAMESUFFIX@/ Stereo/;s/@CTLSIZE@/131424/;s/@SIGNATURE@/$(SIGNATURE)/;s/@VERSION@/lv2:microVersion $(LV2MIC) ;lv2:minorVersion $(LV2MIN) ;/g" \
 	    lv2ttl/$(LV2NAME).ports.ttl.in >> $(BUILDDIR)$(LV2NAME).ttl
 	cat lv2ttl/$(LV2NAME).stereo.ttl.in >> $(BUILDDIR)$(LV2NAME).ttl
 
@@ -243,9 +248,9 @@ GUI_DEPS = gui/analyser.cc gui/analyser.h gui/fft.c gui/fil4.c src/uris.h src/lo
 
 $(BUILDDIR)$(LV2NAME)$(LIB_EXT): $(DSP_DEPS) Makefile
 	@mkdir -p $(BUILDDIR)
-	$(CXX) $(CPPFLAGS) $(CXXFLAGS) \
+	$(CXX) $(CPPFLAGS) $(CXXFLAGS) $(LIC_CFLAGS)\
 	  -o $(BUILDDIR)$(LV2NAME)$(LIB_EXT) $(DSP_SRC) \
-	  -shared $(LV2LDFLAGS) $(LDFLAGS) $(LOADLIBES)
+	  -shared $(LV2LDFLAGS) $(LDFLAGS) $(LOADLIBES) $(LIC_LOADLIBES)
 	$(STRIP) $(STRIPFLAGS) $(BUILDDIR)$(LV2NAME)$(LIB_EXT)
 
 jackapps: $(JACKAPP)

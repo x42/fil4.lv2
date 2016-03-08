@@ -535,6 +535,17 @@ cleanup(LV2_Handle instance)
 	free(instance);
 }
 
+#ifdef WITH_SIGNATURE
+#define RTK_URI FIL4_URI
+#include "gpg_init.c"
+#include WITH_SIGNATURE
+struct license_info license_infos = {
+	"x42-Equalizer",
+	"http://x42-plugins.com/x42/x42-eq"
+};
+#include "gpg_lv2ext.c"
+#endif
+
 const void*
 extension_data(const char* uri)
 {
@@ -542,6 +553,9 @@ extension_data(const char* uri)
 	if (!strcmp(uri, LV2_STATE__interface)) {
 		return &state;
 	}
+#ifdef WITH_SIGNATURE
+	LV2_LICENSE_EXT_C
+#endif
 	return NULL;
 }
 

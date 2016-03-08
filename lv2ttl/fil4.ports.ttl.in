@@ -6,7 +6,7 @@
 	@VERSION@
 	doap:name "4 Band Parametric EQ@NAMESUFFIX@";
 	lv2:requiredFeature urid:map ;
-	lv2:extensionData state:interface ;
+	lv2:extensionData state:interface @SIGNATURE@;
 	lv2:optionalFeature lv2:hardRTCapable ;
   ui:ui @LV2NAME@:ui_gl ;
 	lv2:port [

@@ -32,7 +32,7 @@
 #define OPTIMIZE_FOR_BROKEN_HOSTS // which send updates for non-changed values every cycle
 #define USE_LOP_FFT // measure LowPass response rather than calculate its magnitude
 
-#define RTK_URI "http://gareus.org/oss/lv2/fil4#"
+#define RTK_URI FIL4_URI
 #define RTK_GUI "ui"
 
 #define DOTRADIUS (9) // radius of draggable nodes on the plot
