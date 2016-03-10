@@ -340,7 +340,9 @@ static void process_channel(Fil4* self, FilterChannel *fc, uint32_t p_samples, u
 
 		if (p) {
 			/* active or bypassed */
-			memcpy (aop, p, k * sizeof (float));
+			if (aop != p) { // no in-place bypass
+				memcpy (aop, p, k * sizeof (float));
+			}
 		} else {
 			/* fade in/out */
 			d = (j / 16.0 - g) / k;
