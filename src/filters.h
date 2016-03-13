@@ -35,7 +35,7 @@ class Fil4Paramsect
 		_a = _s1 = _s2 = _z1 = _z2 = 0.0f;
 	}
 
-	void proc (int k, float *sig, float f, float b, float g)
+	bool proc (int k, float *sig, float f, float b, float g)
 	{
 		float s1, s2, d1, d2, a, da, x, y;
 		bool  u2 = false;
@@ -98,7 +98,12 @@ class Fil4Paramsect
 		if (isnan(_z1)) _z1 = 0;
 		if (isnan(_z2)) _z2 = 0;
 #endif
+		return u2;
 	}
+
+	float s1 () const { return _s1 * (1.f + _s2); }
+	float s2 () const { return _s2; }
+	float g0 () const { return .5f * (_g - 1.f) * (1.f - _s2); }
 
 	private:
 

@@ -180,6 +180,10 @@ else
 override CXXFLAGS += -DPTW32_STATIC_LIB
 endif
 
+ifneq ($(INLINEDISPLAY),)
+override CXXFLAGS += `pkg-config --cflags cairo pango` -I$(RW) -DDISPLAY_INTERFACE
+override LOADLIBES += `pkg-config --libs cairo pango`
+endif
 
 GLUICFLAGS+=`pkg-config --cflags cairo pango` $(value FFTW_CFLAGS) $(CXXFLAGS)
 GLUILIBS+=`pkg-config $(PKG_UI_FLAGS) --libs cairo pango pangocairo $(PKG_GL_LIBS)` $(value FFTW_LIBS)

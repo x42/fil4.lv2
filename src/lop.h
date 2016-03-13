@@ -42,6 +42,7 @@ typedef struct {
 
 	float freq, res;
 	float rate;
+	bool  en;
 #ifdef LP_EXTRA_SHELF
 	IIRProc iir_hs;
 #endif
@@ -59,6 +60,7 @@ static void lop_setup (LowPass *f, float rate, float freq, float res) {
 	f->rate = rate;
 	f->freq = freq;
 	f->res  = res;
+	f->en   = false;
 
 	f->fb = RESLP(res);
 	if (f->fb < 0) f->fb = 0;
@@ -86,8 +88,10 @@ static void lop_setup (LowPass *f, float rate, float freq, float res) {
 #endif
 }
 
-static void lop_interpolate (LowPass *f, bool en, float freq, float res) {
+static bool lop_interpolate (LowPass *f, bool en, float freq, float res) {
+	bool changed = f->en != en;
 	bool rchange = false;
+	f->en = en;
 	if (res != f->res) {
 		f->res = res;
 		f->fb = RESLP(res);
@@ -106,6 +110,7 @@ static void lop_interpolate (LowPass *f, bool en, float freq, float res) {
 		const float w2 = 4 * f->freq / f->rate;
 		const float w3 = f->freq / (.25 * f->rate + .5 + f->freq);
 		f->tg = (1 + SQUARE(w3)) / (1 + SQUARE(w2));
+		changed = true;
 	}
 
 	const float ta= en ? f->alpha : 1.0;
@@ -134,11 +139,13 @@ static void lop_interpolate (LowPass *f, bool en, float freq, float res) {
 		f->g = tg;
 	} else {
 		f->g += .01 * (tg - f->g);
+		changed = true;
 	}
 
 #ifdef LP_EXTRA_SHELF
 	if (iir_interpolate (&f->iir_hs, en ? .5 : 1.0, f->rate / 3, .444)) {
 		iir_calc_highshelf (&f->iir_hs);
+		changed = true;
 	}
 #endif
 
@@ -148,6 +155,7 @@ static void lop_interpolate (LowPass *f, bool en, float freq, float res) {
 	if (isnan(f->z3)) f->z3 = 0;
 	if (isnan(f->z4)) f->z4 = 0;
 #endif
+	return changed;
 }
 
 static void lop_set (LowPass *f, float freq, float res) {

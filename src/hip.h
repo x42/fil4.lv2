@@ -28,6 +28,7 @@ typedef struct {
 	float alpha, omega, q2;
 	float freq, qual; // last settings
 	float rate;
+	bool  en;
 } HighPass;
 
 static void hip_setup (HighPass *f, float rate, float freq, float q) {
@@ -46,10 +47,13 @@ static void hip_setup (HighPass *f, float rate, float freq, float q) {
 	f->a = 1.0;
 	f->q = 0.0; // start bypassed
 	f->g = 0.0; // fade in
+	f->en = false;
 }
 
-static void hip_interpolate (HighPass *f, bool en, float freq, float q) {
+static bool hip_interpolate (HighPass *f, bool en, float freq, float q) {
 	// called an interval of max 48 samples
+	bool changed = f->en != en;
+	f->en = en;
 
 	if (freq != f->freq) {
 		f->freq = freq;
@@ -61,6 +65,7 @@ static void hip_interpolate (HighPass *f, bool en, float freq, float q) {
 		}
 		f->omega = freq / f->rate;
 		f->alpha = exp (-2.0 * M_PI * f->omega);
+		changed = true;
 	}
 
 	if (f->qual != q) {
@@ -69,6 +74,7 @@ static void hip_interpolate (HighPass *f, bool en, float freq, float q) {
 		if (f->q2 > 1.6f) f->q2 = 1.6f;
 		//printf("HI: %f -> %f\n", q, f->q2);
 		f->qual = q;
+		changed = true;
 	}
 
 	const float to = en ? f->alpha : 1.0;
@@ -76,6 +82,7 @@ static void hip_interpolate (HighPass *f, bool en, float freq, float q) {
 		f->a = to;
 	} else {
 		f->a += .01 * (to - f->a);
+		changed = true;
 	}
 
 	const float tq = en ? f->q2 : 0;
@@ -83,6 +90,7 @@ static void hip_interpolate (HighPass *f, bool en, float freq, float q) {
 		f->q = tq;
 	} else {
 		f->q += .01 * (tq - f->q);
+		changed = true;
 	}
 
 	//target gain = 1 + (.5 + q) * 2 * w;
@@ -91,6 +99,7 @@ static void hip_interpolate (HighPass *f, bool en, float freq, float q) {
 		f->g = tg;
 	} else {
 		f->g += .01 * (tg - f->g);
+		changed = true;
 	}
 
 	if (!en) {
@@ -103,6 +112,7 @@ static void hip_interpolate (HighPass *f, bool en, float freq, float q) {
 	if (isnan(f->z2)) f->z2 = 0;
 	if (isnan(f->y2)) f->y2 = 0;
 #endif
+	return changed;
 }
 
 static void hip_compute (HighPass *f, uint32_t n_samples, float *buf) {

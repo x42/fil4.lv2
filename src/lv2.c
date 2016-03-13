@@ -29,6 +29,17 @@
 #include "lv2/lv2plug.in/ns/lv2core/lv2.h"
 #include "lv2/lv2plug.in/ns/ext/state/state.h"
 
+#ifdef DISPLAY_INTERFACE
+#include <cairo/cairo.h>
+#include <pango/pangocairo.h>
+#include "rtk/common.h"
+
+typedef struct _LV2_QueueDraw {
+	void *handle;
+	void (*queue_draw)(void* handle);
+} LV2_QueueDraw;
+#endif
+
 static bool printed_capacity_warning = false;
 
 typedef struct {
@@ -74,6 +85,13 @@ typedef struct {
 	float                    db_scale;
 	float                    ui_scale;
 
+	bool                     need_expose;
+	bool                     enabled;
+#ifdef DISPLAY_INTERFACE
+	cairo_surface_t*         display;
+	LV2_QueueDraw*           queue_draw;
+	uint32_t                 w,h;
+#endif
 } Fil4;
 
 static void init_filter_channel (FilterChannel *fc, double rate) {
@@ -117,6 +135,11 @@ instantiate(const LV2_Descriptor*     descriptor,
 		if (!strcmp(features[i]->URI, LV2_URID__map)) {
 			self->map = (LV2_URID_Map*)features[i]->data;
 		}
+#ifdef DISPLAY_INTERFACE
+		else if (!strcmp(features[i]->URI, "http://harrisonconsoles.com/lv2/inlinedisplay#queue_draw")) {
+			self->queue_draw = (LV2_QueueDraw*) features[i]->data;
+		}
+#endif
 	}
 
 	if (!self->map) {
@@ -301,13 +324,19 @@ static void process_channel(Fil4* self, FilterChannel *fc, uint32_t p_samples, u
 		/* update IIR */
 		if (iir_interpolate (&fc->iir_lowshelf,  ls_gain, ls_freq, ls_q)) {
 			iir_calc_lowshelf (&fc->iir_lowshelf);
+			self->need_expose = true;
 		}
 		if (iir_interpolate (&fc->iir_highshelf, hs_gain, hs_freq, hs_q)) {
 			iir_calc_highshelf (&fc->iir_highshelf);
+			self->need_expose = true;
 		}
 
-		hip_interpolate (&fc->hip, hipass, hifreq, hi_q);
-		lop_interpolate (&fc->lop, lopass, lofreq, lo_q);
+		if (hip_interpolate (&fc->hip, hipass, hifreq, hi_q)) {
+			self->need_expose = true;
+		}
+		if (lop_interpolate (&fc->lop, lopass, lofreq, lo_q)) {
+			self->need_expose = true;
+		}
 
 		/* run filters */
 
@@ -315,7 +344,9 @@ static void process_channel(Fil4* self, FilterChannel *fc, uint32_t p_samples, u
 		lop_compute (&fc->lop, k, sig);
 
 		for (int j = 0; j < NSECT; ++j) {
-			fc->_sect [j].proc (k, sig, sfreq [j], sband [j], sgain [j]);
+			if (fc->_sect [j].proc (k, sig, sfreq [j], sband [j], sgain [j])) {
+				self->need_expose = true;
+			}
 		}
 
 		iir_compute (&fc->iir_lowshelf, k, sig);
@@ -345,6 +376,7 @@ static void process_channel(Fil4* self, FilterChannel *fc, uint32_t p_samples, u
 			}
 		} else {
 			/* fade in/out */
+			self->need_expose = true;
 			d = (j / 16.0 - g) / k;
 			for (uint32_t i = 0; i < k; ++i) {
 				g += d;
@@ -458,6 +490,8 @@ run(LV2_Handle instance, uint32_t n_samples)
 		}
 	}
 
+	self->enabled = self->_port [FIL_ENABLE][0] > 0;
+
 	self->peak_signal = peak;
 	if (self->resend_peak > 0) {
 		--self->resend_peak;
@@ -475,6 +509,13 @@ run(LV2_Handle instance, uint32_t n_samples)
 	
 	/* close off atom-sequence */
 	lv2_atom_forge_pop(&self->forge, &self->frame);
+
+#ifdef DISPLAY_INTERFACE
+	if (self->need_expose && self->queue_draw) {
+		self->need_expose = false;
+		self->queue_draw->queue_draw (self->queue_draw->handle);
+	}
+#endif
 }
 
 #define STATESTORE(URI, TYPE, VALUE) \
@@ -534,8 +575,154 @@ fil4_restore(LV2_Handle                  instance,
 static void
 cleanup(LV2_Handle instance)
 {
+#ifdef DISPLAY_INTERFACE
+	Fil4* self = (Fil4*)instance;
+	if (self->display) {
+		cairo_surface_destroy (self->display);
+	}
+#endif
 	free(instance);
 }
+
+#ifdef DISPLAY_INTERFACE
+
+#ifndef HYPOTF
+#define HYPOTF(X,Y) (sqrtf (SQUARE(X) + SQUARE(Y)))
+#endif
+
+/* drawing helpers, calculate respone for given frequency */
+static float get_filter_response (Fil4Paramsect const * const flt, const float w) {
+	const float c1 = cosf (w);
+	const float s1 = sinf (w);
+	const float c2 = cosf (2.f * w);
+	const float s2 = sinf (2.f * w);
+
+	float x = c2 + flt->s1() * c1 + flt->s2();
+	float y = s2 + flt->s1() * s1;
+
+	const float t1 = HYPOTF (x, y);
+
+	x += flt->g0 () * (c2 - 1.f);
+	y += flt->g0 () * s2;
+
+	const float t2 = HYPOTF (x, y);
+
+	return 20.f * log10f (t2 / t1);
+}
+
+static float get_shelf_response (IIRProc const * const flt, const float w) {
+	const float c1 = cosf(w);
+	const float s1 = sinf(w);
+
+	const float _A  = flt->b0 + flt->b2;
+	const float _B  = flt->b0 - flt->b2;
+	const float _C  = 1.0     + flt->a2;
+	const float _D  = 1.0     - flt->a2;
+
+	const float A = _A * c1 + flt->b1;
+	const float B = _B * s1;
+	const float C = _C * c1 + flt->a1;
+	const float D = _D * s1;
+	return 20.f * log10f (sqrtf ((SQUARE(A) + SQUARE(B)) * (SQUARE(C) + SQUARE(D))) / (SQUARE(C) + SQUARE(D)));
+}
+
+static float get_highpass_response (HighPass const * const hip, const float freq) {
+	if (!hip->en) {
+		return 0;
+	} else {
+		const float wr = hip->freq / freq;
+		float q = hip->q;
+		return -10.f * log10f (SQUARE(1 + SQUARE(wr)) - SQUARE(q * wr));
+	}
+}
+
+static float get_lowpass_response (LowPass const * const lop, const float freq, const float rate) {
+	if (!lop->en) {
+		return 0;
+	} else {
+		// this is only an approx.
+		const float w  = sin (M_PI * freq / rate);
+		const float wc = sin (M_PI * lop->freq / rate);
+		const float q =  sqrtf(4.f * lop->r / (1 + lop->r));
+		float xhs = 0;
+#ifdef LP_EXTRA_SHELF
+		xhs = get_shelf_response (&lop->iir_hs, 2.f * M_PI * freq / rate);
+#endif
+		return -10.f * log10f (SQUARE(1 + SQUARE(w/wc)) - SQUARE(q * w / wc)) + xhs;
+	}
+}
+
+static void *
+fil4_render(LV2_Handle instance, uint32_t w, uint32_t h)
+{
+	//printf ("RENDER %d %d\n", w, h); // XXX
+	Fil4* self = (Fil4*)instance;
+	if (!self->display || self->w != w || self->h != h) {
+		if (self->display) cairo_surface_destroy(self->display);
+		self->display = cairo_image_surface_create (CAIRO_FORMAT_ARGB32, w, h);
+		self->w = w;
+		self->h = h;
+	}
+	cairo_t* cr = cairo_create (self->display);
+	rounded_rectangle (cr, 2, 2, w - 4, h - 4, 5);
+	if (self->enabled) {
+		cairo_set_source_rgba (cr, .2, .2, .2, 1.0);
+	} else {
+		cairo_set_source_rgba (cr, .1, .1, .1, 1.0);
+	}
+	cairo_fill_preserve (cr);
+	cairo_clip (cr);
+
+	const float yr = floorf ((h - 4.f) / (2.f * 20)); // +/- 20dB
+	const float ym = rintf  ((h - 2.f) * .5f) - .5;
+	const float xw = w - 4;
+
+	const float a = self->enabled ? 1.0 : .2;
+
+	/* zero line */
+	cairo_set_operator (cr, CAIRO_OPERATOR_OVER);
+	cairo_set_line_width(cr, 1.0);
+	cairo_set_source_rgba (cr, .6, .6, .6, a);
+	cairo_move_to (cr, 2,     ym);
+	cairo_line_to (cr, w - 2, ym);
+	cairo_stroke(cr);
+
+	FilterChannel const * const fc = &self->fc[0];
+
+	for (uint32_t i = 0; i < xw; ++i) {
+		const float freq = 20.f * powf (1000.f, i / xw);
+		const float w = 2.f * M_PI * freq / self->rate;
+		// TODO calc sin(w), cos(w) here, once
+
+		float y = 0;
+		for (int j = 0; j < NSECT; ++j) {
+			y += yr * get_filter_response (&fc->_sect[j], w);
+		}
+		y += yr * get_shelf_response (&fc->iir_lowshelf, w);
+		y += yr * get_shelf_response (&fc->iir_highshelf, w);
+
+		y += yr * get_highpass_response (&fc->hip, freq);
+		y += yr * get_lowpass_response (&fc->lop, freq, self->rate);
+
+		if (i == 0) {
+			cairo_move_to (cr, 2.5 + i, ym - y);
+		} else {
+			cairo_line_to (cr, 2.5 + i, ym - y);
+		}
+	}
+
+	cairo_set_source_rgba (cr, .8, .8, .8, a);
+	cairo_stroke_preserve(cr);
+	cairo_line_to (cr, w - 2, ym);
+	cairo_line_to (cr, 2, ym);
+	cairo_set_source_rgba (cr, 0.5, 0.5, 0.5, 0.5 * a);
+	cairo_fill (cr);
+
+	cairo_destroy (cr);
+	cairo_surface_flush (self->display);
+	return (void*) self->display;
+}
+#endif
 
 #ifdef WITH_SIGNATURE
 #define RTK_URI FIL4_URI
@@ -548,6 +735,12 @@ struct license_info license_infos = {
 #include "gpg_lv2ext.c"
 #endif
 
+#ifdef DISPLAY_INTERFACE
+typedef struct _LV2_InlineDisplayInterface {
+	void* (*render)(LV2_Handle instance, uint32_t w, uint32_t h);
+} LV2_InlineDisplayInterface;
+#endif
+
 const void*
 extension_data(const char* uri)
 {
@@ -555,6 +748,12 @@ extension_data(const char* uri)
 	if (!strcmp(uri, LV2_STATE__interface)) {
 		return &state;
 	}
+#ifdef DISPLAY_INTERFACE
+	static const LV2_InlineDisplayInterface display  = { fil4_render};
+	if (!strcmp(uri, "http://harrisonconsoles.com/lv2/inlinedisplay#interface")) {
+		return &display;
+	}
+#endif
 #ifdef WITH_SIGNATURE
 	LV2_LICENSE_EXT_C
 #endif
