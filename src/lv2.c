@@ -602,6 +602,10 @@ extension_data(const char* uri)
 #ifdef DISPLAY_INTERFACE
 	static const LV2_Inline_Display_Interface display  = { fil4_render };
 	if (!strcmp(uri, LV2_INLINEDISPLAY__interface)) {
+#if (defined _WIN32 && defined RTK_STATIC_INIT)
+		static int once = 0;
+		if (!once) {once = 1; gobject_init_ctor();}
+#endif
 		return &display;
 	}
 #endif
