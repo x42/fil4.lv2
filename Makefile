@@ -180,10 +180,8 @@ else
 override CXXFLAGS += -DPTW32_STATIC_LIB
 endif
 
-ifneq ($(INLINEDISPLAY),)
 override CXXFLAGS += `pkg-config --cflags cairo pango` -I$(RW) -DDISPLAY_INTERFACE
 override LOADLIBES += `pkg-config --libs cairo pango`
-endif
 
 GLUICFLAGS+=`pkg-config --cflags cairo pango` $(value FFTW_CFLAGS) $(CXXFLAGS)
 GLUILIBS+=`pkg-config $(PKG_UI_FLAGS) --libs cairo pango pangocairo $(PKG_GL_LIBS)` $(value FFTW_LIBS)
@@ -247,7 +245,7 @@ $(BUILDDIR)$(LV2NAME).ttl: Makefile lv2ttl/$(LV2NAME).ttl.in \
 	cat lv2ttl/$(LV2NAME).stereo.ttl.in >> $(BUILDDIR)$(LV2NAME).ttl
 
 DSP_SRC = src/lv2.c
-DSP_DEPS = $(DSP_SRC) src/filters.h src/iir.h src/hip.h src/uris.h src/lop.h
+DSP_DEPS = $(DSP_SRC) src/filters.h src/iir.h src/hip.h src/uris.h src/lop.h src/idpy.c
 GUI_DEPS = gui/analyser.cc gui/analyser.h gui/fft.c gui/fil4.c src/uris.h src/lop.h
 
 $(BUILDDIR)$(LV2NAME)$(LIB_EXT): $(DSP_DEPS) Makefile
