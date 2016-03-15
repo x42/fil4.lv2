@@ -66,13 +66,12 @@ static int iir_interpolate (IIRProc *f, const float gain, float freq, float q) {
 	if ((fabsf(f->gain - gain)) < 1e-4) {
 		f->gain = gain;
 	}
-	if ((fabsf(f->freq - freq)) < 1e-2) {
+	if ((fabsf(f->freq - freq)) < 3e-1) {
 		f->freq = freq;
 	}
 	if ((fabsf(f->q - q))       < 1e-3) {
 		f->q = q;
 	}
-
 	return 1;
 }
 
