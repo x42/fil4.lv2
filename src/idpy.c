@@ -113,8 +113,8 @@ fil4_render(LV2_Handle instance, uint32_t w, uint32_t max_h)
 	}
 	cairo_fill (cr);
 
-	const float yr = floorf ((h - 2.f) / (2.f * 20)); // +/- 20dB
-	const float ym = rintf  ((h - 2.f) * .5f) - .5;
+	const float yr = (h - 2.f) / (2.f * 20); // +/- 20dB
+	const float ym = rintf ((h - 2.f) * .5f) - .5;
 	const float xw = w - 1;
 
 	const float a = self->enabled ? 1.0 : .2;
