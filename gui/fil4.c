@@ -1884,7 +1884,9 @@ static RobWidget* m0_mouse_down (RobWidget* handle, RobTkBtnEvent *ev) {
 	// TODO right-click -> toggle ??
 	// double click -> en/disable band ??
 
-	assert (ui->dragging == -1);
+	if (ui->dragging != -1) {
+		return NULL;
+	}
 
 	int cp = find_control_point (ui, ev->x, ev->y);
 
