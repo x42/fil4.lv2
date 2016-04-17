@@ -188,6 +188,9 @@ typedef struct {
 	FilterSection lphs;
 #endif
 
+	bool solo_state[NCTRL + 2]; // NCTRL + LPF + HPF
+	bool soloing;
+
 	int dragging;
 	int drag_y;
 	int hover;
@@ -1667,6 +1670,47 @@ static void draw_grid (Fil4UI* ui) {
 	cairo_destroy (cr);
 }
 
+static void start_solo (Fil4UI* ui) {
+	// save solo state
+	for (int i = 0; i < NCTRL; ++i) {
+		ui->solo_state[i] = robtk_cbtn_get_active (ui->btn_enable[i]);
+	}
+	ui->solo_state [Ctrl_HPF] = robtk_ibtn_get_active (ui->btn_g_hipass);
+	ui->solo_state [Ctrl_LPF] = robtk_ibtn_get_active (ui->btn_g_lopass);
+	ui->soloing = true;
+
+	// start solo
+	for (int i = 0; i < NCTRL; ++i) {
+		if (ui->dragging == i) {
+			robtk_cbtn_set_active (ui->btn_enable[i], true);
+		} else {
+			robtk_cbtn_set_active (ui->btn_enable[i], false);
+		}
+	}
+	if (ui->dragging == Ctrl_LPF) {
+		robtk_ibtn_set_active (ui->btn_g_lopass, true);
+	} else {
+		robtk_ibtn_set_active (ui->btn_g_lopass, false);
+	}
+	if (ui->dragging == Ctrl_HPF) {
+		robtk_ibtn_set_active (ui->btn_g_hipass, true);
+	} else {
+		robtk_ibtn_set_active (ui->btn_g_hipass, false);
+	}
+}
+
+static void end_solo (Fil4UI* ui) {
+	if (!ui->soloing) {
+		return;
+	}
+	for (int i = 0; i < NCTRL; ++i) {
+		robtk_cbtn_set_active (ui->btn_enable[i], ui->solo_state[i]);
+	}
+	robtk_ibtn_set_active (ui->btn_g_lopass, ui->solo_state [Ctrl_LPF]);
+	robtk_ibtn_set_active (ui->btn_g_hipass, ui->solo_state [Ctrl_HPF]);
+	ui->soloing = false;
+}
+
 /* callbacks and iteraction related to graph */
 
 static void
@@ -1772,6 +1816,7 @@ static int find_control_point (Fil4UI* ui, const int x, const int y) {
 
 static RobWidget* m0_mouse_up (RobWidget* handle, RobTkBtnEvent *ev) {
 	Fil4UI* ui = (Fil4UI*)GET_HANDLE(handle);
+	end_solo (ui);
 	ui->dragging = -1;
 	update_filter_display (ui);
 	return NULL;
@@ -1871,6 +1916,12 @@ static RobWidget* m0_mouse_down (RobWidget* handle, RobTkBtnEvent *ev) {
 					robtk_cbtn_set_active (ui->btn_enable[cp], !robtk_cbtn_get_active(ui->btn_enable[cp]));
 				}
 				update_filter_display (ui);
+				return NULL;
+			}
+			if (ev->button == 2) {
+				ui->dragging = cp;
+				start_solo (ui);
+				break;
 			}
 			if (ev->button != 1) {
 				return NULL;
@@ -2785,6 +2836,7 @@ instantiate(
 	ui->nfo = robtk_info(ui_toplevel);
 	ui->write      = write_function;
 	ui->controller = controller;
+	ui->soloing    = false;
 	ui->dragging   = -1;
 	ui->hover      = -1;
 	ui->samplerate = 48000;
