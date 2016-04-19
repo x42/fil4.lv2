@@ -189,6 +189,7 @@ typedef struct {
 #endif
 
 	bool solo_state[NCTRL + 2]; // NCTRL + LPF + HPF
+	float solo_hplp[4];
 	bool soloing;
 
 	int dragging;
@@ -1677,25 +1678,38 @@ static void start_solo (Fil4UI* ui) {
 	}
 	ui->solo_state [Ctrl_HPF] = robtk_ibtn_get_active (ui->btn_g_hipass);
 	ui->solo_state [Ctrl_LPF] = robtk_ibtn_get_active (ui->btn_g_lopass);
+	ui->solo_hplp [0] = robtk_dial_get_value (ui->spn_g_hifreq);
+	ui->solo_hplp [1] = robtk_dial_get_value (ui->spn_g_lofreq);
+	ui->solo_hplp [2] = robtk_dial_get_value (ui->spn_g_hiq);
+	ui->solo_hplp [3] = robtk_dial_get_value (ui->spn_g_loq);
+
 	ui->soloing = true;
 
 	// start solo
+	float hz = 0;
 	for (int i = 0; i < NCTRL; ++i) {
 		if (ui->dragging == i) {
+			hz = dial_to_freq(&freqs[i], robtk_dial_get_value (ui->spn_freq[i]));
 			robtk_cbtn_set_active (ui->btn_enable[i], true);
 		} else {
 			robtk_cbtn_set_active (ui->btn_enable[i], false);
 		}
 	}
-	if (ui->dragging == Ctrl_LPF) {
-		robtk_ibtn_set_active (ui->btn_g_lopass, true);
-	} else {
-		robtk_ibtn_set_active (ui->btn_g_lopass, false);
-	}
-	if (ui->dragging == Ctrl_HPF) {
+	assert (hz != 0);
+	robtk_dial_set_value (ui->spn_g_hiq, hplp_to_dial (1.0));
+	robtk_dial_set_value (ui->spn_g_loq, hplp_to_dial (1.0));
+
+	robtk_dial_set_value (ui->spn_g_hifreq, freq_to_dial (&lphp[0], hz));
+	robtk_dial_set_value (ui->spn_g_lofreq, freq_to_dial (&lphp[1], hz));
+	if (ui->dragging > 0) {
 		robtk_ibtn_set_active (ui->btn_g_hipass, true);
 	} else {
 		robtk_ibtn_set_active (ui->btn_g_hipass, false);
+	}
+	if (ui->dragging < NCTRL - 1) {
+		robtk_ibtn_set_active (ui->btn_g_lopass, true);
+	} else {
+		robtk_ibtn_set_active (ui->btn_g_lopass, false);
 	}
 }
 
@@ -1708,6 +1722,11 @@ static void end_solo (Fil4UI* ui) {
 	}
 	robtk_ibtn_set_active (ui->btn_g_lopass, ui->solo_state [Ctrl_LPF]);
 	robtk_ibtn_set_active (ui->btn_g_hipass, ui->solo_state [Ctrl_HPF]);
+
+	robtk_dial_set_value (ui->spn_g_hifreq, ui->solo_hplp [0]);
+	robtk_dial_set_value (ui->spn_g_lofreq, ui->solo_hplp [1]);
+	robtk_dial_set_value (ui->spn_g_hiq, ui->solo_hplp [2]);
+	robtk_dial_set_value (ui->spn_g_loq, ui->solo_hplp [3]);
 	ui->soloing = false;
 }
 
@@ -1920,7 +1939,7 @@ static RobWidget* m0_mouse_down (RobWidget* handle, RobTkBtnEvent *ev) {
 				update_filter_display (ui);
 				return NULL;
 			}
-			if (ev->button == 2) {
+			if (ev->button == 2 && cp < NCTRL) {
 				ui->dragging = cp;
 				start_solo (ui);
 				break;
@@ -2013,6 +2032,10 @@ static RobWidget* m0_mouse_move (RobWidget* handle, RobTkBtnEvent *ev) {
 	if (fctl && ev->x >= x0 && ev->x <= x1) {
 		const float hz = freq_at_x (ev->x - x0, ui->m0_xw);
 		robtk_dial_set_value (fctl, freq_to_dial (ffq, hz));
+		if (ui->soloing) {
+			robtk_dial_set_value (ui->spn_g_hifreq, freq_to_dial (&lphp[0], hz));
+			robtk_dial_set_value (ui->spn_g_lofreq, freq_to_dial (&lphp[1], hz));
+		}
 	}
 	if (gctl) {
 		const float db = (ui->m0_ym - ev->y) / ui->m0_yr;
