@@ -58,9 +58,16 @@ static float get_highpass_response (HighPass const * const hip, const float freq
 	if (!hip->en) {
 		return 0;
 	} else {
-		// this is only approximate, not including resonance
+		// this is only an approx.
 		const float wr = hip->freq / freq;
-		float q = hip->q;
+		float q;
+		float r = (0.7 + 0.78 * tanh (1.82 * ((hip->q) -.8))); // RESHP
+		if (r < 1.3) {
+			q = 3.01 * sqrt(r / (r+2));
+		} else {
+			// clamp pole
+			q = sqrt(4 - 0.09 / (r - 1.09));
+		}
 		return -10.f * log10f (SQUARE(1 + SQUARE(wr)) - SQUARE(q * wr));
 	}
 }
