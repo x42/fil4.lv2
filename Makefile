@@ -36,6 +36,19 @@ targets=
 STRIPFLAGS=-s
 GLUICFLAGS=-I.
 
+ifneq ($(MOD),)
+  INLINEDISPLAY=no
+  BUILDOPENGL=no
+  BUILDJACKAPP=no
+  MODLABEL1=mod:label \"x42-eq mono\";
+  MODLABEL2=mod:label \"x42-eq stereo\";
+  MODBRAND=mod:brand \"x42\";
+else
+  MODLABEL1=
+  MODLABEL2=
+  MODBRAND=
+endif
+
 UNAME=$(shell uname)
 ifeq ($(UNAME),Darwin)
   LV2LDFLAGS=-dynamiclib
@@ -86,6 +99,9 @@ targets+=$(BUILDDIR)$(LV2NAME)$(LIB_EXT)
 
 ifneq ($(BUILDOPENGL), no)
   targets+=$(BUILDDIR)$(LV2GUI)$(LIB_EXT)
+endif
+ifneq ($(MOD),)
+  targets+=$(BUILDDIR)modgui
 endif
 
 ###############################################################################
@@ -236,16 +252,22 @@ $(BUILDDIR)manifest.ttl: lv2ttl/manifest.ttl.in Makefile
 	@mkdir -p $(BUILDDIR)
 	sed "s/@LV2NAME@/$(LV2NAME)/g;s/@LIB_EXT@/$(LIB_EXT)/;s/@UI_TYPE@/$(UI_TYPE)/;s/@LV2GUI@/$(LV2GUI)/g" \
 		lv2ttl/manifest.ttl.in > $(BUILDDIR)manifest.ttl
+ifneq ($(MOD),)
+	sed "s/@LV2NAME@/$(LV2NAME)/;s/@URISUFFIX@/mono/;s/@NAMESUFFIX@/ Mono/" \
+		lv2ttl/manifest.modgui.in >> $(BUILDDIR)manifest.ttl
+	sed "s/@LV2NAME@/$(LV2NAME)/;s/@URISUFFIX@/stereo/;s/@NAMESUFFIX@/ Stereo/" \
+		lv2ttl/manifest.modgui.in >> $(BUILDDIR)manifest.ttl
+endif
 
 $(BUILDDIR)$(LV2NAME).ttl: Makefile lv2ttl/$(LV2NAME).ttl.in \
 	lv2ttl/$(LV2NAME).ports.ttl.in lv2ttl/$(LV2NAME).mono.ttl.in lv2ttl/$(LV2NAME).stereo.ttl.in
 	@mkdir -p $(BUILDDIR)
 	sed "s/@LV2NAME@/$(LV2NAME)/g;s/@UI_TYPE@/$(UI_TYPE)/;s/@UI_REQ@/$(LV2UIREQ)/" \
 	    lv2ttl/$(LV2NAME).ttl.in > $(BUILDDIR)$(LV2NAME).ttl
-	sed "s/@LV2NAME@/$(LV2NAME)/g;s/@URISUFFIX@/mono/;s/@NAMESUFFIX@/ Mono/;s/@CTLSIZE@/65888/;s/@SIGNATURE@/$(SIGNATURE)/;s/@VERSION@/lv2:microVersion $(LV2MIC) ;lv2:minorVersion $(LV2MIN) ;/g" \
+	sed "s/@LV2NAME@/$(LV2NAME)/g;s/@URISUFFIX@/mono/;s/@NAMESUFFIX@/ Mono/;s/@CTLSIZE@/65888/;s/@SIGNATURE@/$(SIGNATURE)/;s/@VERSION@/lv2:microVersion $(LV2MIC) ;lv2:minorVersion $(LV2MIN) ;/g;s/@MODBRAND@/$(MODBRAND)/;s/@MODLABEL@/$(MODLABEL1)/" \
 	    lv2ttl/$(LV2NAME).ports.ttl.in >> $(BUILDDIR)$(LV2NAME).ttl
 	cat lv2ttl/$(LV2NAME).mono.ttl.in >> $(BUILDDIR)$(LV2NAME).ttl
-	sed "s/@LV2NAME@/$(LV2NAME)/g;s/@URISUFFIX@/stereo/;s/@NAMESUFFIX@/ Stereo/;s/@CTLSIZE@/131424/;s/@SIGNATURE@/$(SIGNATURE)/;s/@VERSION@/lv2:microVersion $(LV2MIC) ;lv2:minorVersion $(LV2MIN) ;/g" \
+	sed "s/@LV2NAME@/$(LV2NAME)/g;s/@URISUFFIX@/stereo/;s/@NAMESUFFIX@/ Stereo/;s/@CTLSIZE@/131424/;s/@SIGNATURE@/$(SIGNATURE)/;s/@VERSION@/lv2:microVersion $(LV2MIC) ;lv2:minorVersion $(LV2MIN) ;/g;s/@MODBRAND@/$(MODBRAND)/;s/@MODLABEL@/$(MODLABEL2)/" \
 	    lv2ttl/$(LV2NAME).ports.ttl.in >> $(BUILDDIR)$(LV2NAME).ttl
 	cat lv2ttl/$(LV2NAME).stereo.ttl.in >> $(BUILDDIR)$(LV2NAME).ttl
 
@@ -272,6 +294,10 @@ $(APPBLD)x42-fil4$(EXE_EXT): $(DSP_DEPS) $(GUI_DEPS) \
 -include $(RW)robtk.mk
 
 $(BUILDDIR)$(LV2GUI)$(LIB_EXT): gui/fil4.c
+
+$(BUILDDIR)modgui:
+	@mkdir -p $(BUILDDIR)/modgui
+	cp -r modgui/* $(BUILDDIR)modgui/
 
 ###############################################################################
 # install/uninstall/clean target definitions
@@ -320,6 +346,7 @@ clean:
 	  $(BUILDDIR)$(LV2GUI)$(LIB_EXT)
 	rm -rf $(BUILDDIR)*.dSYM
 	rm -rf $(APPBLD)x42-*
+	rm -rf $(BUILDDIR)modgui
 	-test -d $(APPBLD) && rmdir $(APPBLD) || true
 	-test -d $(BUILDDIR) && rmdir $(BUILDDIR) || true
 

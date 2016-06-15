@@ -9,6 +9,8 @@
 	lv2:extensionData state:interface @SIGNATURE@;
 	lv2:optionalFeature lv2:hardRTCapable ;
   ui:ui @LV2NAME@:ui_gl ;
+	@MODBRAND@
+	@MODLABEL@
 	lv2:port [
 		a atom:AtomPort ,
 			lv2:InputPort ;

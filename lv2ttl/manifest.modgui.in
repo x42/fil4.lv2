@@ -1,0 +1,115 @@
+@LV2NAME@:@URISUFFIX@
+    modgui:gui [
+        modgui:resourcesDirectory <modgui> ;
+        modgui:iconTemplate <modgui/icon-x42-eq.html> ;
+        modgui:stylesheet <modgui/stylesheet-x42-eq.css> ;
+        modgui:screenshot <modgui/screenshot-x42-eq.png> ;
+        modgui:thumbnail <modgui/thumbnail-x42-eq.png> ;
+        modgui:brand "x42" ;
+        modgui:label "x42-eq@NAMESUFFIX@" ;
+        modgui:port [
+            lv2:index 0 ;
+            lv2:symbol "enable" ;
+            lv2:name "Enable" ;
+        ] , [
+            lv2:index 1 ;
+            lv2:symbol "gain" ;
+            lv2:name "Gain" ;
+        ] , [
+            lv2:index 2 ;
+            lv2:symbol "HighPass" ;
+            lv2:name "Highpass Enable" ;
+        ] , [
+            lv2:index 3 ;
+            lv2:symbol "HPfreq" ;
+            lv2:name "Highpass Frequency" ;
+        ] , [
+            lv2:index 4 ;
+            lv2:symbol "HPQ" ;
+            lv2:name "HighPass Resonance" ;
+        ] , [
+            lv2:index 5 ;
+            lv2:symbol "LSfreq" ;
+            lv2:name "LowShelf Frequency" ;
+        ] , [
+            lv2:index 6 ;
+            lv2:symbol "LSq" ;
+            lv2:name "LowShelf Bandwidth" ;
+        ] , [
+            lv2:index 7 ;
+            lv2:symbol "LSgain" ;
+            lv2:name "LowShelf Gain" ;
+        ] , [
+            lv2:index 8 ;
+            lv2:symbol "freq1" ;
+            lv2:name "Band 1 Frequency" ;
+        ] , [
+            lv2:index 9 ;
+            lv2:symbol "q1" ;
+            lv2:name "Band 1 Bandwidth" ;
+        ] , [
+            lv2:index 10 ;
+            lv2:symbol "gain1" ;
+            lv2:name "Band 1 Gain" ;
+        ] , [
+            lv2:index 11 ;
+            lv2:symbol "freq2" ;
+            lv2:name "Band 2 Frequency" ;
+        ] , [
+            lv2:index 12 ;
+            lv2:symbol "q2" ;
+            lv2:name "Band 2 Bandwidth" ;
+        ] , [
+            lv2:index 13 ;
+            lv2:symbol "gain2" ;
+            lv2:name "Band 2 Gain" ;
+        ] , [
+            lv2:index 14 ;
+            lv2:symbol "freq3" ;
+            lv2:name "Band 3 Frequency" ;
+        ] , [
+            lv2:index 15 ;
+            lv2:symbol "q3" ;
+            lv2:name "Band 3 Bandwidth" ;
+        ] , [
+            lv2:index 16 ;
+            lv2:symbol "gain1" ;
+            lv2:name "Band 3 Gain" ;
+        ] , [
+            lv2:index 17 ;
+            lv2:symbol "freq4" ;
+            lv2:name "Band 4 Frequency" ;
+        ] , [
+            lv2:index 18 ;
+            lv2:symbol "q4" ;
+            lv2:name "Band 1 Bandwidth" ;
+        ] , [
+            lv2:index 19 ;
+            lv2:symbol "gain4" ;
+            lv2:name "Band 4 Gain" ;
+        ] , [
+            lv2:index 20 ;
+            lv2:symbol "HSfreq" ;
+            lv2:name "HighShelf Frequency" ;
+        ] , [
+            lv2:index 21 ;
+            lv2:symbol "HSq" ;
+            lv2:name "HighShelf Bandwidth" ;
+        ] , [
+            lv2:index 22 ;
+            lv2:symbol "HSgain" ;
+            lv2:name "HighShelf Gain" ;
+        ] , [
+            lv2:index 23 ;
+            lv2:symbol "LowPass" ;
+            lv2:name "Lowpass Enable" ;
+        ] , [
+            lv2:index 24 ;
+            lv2:symbol "LPfreq" ;
+            lv2:name "LowPass Frequency" ;
+        ] , [
+            lv2:index 25 ;
+            lv2:symbol "LPQ" ;
+            lv2:name "LowPass Resonance" ;
+        ]
+    ] .

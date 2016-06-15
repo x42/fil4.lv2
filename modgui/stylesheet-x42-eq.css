@@ -1,0 +1,232 @@
+/* STYLES FOR THE BOXY PEDAL */
+
+@import url(/fonts/nexa/stylesheet.css);
+@import url(/fonts/questrial/stylesheet.css);
+
+
+/* = CONTAINER
+================================================ */
+.mod-pedal-boxy{{{cns}}} {
+    background-position:center center;
+    background-repeat:no-repeat;
+    position:absolute;
+    border-radius: 21px;
+}
+
+.mod-pedal-boxy{{{cns}}}.mod-x42-eq {
+    background-size:776px 451px;
+    width:776px;
+    height:451px;
+}
+
+/* = Labels
+================================================ */
+.mod-pedal-boxy{{{cns}}}.mod-x42-eq .x42-brand {
+    right:0px;
+    position:absolute;
+    text-align:center;
+    bottom:0px;
+		width: 25px;
+}
+
+.mod-pedal-boxy{{{cns}}}.mod-x42-eq .x42-brand h1 {
+    font-family:"Nexa";
+    font-size:28px;
+    padding:0;
+		margin:0;
+		color:#aaa;
+		transform: rotate(270deg);
+}
+
+.mod-pedal-boxy{{{cns}}} .x42-label {
+    left:30px;
+    right:30px;
+    bottom:28px;
+    overflow:hidden;
+    position:absolute;
+    text-align:center;
+}
+
+.mod-pedal-boxy{{{cns}}} .x42-label h1 {
+    font-family:"Questrial";
+    font-size:16px;
+    line-height:1;
+		color:#aaa;
+}
+
+/* = KNOBS
+================================================ */
+.mod-pedal-boxy{{{cns}}} .mod-control-group {
+    margin:20px !important;
+    position:relative;
+    text-align:center;
+    z-index:30;
+}
+.mod-pedal-boxy{{{cns}}} .top {
+    margin-top:0px !important;
+}
+
+.mod-pedal-boxy{{{cns}}} .mod-control-group .mod-knob {
+    overflow:hidden;
+    position:relative;
+}
+
+.mod-pedal-boxy{{{cns}}} .mod-control-group .mod-knob > span.mod-knob-title {
+    bottom:0px;
+    display:block;
+    font-size:11px;
+    font-weight:bold;
+    height:12px;
+    left:0;
+    line-height:1;
+    margin:0;
+    overflow:hidden;
+    padding:0;
+    position:absolute;
+    right:0;
+    text-transform:uppercase;
+}
+
+.mod-pedal-boxy{{{cns}}}.mod-x42-eq .mod-control-group .mod-knob .mod-knob-image {
+    background-image:url(/resources/x42-eq-knob.png{{{ns}}});
+    background-repeat:no-repeat;
+    background-size:auto 60px;
+    height:60px;
+    width:60px;
+    margin:12px auto 0 auto;
+}
+
+.mod-pedal-boxy{{{cns}}}.mod-x42-eq .mod-control-group .x42-eq-right .mod-knob-image {
+    margin-top:2px !important;
+}
+
+.mod-pedal-boxy{{{cns}}}.mod-x42-eq .mod-control-group .mod-toggle .mod-toggle-image {
+    background-image:url(/resources/x42-eq-switch.png{{{ns}}});
+    background-position:left center ;
+    background-repeat:no-repeat;
+    background-size:180px 35px;
+    height:35px;
+    width:90px;
+    margin:0px auto 0 auto;
+    cursor:pointer !important;
+    position:relative;
+    overflow:hidden;
+}
+
+.mod-pedal-boxy{{{cns}}}.mod-x42-eq .mod-control-group .mod-toggle {
+    display:inline-block;
+    width:90px;
+}
+
+.mod-pedal-boxy{{{cns}}}.mod-x42-eq .mod-control-group .mod-knob {
+    display:inline-block;
+    height:85px;
+    width:95px;
+}
+
+.mod-pedal-boxy{{{cns}}}.mod-x42-eq .mod-control-group .x42-eq-band {
+    display:inline-block;
+    width:120px;
+    border: 1px solid #666;
+    border-radius: 7px;
+		padding: 5px 0 0 2px;
+		margin-bottom: 9px;
+}
+
+.mod-pedal-boxy{{{cns}}}.mod-x42-eq .mod-control-group .x42-eq-hpf,
+.mod-pedal-boxy{{{cns}}}.mod-x42-eq .mod-control-group .x42-eq-lpf {
+    position:relative;
+    display:inline-block;
+    text-align:center;
+    width:198px;
+    border: 1px solid #666;
+    border-radius: 7px;
+		padding-top: 5px;
+}
+
+.mod-pedal-boxy{{{cns}}}.mod-x42-eq .mod-control-group .x42-eq-global {
+    position:relative;
+    display:inline-block;
+    border: 1px solid #666;
+    border-radius: 7px;
+    display:inline-block;
+    width:100px;
+		margin: 0 70px;
+		padding-top: 5px;
+}
+
+.mod-pedal-boxy{{{cns}}}.mod-x42-eq .mod-control-group .x42-eq-band .x42-eq-left {
+    margin-right: 20px;
+    background-position:left center ;
+    background-repeat:no-repeat;
+    background-size:93px 85px;
+}
+
+.mod-pedal-boxy{{{cns}}}.mod-x42-eq .mod-control-group .x42-eq-band .x42-eq-right {
+    margin-left: 30px;
+    background-position:left center ;
+    background-repeat:no-repeat;
+    background-size:93px 75px;
+		height:75px;
+}
+
+.mod-pedal-boxy{{{cns}}}.mod-x42-eq .mod-control-group .x42-eq-global .mod-knob,
+.mod-pedal-boxy{{{cns}}}.mod-x42-eq .mod-control-group .x42-eq-lpf .mod-knob,
+.mod-pedal-boxy{{{cns}}}.mod-x42-eq .mod-control-group .x42-eq-hpf .mod-knob {
+    background-position:left center ;
+    background-repeat:no-repeat;
+    background-size:93px 85px;
+}
+
+/* = Knob faceplates
+================================================ */
+.mod-pedal-boxy{{{cns}}}.mod-x42-eq .mod-control-group .x42-eq-global .x42-eq-gain,
+.mod-pedal-boxy{{{cns}}}.mod-x42-eq .mod-control-group .x42-eq-band .x42-eq-gain {
+    background-image:url(/resources/x42-eq-gain.png{{{ns}}});
+}
+.mod-pedal-boxy{{{cns}}}.mod-x42-eq .mod-control-group .x42-eq-band .x42-eq-bw {
+    background-image:url(/resources/x42-eq-bw.png{{{ns}}});
+}
+.mod-pedal-boxy{{{cns}}}.mod-x42-eq .mod-control-group .x42-eq-band .x42-eq-bwhs {
+    background-image:url(/resources/x42-eq-bwhs.png{{{ns}}});
+}
+.mod-pedal-boxy{{{cns}}}.mod-x42-eq .mod-control-group .x42-eq-band .x42-eq-bwls {
+    background-image:url(/resources/x42-eq-bwls.png{{{ns}}});
+}
+.mod-pedal-boxy{{{cns}}}.mod-x42-eq .mod-control-group .x42-eq-band .x42-eq-freq0 {
+    background-image:url(/resources/x42-eq-f0.png{{{ns}}});
+}
+.mod-pedal-boxy{{{cns}}}.mod-x42-eq .mod-control-group .x42-eq-band .x42-eq-freq1 {
+    background-image:url(/resources/x42-eq-f1.png{{{ns}}});
+}
+.mod-pedal-boxy{{{cns}}}.mod-x42-eq .mod-control-group .x42-eq-band .x42-eq-freq2 {
+    background-image:url(/resources/x42-eq-f2.png{{{ns}}});
+}
+.mod-pedal-boxy{{{cns}}}.mod-x42-eq .mod-control-group .x42-eq-band .x42-eq-freq3 {
+    background-image:url(/resources/x42-eq-f3.png{{{ns}}});
+}
+.mod-pedal-boxy{{{cns}}}.mod-x42-eq .mod-control-group .x42-eq-band .x42-eq-freq4 {
+    background-image:url(/resources/x42-eq-f4.png{{{ns}}});
+}
+.mod-pedal-boxy{{{cns}}}.mod-x42-eq .mod-control-group .x42-eq-band .x42-eq-freq5 {
+    background-image:url(/resources/x42-eq-f5.png{{{ns}}});
+}
+.mod-pedal-boxy{{{cns}}}.mod-x42-eq .mod-control-group .x42-eq-lpf .x42-eq-freql {
+    background-image:url(/resources/x42-eq-fl.png{{{ns}}});
+}
+.mod-pedal-boxy{{{cns}}}.mod-x42-eq .mod-control-group .x42-eq-lpf .x42-eq-bwlp {
+    background-image:url(/resources/x42-eq-bwlp.png{{{ns}}});
+}
+.mod-pedal-boxy{{{cns}}}.mod-x42-eq .mod-control-group .x42-eq-hpf .x42-eq-freqh {
+    background-image:url(/resources/x42-eq-fh.png{{{ns}}});
+}
+.mod-pedal-boxy{{{cns}}}.mod-x42-eq .mod-control-group .x42-eq-hpf .x42-eq-bwhp {
+    background-image:url(/resources/x42-eq-bwhp.png{{{ns}}});
+}
+
+/* = BACKGROUND IMAGES - Color of the pedal
+================================================ */
+.mod-pedal-boxy{{{cns}}}.mod-x42-eq {
+/*  background-image:url(/resources/background.png{{{ns}}}); TODO */
+    background-color:#222;
+}
