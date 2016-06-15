@@ -1684,6 +1684,15 @@ static void start_solo (Fil4UI* ui) {
 	ui->solo_hplp [3] = robtk_dial_get_value (ui->spn_g_loq);
 
 	ui->soloing = true;
+	robtk_ibtn_set_sensitive (ui->btn_g_hipass, false);
+	robtk_ibtn_set_sensitive (ui->btn_g_lopass, false);
+	robtk_dial_set_sensitive (ui->spn_g_hifreq, false);
+	robtk_dial_set_sensitive (ui->spn_g_lofreq, false);
+	robtk_dial_set_sensitive (ui->spn_g_hiq, false);
+	robtk_dial_set_sensitive (ui->spn_g_loq, false);
+	for (int i = 0; i < NCTRL; ++i) {
+		robtk_cbtn_set_sensitive (ui->btn_enable[i], false);
+	}
 
 	// start solo
 	float hz = 0;
@@ -1717,6 +1726,16 @@ static void end_solo (Fil4UI* ui) {
 	if (!ui->soloing) {
 		return;
 	}
+	robtk_ibtn_set_sensitive (ui->btn_g_hipass, true);
+	robtk_ibtn_set_sensitive (ui->btn_g_lopass, true);
+	robtk_dial_set_sensitive (ui->spn_g_hifreq, true);
+	robtk_dial_set_sensitive (ui->spn_g_lofreq, true);
+	robtk_dial_set_sensitive (ui->spn_g_hiq, true);
+	robtk_dial_set_sensitive (ui->spn_g_loq, true);
+	for (int i = 0; i < NCTRL; ++i) {
+		robtk_cbtn_set_sensitive (ui->btn_enable[i], true);
+	}
+
 	for (int i = 0; i < NCTRL; ++i) {
 		robtk_cbtn_set_active (ui->btn_enable[i], ui->solo_state[i]);
 	}
@@ -1727,6 +1746,7 @@ static void end_solo (Fil4UI* ui) {
 	robtk_dial_set_value (ui->spn_g_lofreq, ui->solo_hplp [1]);
 	robtk_dial_set_value (ui->spn_g_hiq, ui->solo_hplp [2]);
 	robtk_dial_set_value (ui->spn_g_loq, ui->solo_hplp [3]);
+
 	ui->soloing = false;
 }
 
