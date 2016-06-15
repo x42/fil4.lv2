@@ -1945,6 +1945,7 @@ static RobWidget* m0_mouse_down (RobWidget* handle, RobTkBtnEvent *ev) {
 			return NULL;
 			break;
 		default:
+#if 0
 			if (ev->button == 3) {
 				if (cp == Ctrl_LPF) {
 					robtk_ibtn_set_active (ui->btn_g_lopass, !robtk_ibtn_get_active(ui->btn_g_lopass));
@@ -1959,7 +1960,8 @@ static RobWidget* m0_mouse_down (RobWidget* handle, RobTkBtnEvent *ev) {
 				update_filter_display (ui);
 				return NULL;
 			}
-			if (ev->button == 2 && cp < NCTRL) {
+#endif
+			if (ev->button == 3 && cp < NCTRL) {
 				ui->dragging = cp;
 				start_solo (ui);
 				break;
