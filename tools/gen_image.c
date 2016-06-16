@@ -329,7 +329,7 @@ static void bw_hs_knob (cairo_t* cr)
 
 #define HLX 3 // Hi/Low pass icon x-offset
 
-static void bw_hp_knob (cairo_t* cr)
+static void bw_lp_knob (cairo_t* cr)
 {
 	float xlp, ylp;
 	CairoSetSouerceRGBA(c_dlf);
@@ -353,7 +353,7 @@ static void bw_hp_knob (cairo_t* cr)
 	{ DIALDOTS(  1.0,             .0, .5) }
 }
 
-static void bw_lp_knob (cairo_t* cr)
+static void bw_hp_knob (cairo_t* cr)
 {
 	float xlp, ylp;
 	CairoSetSouerceRGBA(c_dlf);
