@@ -172,9 +172,27 @@
     border: 1px solid #666;
     border-radius: 7px;
     display:inline-block;
-    width:100px;
-    margin: 0 70px;
+    width:120px;
     padding-top: 5px;
+}
+
+.mod-pedal-boxy{{{cns}}}.mod-x42-eq .mod-control-group .x42-eq-tf {
+    position:relative;
+    display:inline-block;
+    border: 1px solid #666;
+    border-radius: 7px;
+    display:inline-block;
+    width:120px;
+    background-color:#111;
+}
+
+.mod-pedal-boxy{{{cns}}}.mod-x42-eq .mod-control-group .x42-eq-svg {
+    position:relative;
+}
+
+.mod-pedal-boxy{{{cns}}}.mod-x42-eq .mod-control-group .x42-eq-svg svg {
+    position:relative;
+    top:3px;
 }
 
 .mod-pedal-boxy{{{cns}}}.mod-x42-eq .mod-control-group .x42-eq-band .x42-eq-left {

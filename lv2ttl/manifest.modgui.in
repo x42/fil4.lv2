@@ -5,6 +5,7 @@
         modgui:stylesheet <modgui/stylesheet-x42-eq.css> ;
         modgui:screenshot <modgui/screenshot-x42-eq.png> ;
         modgui:thumbnail <modgui/thumbnail-x42-eq.png> ;
+        modgui:javascript <modgui/x42-eq.js> ;
         modgui:brand "x42" ;
         modgui:label "x42-eq@NAMESUFFIX@" ;
     ] .
