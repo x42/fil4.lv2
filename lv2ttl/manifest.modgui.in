@@ -1,10 +1,11 @@
+
 @LV2NAME@:@URISUFFIX@
     modgui:gui [
         modgui:resourcesDirectory <modgui> ;
         modgui:iconTemplate <modgui/icon-x42-eq.html> ;
         modgui:stylesheet <modgui/stylesheet-x42-eq.css> ;
-        modgui:screenshot <modgui/screenshot-x42-eq.png> ;
-        modgui:thumbnail <modgui/thumbnail-x42-eq.png> ;
+        modgui:screenshot <modgui/screenshot-x42-eq-@URISUFFIX@.png> ;
+        modgui:thumbnail <modgui/thumbnail-x42-eq-@URISUFFIX@.png> ;
         modgui:javascript <modgui/x42-eq.js> ;
         modgui:brand "x42" ;
         modgui:label "x42-eq@NAMESUFFIX@" ;
