@@ -187,8 +187,8 @@ function (event) {
 		ds[symbol] = value;
 		tf.data ('xModPorts', ds);
 
-		/* 33 plugin control inputs + MOD .bypass */
-		if (34 >= Object.keys (ds).length) {
+		/* 33 plugin control inputs (MOD .bypass may not be sent)*/
+		if (33 <= Object.keys (ds).length) {
 			if (0 == set_filter (tf, symbol)) {
 				x42_draw_tf (tf);
 			}
@@ -205,6 +205,11 @@ function (event) {
 		var svg = tf.svg ('get');
 		svg.configure ({width: '118px'}, false);
 		svg.configure ({height: '130px'}, false);
+		svg.clear ();
+		var tg = svg.group ({stroke: '#cccccc', fontSize: '11px', textAnchor: 'middle', strokeWidth: 0.5});
+		svg.text (tg, 59, 65, "Transfer function", {dy: '-1.5em'});
+		svg.text (tg, 59, 65, "display needs");
+		svg.text (tg, 59, 65, "MOD v0.15.0 or later.", {dy: '1.5em'});
 
 		var ds = {};
 		var ports = event.ports;
@@ -215,6 +220,12 @@ function (event) {
 
 		tf.data ('xModDSP', []);
 		tf.data ('xModPorts', ds);
+
+		/* 33 plugin control inputs + MOD .bypass */
+		if (34 > Object.keys (ds).length) {
+			/* MOD < v0.15.0  does not set initial values */
+			return;
+		}
 
 		set_filter (tf, 'sec1');
 		set_filter (tf, 'sec2');
