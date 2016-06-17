@@ -114,10 +114,11 @@ ifeq ($(shell pkg-config --exists lv2 || echo no), no)
   $(error "LV2 SDK was not found")
 endif
 
-ifneq ($(shell test -f fftw-3.3.4/.libs/libfftw3f.a || echo no), no)
+ifneq ($(BUILDOPENGL)$(BUILDJACKAPP), nono)
+ ifneq ($(shell test -f fftw-3.3.4/.libs/libfftw3f.a || echo no), no)
   FFTW_CFLAGS=-Ifftw-3.3.4/api fftw-3.3.4/.libs/libfftw3f.a -lm
   FFTW_LIBS=fftw-3.3.4/.libs/libfftw3f.a -lm
-else
+ else
   ifeq ($(shell pkg-config --exists fftw3f || echo no), no)
     $(error "fftw3f library was not found")
   endif
@@ -141,16 +142,19 @@ else
   $(info )
   $(eval FFTW_CFLAGS=`pkg-config --cflags fftw3f`)
   $(eval FFTW_LIB=$(FFTW_LIBS) -lm)
-endif
+ endif
 export FFTW_CFLAGS
 export FFTW_LIBS
+endif
 
 ifeq ($(shell pkg-config --atleast-version=1.6.0 lv2 || echo no), no)
   $(error "LV2 SDK needs to be version 1.6.0 or later")
 endif
 
-ifeq ($(shell pkg-config --exists pango cairo $(PKG_GL_LIBS) || echo no), no)
+ifneq ($(BUILDOPENGL)$(BUILDJACKAPP), nono)
+ ifeq ($(shell pkg-config --exists pango cairo $(PKG_GL_LIBS) || echo no), no)
   $(error "This plugin requires cairo pango $(PKG_GL_LIBS)")
+ endif
 endif
 
 ifneq ($(BUILDJACKAPP), no)
@@ -167,7 +171,8 @@ ifeq ($(shell pkg-config --atleast-version=1.8.1 lv2 && echo yes), yes)
   override CXXFLAGS += -DHAVE_LV2_1_8
 endif
 
-ifneq ($(MAKECMDGOALS), submodules)
+ifneq ($(BUILDOPENGL)$(BUILDJACKAPP), nono)
+ ifneq ($(MAKECMDGOALS), submodules)
   ifeq ($(wildcard $(RW)robtk.mk),)
     $(warning "**********************************************************")
     $(warning This plugin needs https://github.com/x42/robtk)
@@ -181,6 +186,7 @@ ifneq ($(MAKECMDGOALS), submodules)
     $(warning "**********************************************************")
     $(error robtk not found)
   endif
+ endif
 endif
 
 # LV2 idle >= lv2-1.6.0
@@ -291,7 +297,9 @@ x42_fil4_JACKDESC = lv2ui_descriptor
 $(APPBLD)x42-fil4$(EXE_EXT): $(DSP_DEPS) $(GUI_DEPS) \
 	        $(x42_fil4_JACKGUI) $(x42_fil4_LV2HTTL)
 
--include $(RW)robtk.mk
+ifneq ($(BUILDOPENGL)$(BUILDJACKAPP), nono)
+ -include $(RW)robtk.mk
+endif
 
 $(BUILDDIR)$(LV2GUI)$(LIB_EXT): gui/fil4.c
 
