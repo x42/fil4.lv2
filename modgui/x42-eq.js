@@ -97,7 +97,7 @@ function (event) {
 		svg.rect (clp, -1, 0, width + 3, 100);
 
 		var color = 'white';
-		if (!ds['enable']) {
+		if (!ds['enable'] || 1 == ds[':bypass']) {
 			color = '#444444';
 		}
 
@@ -122,7 +122,7 @@ function (event) {
 			return true;
 		}
 		var ds = tf.data ('xModPorts');
-		/* 33 plugin control inputs + MOD .bypass */
+		/* 33 plugin control inputs + MOD bypass */
 		if (34 > Object.keys (ds).length) {
 			return false;
 		}
@@ -136,8 +136,8 @@ function (event) {
 			'LSsec', 'LSgain', 'LSfreq', 'LSq',
 			'HighPass', 'HPfreq', 'HPQ',
 			'LowPass',  'LPfreq', 'LPQ',
-			'enable' // 31
-			// gain, reset-peak, mod-bypass
+			'enable', ':bypass' // 32
+			// gain, reset-peak
 		];
 
 		ok = true;
@@ -208,6 +208,7 @@ function (event) {
 				dsp[7] = new X42EQLowPass (ds['LowPass'], ds['LPfreq'], ds['LPQ'], rate);
 				break;
 			case 'enable':
+			case ':bypass':
 				return 0;
 			default:
 				return -1;
