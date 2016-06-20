@@ -335,12 +335,17 @@ ifneq ($(BUILDJACKAPP), no)
 	install -d $(DESTDIR)$(BINDIR)
 	install -m755 $(APPBLD)x42-fil4$(EXE_EXT) $(DESTDIR)$(BINDIR)
 endif
+ifneq ($(MOD),)
+	install -d $(DESTDIR)$(LV2DIR)/$(BUNDLE)/modgui
+	install -t $(DESTDIR)$(LV2DIR)/$(BUNDLE)/modgui $(BUILDDIR)modgui/*
+endif
 
 uninstall-bin:
 	rm -f $(DESTDIR)$(LV2DIR)/$(BUNDLE)/manifest.ttl
 	rm -f $(DESTDIR)$(LV2DIR)/$(BUNDLE)/$(LV2NAME).ttl
 	rm -f $(DESTDIR)$(LV2DIR)/$(BUNDLE)/$(LV2NAME)$(LIB_EXT)
 	rm -f $(DESTDIR)$(LV2DIR)/$(BUNDLE)/$(LV2GUI)$(LIB_EXT)
+	rm -rf $(DESTDIR)$(LV2DIR)/$(BUNDLE)/modgui
 	rm -f $(DESTDIR)$(BINDIR)/x42-fil4$(EXE_EXT)
 	-rmdir $(DESTDIR)$(LV2DIR)/$(BUNDLE)
 	-rmdir $(DESTDIR)$(BINDIR)
