@@ -15,17 +15,17 @@ Usage
 The parameters can be set by moving the nodes in the graph or directly
 via control knobs:
 
-*   Shift + click: reset to default
+*   Shift + click: reset to default.
 *   Right-click on knob: toggle current value with default, 2nd click restore.
-*   Right-click on button: temporarily toggle, until release
+*   Right-click on button: temporarily toggle, until release.
 
 The Ctrl key allows for fine-grained control when dragging or
 using the mouse-wheel on a knob.
 
 Mouse-wheel granularity:
-*   Gain: 1dB (fine: 0.2dB)
-*   Frequency: 1/6 octave (fine: 1/24 octave)
-*   Bandwidth: 1/3 octave (fine: 15 steps for a ratio 1:2)
+*   Gain: 1dB (fine: 0.2dB).
+*   Frequency: 1/6 octave (fine: 1/24 octave).
+*   Bandwidth: 1/3 octave (fine: 15 steps for a ratio 1:2).
 
 All switches and controls are internally smoothed, so they can be
 used 'live' without any clicks or zipper noises. This should make
@@ -52,7 +52,7 @@ libpango, libcairo and openGL (sometimes called: glu, glx, mesa).
   sudo make install PREFIX=/usr
 ```
 
-Note to packagers: The Makefile honors `PREFIX` and `DESTDIR` variables as well
+Note to packagers: the Makefile honors `PREFIX` and `DESTDIR` variables as well
 as `CXXLAGS`, `LDFLAGS` and `OPTIMIZATIONS` (additions to `CXXFLAGS`), also
 see the first 10 lines of the Makefile.
 You really want to package the superset of [x42-plugins](https://github.com/x42/x42-plugins).
@@ -76,9 +76,9 @@ even while parameters are being changed.
 The high/low-shelf filters are standard 2nd order biquad/IIR filters.
 
 High and Low pass are 2nd order resonant filters (-12dB/octave).
-*   Quality 0.0: -6dB at cutoff-freq (no feedback)
-*   Quality 0.7: -3dB at cutoff-freq
-*   Quality 1.0:  0dB at cutoff (resonant)
+*   Quality 0.0: -6dB at cutoff-freq (no feedback).
+*   Quality 0.7: -3dB at cutoff-freq.
+*   Quality 1.0:  0dB at cutoff (resonant).
 
 All filters are zero latency with correct equivalent analog gain at Nyquist
 (signal phase-shift at Nyquist frequency is zero).
@@ -87,8 +87,8 @@ All filters are zero latency with correct equivalent analog gain at Nyquist
 Why another EQ?
 ---------------
 
-Because I was unhappy with all existing ones: They're either not portable
+Because I was unhappy with all existing ones: they're either not portable
 (OSX, Windows, BSD, GNU/Linux,..), or simply unprofessional textbook biquad
 filters (phase-shifts, not decramped, comb-filter effect when values are
-changed), or lack impotant attention to the detail (control knob granularity),
+changed), or lack important attention to the detail (control knob granularity),
 or are not available as LV2, or a combination of those issues.
