@@ -52,7 +52,7 @@ libpango, libcairo and openGL (sometimes called: glu, glx, mesa).
   sudo make install PREFIX=/usr
 ```
 
-Note to packagers: The Makefile honors `PREFIX` and `DESTDIR` variables as well
+Note to packagers: the Makefile honors `PREFIX` and `DESTDIR` variables as well
 as `CXXLAGS`, `LDFLAGS` and `OPTIMIZATIONS` (additions to `CXXFLAGS`), also
 see the first 10 lines of the Makefile.
 You really want to package the superset of [x42-plugins](https://github.com/x42/x42-plugins).
@@ -87,8 +87,8 @@ All filters are zero latency with correct equivalent analog gain at Nyquist
 Why another EQ?
 ---------------
 
-Because I was unhappy with all existing ones: They're either not portable
+Because I was unhappy with all existing ones: they are either not portable
 (OSX, Windows, BSD, GNU/Linux,..), or simply unprofessional textbook biquad
 filters (phase-shifts, not decramped, comb-filter effect when values are
-changed), or lack impotant attention to the detail (control knob granularity),
+changed), or lack important attention to the detail (control knob granularity),
 or are not available as LV2, or a combination of those issues.
