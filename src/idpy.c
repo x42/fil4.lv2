@@ -102,7 +102,7 @@ fil4_render(LV2_Handle instance, uint32_t w, uint32_t max_h)
 #ifdef WITH_SIGNATURE
 	if (!is_licensed (instance)) { return NULL; }
 #endif
-	uint32_t h = MIN (ceilf (w * 9.f/16.f), max_h);
+	uint32_t h = MIN (1 | (uint32_t)ceilf (w * 9.f / 16.f), max_h);
 
 	Fil4* self = (Fil4*)instance;
 	if (!self->display || self->w != w || self->h != h) {
@@ -121,7 +121,7 @@ fil4_render(LV2_Handle instance, uint32_t w, uint32_t max_h)
 	cairo_fill (cr);
 
 	const float yr = (h - 2.f) / (2.f * 20); // +/- 20dB
-	const float ym = rintf ((h - 2.f) * .5f) - .5;
+	const float ym = rintf ((h - 1.f) * .5f) + .5;
 	const float xw = w - 1;
 
 	const float a = self->enabled ? 1.0 : .2;
@@ -159,7 +159,7 @@ fil4_render(LV2_Handle instance, uint32_t w, uint32_t max_h)
 	X_GRID (1000);
 	X_GRID (10000);
 	Y_GRID (6);
-	//Y_GRID (12);
+	Y_GRID (12);
 	Y_GRID (18);
 	cairo_restore (cr);
 
