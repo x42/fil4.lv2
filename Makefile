@@ -116,37 +116,8 @@ ifeq ($(shell pkg-config --exists lv2 || echo no), no)
   $(error "LV2 SDK was not found")
 endif
 
-ifneq ($(BUILDOPENGL)$(BUILDJACKAPP), nono)
- ifneq ($(shell test -f fftw-3.3.4/.libs/libfftw3f.a || echo no), no)
-  FFTW_CFLAGS=-Ifftw-3.3.4/api fftw-3.3.4/.libs/libfftw3f.a -lm
-  FFTW_LIBS=fftw-3.3.4/.libs/libfftw3f.a -lm
- else
-  ifeq ($(shell pkg-config --exists fftw3f || echo no), no)
-    $(error "fftw3f library was not found")
-  endif
-  FFTW_LIBS=`pkg-config --variable=libdir fftw3f`/libfftw3f.a
-  ifeq ($(shell test -f $(FFTW_LIBS) || echo no), no)
-    FFTW_LIBS=`pkg-config --libs fftw3f`
-  endif
-  $(warning "**********************************************************")
-  $(warning "           the fftw3 library is not thread-safe           ")
-  $(warning "**********************************************************")
-  $(info )
-  $(info see https://github.com/FFTW/fftw3/issues/16 for further info.)
-  $(info )
-  ifneq ("$(wildcard static_fft.sh)","")
-  $(info   run    ./static_fft.sh)
-  $(info   prior to make to create compile static lib specific for this)
-  $(info   plugin to avoid the issue.)
-  $(info )
-  endif
-  $(warning "**********************************************************")
-  $(info )
-  $(eval FFTW_CFLAGS=`pkg-config --cflags fftw3f`)
-  $(eval FFTW_LIB=$(FFTW_LIBS) -lm)
- endif
-export FFTW_CFLAGS
-export FFTW_LIBS
+ifeq ($(shell pkg-config --exists fftw3f || echo no), no)
+  $(error "fftw3f library was not found")
 endif
 
 ifeq ($(shell pkg-config --atleast-version=1.6.0 lv2 || echo no), no)
@@ -212,8 +183,8 @@ override LOADLIBES += `pkg-config $(PKG_UI_FLAGS) --libs cairo pangocairo pango`
   endif
 endif
 
-GLUICFLAGS+=`pkg-config --cflags cairo pango` $(value FFTW_CFLAGS) $(CXXFLAGS)
-GLUILIBS+=`pkg-config $(PKG_UI_FLAGS) --libs cairo pango pangocairo $(PKG_GL_LIBS)` $(value FFTW_LIBS)
+GLUICFLAGS+=`pkg-config --cflags cairo pango fftw3f` $(CXXFLAGS)
+GLUILIBS+=`pkg-config $(PKG_UI_FLAGS) --libs cairo pango pangocairo fftw3f $(PKG_GL_LIBS)`
 
 ifneq ($(XWIN),)
 GLUILIBS+=-lpthread -lusp10
