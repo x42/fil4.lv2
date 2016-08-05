@@ -36,6 +36,7 @@
     margin:0;
     color:#aaa;
     transform: rotate(270deg);
+    -webkit-transform: rotate(270deg);
     text-shadow: 0 2px 2px #111;
 }
 
