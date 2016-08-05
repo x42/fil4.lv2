@@ -2,7 +2,7 @@
 
 # these can be overridden using make variables. e.g.
 #   make CFLAGS=-O2
-#   make install DESTDIR=$(CURDIR)/debian/meters.lv2 PREFIX=/usr
+#   make install DESTDIR=$(CURDIR)/debian/fil4.lv2 PREFIX=/usr
 #
 PREFIX ?= /usr/local
 BINDIR ?= $(PREFIX)/bin
@@ -88,6 +88,9 @@ ifneq ($(XWIN),)
   override LDFLAGS += -static-libgcc -static-libstdc++
 endif
 
+ifeq ($(EXTERNALUI), yes)
+  UI_TYPE=
+endif
 
 ifeq ($(UI_TYPE),)
   UI_TYPE=kx:Widget
@@ -242,7 +245,7 @@ ifneq ($(MOD),)
 		lv2ttl/manifest.modgui.in >> $(BUILDDIR)manifest.ttl
 endif
 
-$(BUILDDIR)$(LV2NAME).ttl: Makefile lv2ttl/$(LV2NAME).ttl.in lv2ttl/fil4.gui.in \
+$(BUILDDIR)$(LV2NAME).ttl: Makefile lv2ttl/$(LV2NAME).ttl.in lv2ttl/$(LV2NAME).gui.in \
 	lv2ttl/$(LV2NAME).ports.ttl.in lv2ttl/$(LV2NAME).mono.ttl.in lv2ttl/$(LV2NAME).stereo.ttl.in
 	@mkdir -p $(BUILDDIR)
 	sed "s/@LV2NAME@/$(LV2NAME)/g" \
@@ -282,9 +285,9 @@ ifneq ($(BUILDOPENGL)$(BUILDJACKAPP), nono)
  -include $(RW)robtk.mk
 endif
 
-$(BUILDDIR)$(LV2GUI)$(LIB_EXT): gui/fil4.c
+$(BUILDDIR)$(LV2GUI)$(LIB_EXT): gui/$(LV2NAME).c
 
-$(BUILDDIR)modgui:
+$(BUILDDIR)modgui: modgui/
 	@mkdir -p $(BUILDDIR)/modgui
 	cp -r modgui/* $(BUILDDIR)modgui/
 
