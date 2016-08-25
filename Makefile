@@ -27,13 +27,13 @@ APPBLD   = x42/
 
 ###############################################################################
 
-LOADLIBES=-lm
 LV2NAME=fil4
 LV2GUI=fil4UI_gl
 BUNDLE=fil4.lv2
 targets=
 
-STRIPFLAGS=-s
+LOADLIBES=-lm
+LV2UIREQ=
 GLUICFLAGS=-I.
 
 ifneq ($(MOD),)
@@ -114,6 +114,7 @@ endif
 LV2VERSION=$(fil4_VERSION)
 include git2lv2.mk
 
+###############################################################################
 # check for build-dependencies
 ifeq ($(shell pkg-config --exists lv2 || echo no), no)
   $(error "LV2 SDK was not found")
@@ -140,7 +141,6 @@ ifneq ($(BUILDJACKAPP), no)
  endif
  JACKAPP=$(APPBLD)x42-fil4$(EXE_EXT)
 endif
-
 
 # check for lv2_atom_forge_object  new in 1.8.1 deprecates lv2_atom_forge_blank
 ifeq ($(shell pkg-config --atleast-version=1.8.1 lv2 && echo yes), yes)
@@ -210,9 +210,10 @@ ROBGL+= Makefile
 
 JACKCFLAGS=-I. $(CXXFLAGS) $(LIC_CFLAGS)
 JACKCFLAGS+=`pkg-config --cflags jack lv2 pango pangocairo $(PKG_GL_LIBS)`
-JACKLIBS=-lm $(GLUILIBS) $(LIC_LOADLIBES)
+JACKLIBS=-lm $(GLUILIBS) $(LIC_LOADLIBES) $(LOADLIBES)
 
 
+###############################################################################
 # build target definitions
 default: all
 
