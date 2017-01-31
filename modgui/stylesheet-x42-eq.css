@@ -165,32 +165,6 @@
     width:24px;
 }
 
-.mod-pedal-boxy{{{cns}}}.mod-x42-eq .mod-control-group .mod-bypass-led .mod-light {
-    height:24px;
-    width:24px;
-    margin:0px;
-    overflow:hidden;
-}
-
-.mod-pedal-boxy{{{cns}}}.mod-x42-eq .mod-control-group .mod-bypass-led .mod-light.off {
-    background-image: url(/resources/led-bypassed.gif{{{ns}}});
-}
-
-.mod-pedal-boxy{{{cns}}}.mod-x42-eq .mod-control-group .mod-bypass-led .mod-light.on {
-    background-image: url(/resources/led-enabled.png{{{ns}}});
-}
-
-.mod-pedal-boxy{{{cns}}}.mod-x42-eq .mod-control-group .mod-bypass-led .mod-footswitch {
-    display:none;
-}
-
-.mod-pedal-boxy{{{cns}}}.mod-x42-eq .mod-control-group .mod-bypass-led {
-    position:absolute;
-    right:0px;
-    top:0px;
-    width:24px;
-}
-
 .mod-pedal-boxy{{{cns}}}.mod-x42-eq .mod-control-group .mod-toggle {
     display:inline-block;
     width:90px;
