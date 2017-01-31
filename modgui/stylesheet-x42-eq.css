@@ -137,6 +137,13 @@
     overflow:hidden;
 }
 
+.mod-pedal-boxy{{{cns}}}.mod-x42-eq .mod-control-group .mod-toggle .mod-toggle-image.on {
+    background-position: 0px 0px;
+}
+
+.mod-pedal-boxy{{{cns}}}.mod-x42-eq .mod-control-group .mod-toggle .mod-toggle-image.off {
+    background-position: -90px 0px;
+}
 
 .mod-pedal-boxy{{{cns}}}.mod-x42-eq .mod-control-group .mod-led .mod-led-image {
     background-image:url(/resources/x42-led.png{{{ns}}});
