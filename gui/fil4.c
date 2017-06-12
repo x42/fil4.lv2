@@ -331,11 +331,7 @@ static void format_button_dbfs (RobTkPBtn *p, const float db) {
 	robtk_pbtn_set_text (p, buf);
 }
 
-static void dial_annotation_db (RobTkDial * d, cairo_t *cr, void *data) {
-	Fil4UI* ui = (Fil4UI*) (data);
-	char txt[16];
-	snprintf(txt, 16, "%+5.1fdB", d->cur);
-
+static void tooltip_text (Fil4UI* ui, RobTkDial* d, cairo_t *cr, const char* txt) {
 	int tw, th;
 	cairo_save(cr);
 	PangoLayout * pl = pango_cairo_create_layout(cr);
@@ -352,6 +348,13 @@ static void dial_annotation_db (RobTkDial * d, cairo_t *cr, void *data) {
 	g_object_unref(pl);
 	cairo_restore(cr);
 	cairo_new_path(cr);
+}
+
+static void dial_annotation_db (RobTkDial * d, cairo_t *cr, void *data) {
+	Fil4UI* ui = (Fil4UI*) (data);
+	char txt[16];
+	snprintf(txt, 16, "%+5.1fdB", d->cur);
+	tooltip_text (ui, d, cr, txt);
 }
 
 static void dial_annotation_hz (RobTkCBtn *l, const int which, const float hz) {
@@ -378,6 +381,25 @@ static void print_hz (char *t, float hz) {
 		snprintf(t, 8, "%.0f", hz);
 	}
 	//printf("-> %f -> %s\n", hz, t);
+}
+
+static void dial_annotation_bw (RobTkDial *d, cairo_t *cr, void *data) {
+	Fil4UI* ui = (Fil4UI*) (data);
+	char txt[16];
+	const int bw = rintf (1000.f * dial_to_bw (d->cur));
+	switch (bw) {
+		case   62: snprintf(txt, 16, "1/16 Oct"); break;
+		case  125: snprintf(txt, 16, "1/8 Oct"); break;
+		case  250: snprintf(txt, 16, "1/4 Oct"); break;
+		case  500: snprintf(txt, 16, "1/2 Oct"); break;
+		case 1000: snprintf(txt, 16, "1 Oct"); break;
+		case 2000: snprintf(txt, 16, "2 Oct"); break;
+		case 4000: snprintf(txt, 16, "4 Oct"); break;
+		default:
+			snprintf(txt, 16, "%.2f Oct", dial_to_bw (d->cur));
+			break;
+	}
+	tooltip_text (ui, d, cr, txt);
 }
 
 /*** knob faceplates ***/
@@ -2597,6 +2619,10 @@ static RobWidget * toplevel(Fil4UI* ui, void * const top) {
 		rob_table_attach (ui->ctbl, GSP_W(ui->spn_freq[i]),   col, col+1, 5, 7, 0, 0, RTK_EXANDF, RTK_SHRINK);
 
 		robtk_dial_annotation_callback(ui->spn_gain[i], dial_annotation_db, ui);
+		if (i > 0 && i < NCTRL - 1) {
+			/* band's bandwidth */
+			robtk_dial_annotation_callback(ui->spn_bw[i], dial_annotation_bw, ui);
+		}
 		robtk_dial_set_constained (ui->spn_freq[i], false);
 		robtk_dial_set_default(ui->spn_freq[i], freq_to_dial (&freqs[i], freqs[i].dflt));
 		robtk_dial_set_default(ui->spn_gain[i], 0.0);
