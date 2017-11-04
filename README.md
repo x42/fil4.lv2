@@ -69,7 +69,7 @@ Details
 
 Fil4 is based on fil-plugins LADSPA by Fons Adriaensen.
 
-Fil4 consists of four 2nd order resonant filters using a Mitra-Regalia
+Fil4 consists of four 2nd order resonant filters using a Regalia-Mitra
 style lattice filter, which has the nice property of being stable
 even while parameters are being changed.
 
