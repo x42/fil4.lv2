@@ -63,6 +63,14 @@ Analyser::~Analyser (void)
 #endif
     if (_fftplan) fftwf_destroy_plan (_fftplan);
 #ifdef WITH_FFTW_LOCK
+    if (instance_count > 0) {
+	--instance_count;
+    }
+# ifdef WITH_STATIC_FFTW_CLEANUP
+    if (instance_count == 0) {
+	fftwf_cleanup ();
+    }
+# endif
     pthread_mutex_unlock(&fftw_planner_lock);
 #endif
     delete _power;
@@ -81,7 +89,14 @@ void Analyser::set_fftlen (int fftlen)
 #ifdef WITH_FFTW_LOCK
         pthread_mutex_lock(&fftw_planner_lock);
 #endif
-        if (_fftplan) fftwf_destroy_plan (_fftplan);
+	if (_fftplan) {
+	    fftwf_destroy_plan (_fftplan);
+	}
+#ifdef WITH_FFTW_LOCK
+	else {
+	    ++instance_count;
+	}
+#endif
         _fftlen = fftlen;
         _fftplan = fftwf_plan_dft_r2c_1d (_fftlen, _warped, _trdata + 4, FFTW_ESTIMATE);
 #ifdef WITH_FFTW_LOCK
