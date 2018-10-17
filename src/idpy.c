@@ -125,6 +125,7 @@ fil4_render(LV2_Handle instance, uint32_t w, uint32_t max_h)
 	const float xw = w - 1;
 
 	const float a = self->enabled ? 1.0 : .2;
+	const float ny = x_at_freq (.5 * self->rate, xw);
 
 	/* zero line */
 	cairo_set_operator (cr, CAIRO_OPERATOR_OVER);
@@ -165,7 +166,12 @@ fil4_render(LV2_Handle instance, uint32_t w, uint32_t max_h)
 
 	FilterChannel const * const fc = &self->fc[0];
 
-	for (uint32_t i = 0; i < xw; ++i) {
+	if (ny < xw) {
+		cairo_rectangle (cr, 0, 0, ny, h);
+		cairo_clip (cr);
+	}
+
+	for (uint32_t i = 0; i < xw && i < ny; ++i) {
 		const float freq = freq_at_x (i, xw);
 		const float w = 2.f * M_PI * freq / self->rate;
 		struct omega _w;
