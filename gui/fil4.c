@@ -97,6 +97,7 @@ typedef struct {
 	LV2_Atom_Forge   forge;
 	LV2_URID_Map*    map;
 	Fil4LV2URIs      uris;
+	LV2UI_Touch*     touch;
 
 	PangoFontDescription *font[2];
 
@@ -1878,6 +1879,16 @@ static int find_control_point (Fil4UI* ui, const int x, const int y) {
 static RobWidget* m0_mouse_up (RobWidget* handle, RobTkBtnEvent *ev) {
 	Fil4UI* ui = (Fil4UI*)GET_HANDLE(handle);
 	end_solo (ui);
+
+	if (ui->dragging >= 0 && ui->dragging < NCTRL && ui->touch) {
+		ui->touch->touch (ui->touch->handle, IIR_LS_FREQ + ui->dragging * 4, false);
+		ui->touch->touch (ui->touch->handle, IIR_LS_GAIN + ui->dragging * 4, false);
+	} else if (ui->dragging == Ctrl_LPF && ui->touch) {
+		ui->touch->touch (ui->touch->handle, FIL_LOFREQ, false);
+	} else if (ui->dragging == Ctrl_HPF && ui->touch) {
+		ui->touch->touch (ui->touch->handle, FIL_HIFREQ, false);
+	}
+
 	ui->dragging = -1;
 	update_filter_display (ui);
 	return NULL;
@@ -1890,6 +1901,7 @@ static RobWidget* m0_mouse_scroll (RobWidget* handle, RobTkBtnEvent *ev) {
 
 	int cp = find_control_point (ui, ev->x, ev->y);
 
+	int port_index = -1;
 	switch (cp) {
 		case -1:
 			return NULL;
@@ -1906,13 +1918,16 @@ static RobWidget* m0_mouse_scroll (RobWidget* handle, RobTkBtnEvent *ev) {
 			break;
 		case Ctrl_HPF:
 			bwctl = ui->spn_g_hiq;
+			port_index = FIL_HIQ;
 			break;
 		case Ctrl_LPF:
 			bwctl = ui->spn_g_loq;
+			port_index = FIL_LOQ;
 			break;
 		default:
 			assert (cp >= 0 && cp < NCTRL);
 			bwctl = ui->spn_bw[cp];
+			port_index = IIR_LS_Q + cp * 4;
 			break;
 	}
 
@@ -1922,6 +1937,10 @@ static RobWidget* m0_mouse_scroll (RobWidget* handle, RobTkBtnEvent *ev) {
 
 	float v = robtk_dial_get_value (bwctl);
 	const float delta = (ev->state & ROBTK_MOD_CTRL) ? bwctl->acc : bwctl->scroll_mult * bwctl->acc;
+
+	if (port_index >= 0 && ui->touch) {
+		ui->touch->touch (ui->touch->handle, port_index, true);
+	}
 
 	switch (ev->direction) {
 		case ROBTK_SCROLL_RIGHT:
@@ -1937,6 +1956,11 @@ static RobWidget* m0_mouse_scroll (RobWidget* handle, RobTkBtnEvent *ev) {
 		default:
 			break;
 	}
+
+	if (port_index >= 0 && ui->touch) {
+		ui->touch->touch (ui->touch->handle, port_index, false);
+	}
+
 	return NULL;
 }
 
@@ -2020,6 +2044,15 @@ static RobWidget* m0_mouse_down (RobWidget* handle, RobTkBtnEvent *ev) {
 		ui->dragging = -1;
 		update_filter_display (ui);
 		return NULL;
+	}
+
+	if (ui->dragging >= 0 && ui->dragging < NCTRL && ui->touch) {
+		ui->touch->touch (ui->touch->handle, IIR_LS_FREQ + ui->dragging * 4, true);
+		ui->touch->touch (ui->touch->handle, IIR_LS_GAIN + ui->dragging * 4, true);
+	} else if (ui->dragging == Ctrl_LPF && ui->touch) {
+		ui->touch->touch (ui->touch->handle, FIL_LOFREQ, true);
+	} else if (ui->dragging == Ctrl_HPF && ui->touch) {
+		ui->touch->touch (ui->touch->handle, FIL_HIFREQ, true);
 	}
 
 	assert (ui->dragging >= 0);
@@ -2500,6 +2533,10 @@ static RobWidget * toplevel(Fil4UI* ui, void * const top) {
 	robtk_dial_set_callback (ui->spn_g_gain,   cb_spn_g_gain, ui);
 	robtk_pbtn_set_callback (ui->btn_peak,     cb_peak_rest, ui);
 
+	if (ui->touch) {
+		robtk_dial_set_touch (ui->spn_g_gain, ui->touch->touch, ui->touch->handle, FIL_GAIN);
+	}
+
 	robtk_cbtn_set_temporary_mode (ui->btn_g_enable, 1);
 	robtk_cbtn_set_color_on(ui->btn_g_enable,  1.0, 1.0, 1.0);
 	robtk_cbtn_set_color_off(ui->btn_g_enable, .2, .2, .2);
@@ -2559,6 +2596,13 @@ static RobWidget * toplevel(Fil4UI* ui, void * const top) {
 	robtk_dial_set_callback (ui->spn_g_lofreq, cb_spn_g_lofreq, ui);
 	robtk_dial_set_callback (ui->spn_g_hiq, cb_spn_g_hiq, ui);
 	robtk_dial_set_callback (ui->spn_g_loq, cb_spn_g_loq, ui);
+
+	if (ui->touch) {
+		robtk_dial_set_touch (ui->spn_g_hifreq, ui->touch->touch, ui->touch->handle, FIL_HIFREQ);
+		robtk_dial_set_touch (ui->spn_g_lofreq, ui->touch->touch, ui->touch->handle, FIL_LOFREQ);
+		robtk_dial_set_touch (ui->spn_g_hiq, ui->touch->touch, ui->touch->handle, FIL_HIQ);
+		robtk_dial_set_touch (ui->spn_g_loq, ui->touch->touch, ui->touch->handle, FIL_LOQ);
+	}
 
 	/* trigger update of hi/lo labels */
 	ui->disable_signals = true;
@@ -2632,6 +2676,13 @@ static RobWidget * toplevel(Fil4UI* ui, void * const top) {
 		robtk_dial_set_callback (ui->spn_freq[i],   cb_spn_freq, ui);
 		robtk_dial_set_callback (ui->spn_bw[i],     cb_spn_bw, ui);
 		robtk_dial_set_callback (ui->spn_gain[i],   cb_spn_gain, ui);
+
+		if (ui->touch) {
+			robtk_cbtn_set_touch (ui->btn_enable[i], ui->touch->touch, ui->touch->handle, IIR_LS_EN + i * 4);
+			robtk_dial_set_touch (ui->spn_freq[i], ui->touch->touch, ui->touch->handle, IIR_LS_FREQ + i * 4);
+			robtk_dial_set_touch (ui->spn_gain[i], ui->touch->touch, ui->touch->handle, IIR_LS_GAIN + i * 4);
+			robtk_dial_set_touch (ui->spn_bw[i], ui->touch->touch, ui->touch->handle, IIR_LS_Q + i * 4);
+		}
 
 		robtk_dial_set_alignment (ui->spn_freq[i], 0.0, .5);
 		robtk_dial_set_alignment (ui->spn_bw[i], 1.0, .5);
@@ -2897,6 +2948,9 @@ instantiate(
 	for (int i = 0; features[i]; ++i) {
 		if (!strcmp(features[i]->URI, LV2_URID_URI "#map")) {
 			ui->map = (LV2_URID_Map*)features[i]->data;
+		}
+		if (!strcmp(features[i]->URI, LV2_UI__touch)) {
+			ui->touch = (LV2UI_Touch*)features[i]->data;
 		}
 	}
 
