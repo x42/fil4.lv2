@@ -28,6 +28,7 @@
 
 #include "lv2/lv2plug.in/ns/lv2core/lv2.h"
 #include "lv2/lv2plug.in/ns/ext/state/state.h"
+#include "lv2/lv2plug.in/ns/ext/options/options.h"
 
 #ifdef DISPLAY_INTERFACE
 #include <cairo/cairo.h>
@@ -127,9 +128,13 @@ instantiate(const LV2_Descriptor*     descriptor,
 		return NULL;
 	}
 
+	const LV2_Options_Option* options = NULL;
+
 	for (int i=0; features[i]; ++i) {
 		if (!strcmp(features[i]->URI, LV2_URID__map)) {
 			self->map = (LV2_URID_Map*)features[i]->data;
+		} else if (!strcmp(features[i]->URI, LV2_OPTIONS__options)) {
+			options = (LV2_Options_Option*)features[i]->data;
 		}
 #ifdef DISPLAY_INTERFACE
 		else if (!strcmp(features[i]->URI, LV2_INLINEDISPLAY__queue_draw)) {
@@ -160,6 +165,19 @@ instantiate(const LV2_Descriptor*     descriptor,
 	self->resend_peak = 0;
 	self->db_scale = DEFAULT_YZOOM;
 	self->ui_scale = 1.0;
+
+	if (options) {
+		LV2_URID atom_Float = self->map->map (self->map->handle, LV2_ATOM__Float);
+		LV2_URID ui_scale   = self->map->map (self->map->handle, "urn:carla:scale");
+		for (const LV2_Options_Option* o = options; o->key; ++o) {
+			if (o->context == LV2_OPTIONS_INSTANCE && o->key == ui_scale && o->type == atom_Float) {
+				float ui_scale = *(const float*)o->value;
+				if (ui_scale < 1.0) { ui_scale = 1.0; }
+				if (ui_scale > 2.0) { ui_scale = 2.0; }
+				self->ui_scale = ui_scale;
+			}
+		}
+	}
 
 	return (LV2_Handle)self;
 }
