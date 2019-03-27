@@ -8,6 +8,7 @@
 	lv2:requiredFeature urid:map ;
 	lv2:extensionData idpy:interface, state:interface @SIGNATURE@;
 	lv2:optionalFeature lv2:hardRTCapable, idpy:queue_draw ;
+	opts:supportedOption <http://lv2plug.in/ns/extensions/ui/#scaleFactor> ;
   @UITTL@
 	@MODBRAND@
 	@MODLABEL@

@@ -168,7 +168,7 @@ instantiate(const LV2_Descriptor*     descriptor,
 
 	if (options) {
 		LV2_URID atom_Float = self->map->map (self->map->handle, LV2_ATOM__Float);
-		LV2_URID ui_scale   = self->map->map (self->map->handle, "urn:carla:scale");
+		LV2_URID ui_scale   = self->map->map (self->map->handle, "http://lv2plug.in/ns/extensions/ui/#scaleFactor");
 		for (const LV2_Options_Option* o = options; o->key; ++o) {
 			if (o->context == LV2_OPTIONS_INSTANCE && o->key == ui_scale && o->type == atom_Float) {
 				float ui_scale = *(const float*)o->value;
