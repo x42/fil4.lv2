@@ -3,4 +3,4 @@
 .gitmodules export-ignore
 /Makefile.git export-ignore
 /img export-ignore
-/static_fft.sh export-ignore
+/modgui export-ignore
