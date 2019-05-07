@@ -17,6 +17,7 @@
 
 idpy:queue_draw a lv2:Feature .
 idpy:interface a lv2:ExtensionData .
+ui:scaleFactor a opts:Option .
 
 @prefix @LV2NAME@: <http://gareus.org/oss/lv2/@LV2NAME@#> .
 
