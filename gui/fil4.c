@@ -242,7 +242,7 @@ static const FilterFreq freqs[NCTRL] = {
 };
 
 static const FilterFreq lphp[2] = {
-	{   10,  1000,   20,  100}, // HP
+	{   10,  1000,    20, 100}, // HP
 	{  630, 20000, 20000,  32}, // LP
 };
 
