@@ -67,9 +67,10 @@
 #endif
 
 enum {
-	Ctrl_HPF = NCTRL,
-	Ctrl_LPF = NCTRL + 1,
-	Ctrl_Yaxis = NCTRL + 2
+	Ctrl_HPF    = NCTRL,
+	Ctrl_LPF    = NCTRL + 1,
+	Ctrl_Yaxis  = NCTRL + 2,
+	Ctrl_Tuning = NCTRL + 3
 };
 
 /* cached filter state */
@@ -1760,7 +1761,7 @@ static void draw_grid (Fil4UI* ui) {
 	cairo_clip (cr);
 	cairo_set_line_width(cr, 1.0);
 
-	for (int note = 14; note < 137; ++note) {
+	for (int note = 2; note < 149; ++note) {
 		const size_t n = note % 12;
 		double k0, kw;
 		switch (n) {
@@ -1800,7 +1801,7 @@ static void draw_grid (Fil4UI* ui) {
 	}
 
 	/* draw black keys on top */
-	for (int note = 14; note < 137; ++note) {
+	for (int note = 2; note < 149; ++note) {
 		const size_t n = note % 12;
 		if (n == 0 || n == 2 || n == 4 || n == 5 || n == 7 || n == 9 || n == 11) {
 			continue; // white-key
@@ -1991,9 +1992,24 @@ static void y_axis_zoom (RobWidget* handle, float dbRange) {
 	tx_state (ui);
 }
 
+static void piano_tuning (Fil4UI* ui, float tuning) {
+	if (tuning < 220 || tuning > 880) {
+		return;
+	}
+	ui->tuning_fq = tuning;
+	update_grid (ui);
+
+	if (ui->disable_signals) return;
+	tx_state (ui);
+}
+
 static int find_control_point (Fil4UI* ui, const int x, const int y) {
 	if (x > 8 && x < 29 && y > ui->m0_y0 && y < ui->m0_y1) {
 		return Ctrl_Yaxis;
+	}
+
+	if (x > 8 && x < 29 && y > ui->m0_y1 + PK_YOFFS && y < ui->m0_y1 + PK_YOFFS + PK_WHITE) {
+		return Ctrl_Tuning;
 	}
 
 	if (fabsf(y - ui->m0_ym) <= DOTRADIUS && fabsf(x - ui->hilo[0].x0) <= DOTRADIUS) {
@@ -2039,6 +2055,14 @@ static RobWidget* m0_mouse_scroll (RobWidget* handle, RobTkBtnEvent *ev) {
 	int port_index = -1;
 	switch (cp) {
 		case -1:
+			return NULL;
+			break;
+		case Ctrl_Tuning:
+			if (ev->direction == ROBTK_SCROLL_UP) {
+				piano_tuning (ui, ui->tuning_fq + 1.0);
+			} else {
+				piano_tuning (ui, ui->tuning_fq - 1.0);
+			}
 			return NULL;
 			break;
 		case Ctrl_Yaxis:
@@ -2122,6 +2146,12 @@ static RobWidget* m0_mouse_down (RobWidget* handle, RobTkBtnEvent *ev) {
 				ui->dragging = Ctrl_Yaxis;
 				ui->drag_y = ev->y;
 				return handle;
+			}
+			return NULL;
+			break;
+		case Ctrl_Tuning:
+			if (ev->button == 3) {
+				piano_tuning (ui, 440);
 			}
 			return NULL;
 			break;
@@ -2239,6 +2269,9 @@ static RobWidget* m0_mouse_move (RobWidget* handle, RobTkBtnEvent *ev) {
 			ui->drag_y = ev->y;
 		}
 		return handle;
+	} else if (sect == Ctrl_Tuning) {
+		assert (0);
+		return NULL;
 	}
 
 	if (fctl && ev->x >= x0 && ev->x <= x1) {
@@ -2258,6 +2291,14 @@ static RobWidget* m0_mouse_move (RobWidget* handle, RobTkBtnEvent *ev) {
 		}
 	}
 	return handle;
+}
+
+static void m0_leave_notify (RobWidget* handle) {
+	Fil4UI* ui = (Fil4UI*)GET_HANDLE(handle);
+	if (-1 != ui->hover) {
+		ui->hover = -1;
+		queue_draw(ui->m0);
+	}
 }
 
 static void draw_filters (Fil4UI* ui) {
@@ -2544,6 +2585,12 @@ static bool m0_expose_event (RobWidget* handle, cairo_t* cr, cairo_rectangle_t *
 		cairo_fill (cr);
 	}
 
+	if ((ui->dragging < 0 && ui->hover == Ctrl_Tuning)) {
+		rounded_rectangle (cr, 7, ui->m0_y1 + PK_YOFFS, 20, PK_WHITE, 2);
+		cairo_set_source_rgba (cr, 1, 1, 1, .25);
+		cairo_fill (cr);
+	}
+
 	const int fft_mode = robtk_select_get_value(ui->sel_fft);
 	cairo_set_line_cap(cr, CAIRO_LINE_CAP_BUTT);
 	cairo_set_line_join(cr, CAIRO_LINE_JOIN_ROUND);
@@ -2684,6 +2731,7 @@ static RobWidget * toplevel(Fil4UI* ui, void * const top) {
 	robwidget_set_mouseup (ui->m0, m0_mouse_up);
 	robwidget_set_mousedown (ui->m0, m0_mouse_down);
 	robwidget_set_mousescroll (ui->m0, m0_mouse_scroll);
+	robwidget_set_leave_notify (ui->m0, m0_leave_notify);
 
 	ui->ctbl = rob_table_new (/*rows*/7, /*cols*/ 2 * NCTRL + 8, FALSE);
 
@@ -3230,6 +3278,7 @@ port_event(LV2UI_Handle handle,
 				handle_audio_data (ui, chn, n_elem, data);
 			}
 			else if (obj->body.otype == ui->uris.state) {
+				ui->disable_signals = true;
 				if (1 == lv2_atom_object_get(obj, ui->uris.samplerate, &a0, NULL) && a0) {
 					const float sr = ((LV2_Atom_Float*)a0)->body;
 					if (ui->samplerate != sr) {
@@ -3272,11 +3321,9 @@ port_event(LV2UI_Handle handle,
 				a0 = NULL;
 				if (1 == lv2_atom_object_get(obj, ui->uris.s_kbtuning, &a0, NULL) && a0) {
 					const float fq = ((LV2_Atom_Float*)a0)->body;
-					if (fq > 220 && fq < 880) {
-						ui->tuning_fq = fq;
-						update_grid (ui);
-					}
+					piano_tuning (ui, fq);
 				}
+				ui->disable_signals = false;
 			}
 		}
 	}
