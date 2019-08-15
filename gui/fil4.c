@@ -69,8 +69,13 @@
 enum {
 	Ctrl_HPF    = NCTRL,
 	Ctrl_LPF    = NCTRL + 1,
-	Ctrl_Yaxis  = NCTRL + 2,
-	Ctrl_Tuning = NCTRL + 3
+	/* repeat for piano-dot drag */
+	Ctrl_Piano,
+	Ctrl_PHP = NCTRL + NCTRL + 2,
+	Ctrl_PLP,
+
+	Ctrl_Yaxis  = NCTRL + NCTRL + 4,
+	Ctrl_Tuning,
 };
 
 /* cached filter state */
@@ -2003,6 +2008,48 @@ static void piano_tuning (Fil4UI* ui, float tuning) {
 	tx_state (ui);
 }
 
+static void maybe_snap_rtk (Fil4UI* ui, RobTkDial* fctl, FilterFreq const* ffq, int port_index) {
+	const float freq = dial_to_freq (ffq, robtk_dial_get_value (fctl));
+	const int note = rintf (12.f * log2f (freq / ui->tuning_fq) + 69.0);
+	const float note_freq = ui->tuning_fq * powf (2.0, (note - 69.f) / 12.f);
+	if (fabsf (freq - note_freq) < 0.05) {
+		return;
+	}
+	if (note_freq < ffq->min ||  note_freq > ffq->max) {
+		return;
+	}
+	if (ui->touch && port_index > 0) {
+		ui->touch->touch (ui->touch->handle, port_index, true);
+	}
+	robtk_dial_set_value (fctl, freq_to_dial (ffq, note_freq));
+	if (ui->touch && port_index > 0) {
+		ui->touch->touch (ui->touch->handle, port_index, false);
+	}
+}
+
+static void maybe_snap_ev (Fil4UI* ui, const int x, const int y) {
+	/* snap all elements under the mouse on mouse-down */
+	for (int i = 0; i < NCTRL; ++i) {
+		if (!robtk_cbtn_get_active (ui->btn_enable[i])) {
+			continue;
+		}
+		if (fabsf(x - ui->flt[i].x0) <= PK_RADIUS) {
+			int port_index = (ui->dragging == i + Ctrl_Piano) ? -1 : IIR_LS_FREQ + i * 4;
+			maybe_snap_rtk (ui, ui->spn_freq[i], &freqs[i], port_index);
+		}
+	}
+	if (robtk_ibtn_get_active (ui->btn_g_hipass)) {
+		if (fabsf(x - ui->hilo[0].x0) <= PK_RADIUS) {
+			maybe_snap_rtk (ui, ui->spn_g_hifreq, &lphp[0], (ui->dragging == Ctrl_PHP) ? -1 : FIL_HIFREQ);
+		}
+	}
+	if (robtk_ibtn_get_active (ui->btn_g_lopass)) {
+		if (fabsf(x - ui->hilo[1].x0) <= PK_RADIUS) {
+			maybe_snap_rtk (ui, ui->spn_g_lofreq, &lphp[1], (ui->dragging == Ctrl_PLP) ? -1 : FIL_LOFREQ);
+		}
+	}
+}
+
 static int find_control_point (Fil4UI* ui, const int x, const int y) {
 	if (x > 8 && x < 29 && y > ui->m0_y0 && y < ui->m0_y1) {
 		return Ctrl_Yaxis;
@@ -2010,6 +2057,28 @@ static int find_control_point (Fil4UI* ui, const int x, const int y) {
 
 	if (x > 8 && x < 29 && y > ui->m0_y1 + PK_YOFFS && y < ui->m0_y1 + PK_YOFFS + PK_WHITE) {
 		return Ctrl_Tuning;
+	}
+
+	if (x > 30 && fabs (y - (ui->m0_y1 + PK_YOFFS + PK_WHITE / 2)) < PK_RADIUS) {
+		for (int i = 0; i < NCTRL; ++i) {
+			if (!robtk_cbtn_get_active (ui->btn_enable[i])) {
+				continue;
+			}
+			if (fabsf(x - ui->flt[i].x0) <= PK_RADIUS) {
+				return Ctrl_Piano + i;
+			}
+		}
+		if (robtk_ibtn_get_active (ui->btn_g_hipass)) {
+			if (fabsf(x - ui->hilo[0].x0) <= PK_RADIUS) {
+				return Ctrl_PHP;
+			}
+		}
+		if (robtk_ibtn_get_active (ui->btn_g_lopass)) {
+			if (fabsf(x - ui->hilo[1].x0) <= PK_RADIUS) {
+				return Ctrl_PLP;
+			}
+		}
+		return -1;
 	}
 
 	if (fabsf(y - ui->m0_ym) <= DOTRADIUS && fabsf(x - ui->hilo[0].x0) <= DOTRADIUS) {
@@ -2034,9 +2103,15 @@ static RobWidget* m0_mouse_up (RobWidget* handle, RobTkBtnEvent *ev) {
 	if (ui->dragging >= 0 && ui->dragging < NCTRL && ui->touch) {
 		ui->touch->touch (ui->touch->handle, IIR_LS_FREQ + ui->dragging * 4, false);
 		ui->touch->touch (ui->touch->handle, IIR_LS_GAIN + ui->dragging * 4, false);
+	} else if (ui->dragging >= Ctrl_Piano && ui->dragging < Ctrl_PHP && ui->touch) {
+		ui->touch->touch (ui->touch->handle, IIR_LS_FREQ + (ui->dragging - Ctrl_Piano) * 4, false);
 	} else if (ui->dragging == Ctrl_LPF && ui->touch) {
 		ui->touch->touch (ui->touch->handle, FIL_LOFREQ, false);
 	} else if (ui->dragging == Ctrl_HPF && ui->touch) {
+		ui->touch->touch (ui->touch->handle, FIL_HIFREQ, false);
+	} else if (ui->dragging == Ctrl_PLP && ui->touch) {
+		ui->touch->touch (ui->touch->handle, FIL_LOFREQ, false);
+	} else if (ui->dragging == Ctrl_PHP && ui->touch) {
 		ui->touch->touch (ui->touch->handle, FIL_HIFREQ, false);
 	}
 
@@ -2084,9 +2159,11 @@ static RobWidget* m0_mouse_scroll (RobWidget* handle, RobTkBtnEvent *ev) {
 			port_index = FIL_LOQ;
 			break;
 		default:
-			assert (cp >= 0 && cp < NCTRL);
-			bwctl = ui->spn_bw[cp];
-			port_index = IIR_LS_Q + cp * 4;
+			assert (cp >= 0);
+			if (cp < NCTRL) {
+				bwctl = ui->spn_bw[cp];
+				port_index = IIR_LS_Q + cp * 4;
+			}
 			break;
 	}
 
@@ -2220,6 +2297,22 @@ static RobWidget* m0_mouse_down (RobWidget* handle, RobTkBtnEvent *ev) {
 		ui->touch->touch (ui->touch->handle, FIL_HIFREQ, true);
 	}
 
+	if (ui->dragging >= 0 && ui->dragging >= Ctrl_Piano && ui->dragging <= Ctrl_PLP) {
+		if (ui->touch) {
+			switch (ui->dragging) {
+				case Ctrl_PLP:
+					ui->touch->touch (ui->touch->handle, FIL_LOFREQ, true);
+					break;
+				case Ctrl_PHP:
+					ui->touch->touch (ui->touch->handle, FIL_HIFREQ, true);
+					break;
+				default:
+					ui->touch->touch (ui->touch->handle, IIR_LS_FREQ + (ui->dragging - Ctrl_Piano) * 4, true);
+			}
+		}
+		maybe_snap_ev (ui, ev->x, ev->y);
+	}
+
 	assert (ui->dragging >= 0);
 	return handle;
 }
@@ -2247,6 +2340,7 @@ static RobWidget* m0_mouse_move (RobWidget* handle, RobTkBtnEvent *ev) {
 #endif
 	const int sect = ui->dragging;
 
+	bool snap_to_note = false;
 	RobTkDial *fctl = NULL;
 	RobTkDial *gctl = NULL;
 	FilterFreq const *ffq = NULL;
@@ -2254,13 +2348,26 @@ static RobWidget* m0_mouse_move (RobWidget* handle, RobTkBtnEvent *ev) {
 	if (sect == Ctrl_HPF) { //high pass special case
 		fctl = ui->spn_g_hifreq;
 		ffq = &lphp[0];
-	} else if (sect == Ctrl_LPF) { // low pass
+	} else if (sect == Ctrl_PHP) {
+		fctl = ui->spn_g_hifreq;
+		ffq = &lphp[0];
+		snap_to_note = true;
+	} else if (sect == Ctrl_LPF) { // low pass special case
 		fctl = ui->spn_g_lofreq;
 		ffq = &lphp[1];
+	} else if (sect == Ctrl_PLP) {
+		fctl = ui->spn_g_lofreq;
+		ffq = &lphp[1];
+		snap_to_note = true;
 	} else if (sect < NCTRL) {
 		fctl = ui->spn_freq[sect];
 		gctl = ui->spn_gain[sect];
 		ffq = &freqs[sect];
+	} else if (sect < Ctrl_PHP) {
+		assert (sect >= Ctrl_Piano);
+		fctl = ui->spn_freq[sect - Ctrl_Piano];
+		ffq = &freqs[sect - Ctrl_Piano];
+		snap_to_note = true;
 	} else if (sect == Ctrl_Yaxis) { // header y-zoom
 		float delta = floor ((ui->drag_y - ev->y) / ui->m0_yr);
 		if (delta != 0) {
@@ -2269,14 +2376,20 @@ static RobWidget* m0_mouse_move (RobWidget* handle, RobTkBtnEvent *ev) {
 			ui->drag_y = ev->y;
 		}
 		return handle;
-	} else if (sect == Ctrl_Tuning) {
+	} else {
 		assert (0);
 		return NULL;
 	}
 
 	if (fctl && ev->x >= x0 && ev->x <= x1) {
-		const float hz = freq_at_x (ev->x - x0, ui->m0_xw);
-		robtk_dial_set_value (fctl, freq_to_dial (ffq, hz));
+		float hz = freq_at_x (ev->x - x0, ui->m0_xw);
+		if (snap_to_note) {
+			const int note = rintf (12.f * log2f (hz / ui->tuning_fq) + 69.0);
+			hz = ui->tuning_fq * powf (2.0, (note - 69.f) / 12.f);
+		}
+		if (!snap_to_note || (hz >= ffq->min && hz <= ffq->max)) {
+			robtk_dial_set_value (fctl, freq_to_dial (ffq, hz));
+		}
 		if (ui->soloing) {
 			robtk_dial_set_value (ui->spn_g_hifreq, freq_to_dial (&lphp[0], hz));
 			robtk_dial_set_value (ui->spn_g_lofreq, freq_to_dial (&lphp[1], hz));
@@ -2616,11 +2729,19 @@ static bool m0_expose_event (RobWidget* handle, cairo_t* cr, cairo_rectangle_t *
 		} else {
 			cairo_arc (cr, xx, yp, PK_RADIUS, 0, 2 * M_PI);
 		}
-		cairo_set_operator (cr, CAIRO_OPERATOR_OVERLAY);
+		if (ui->dragging == j + Ctrl_Piano || (ui->dragging < 0 && ui->hover == j + Ctrl_Piano)) {
+			cairo_set_operator (cr, CAIRO_OPERATOR_OVER);
+		} else {
+			cairo_set_operator (cr, CAIRO_OPERATOR_OVERLAY);
+		}
 		cairo_set_source_rgba (cr, c_fil[j][0], c_fil[j][1], c_fil[j][2], .8);
 		cairo_fill_preserve (cr);
 		cairo_set_operator (cr, CAIRO_OPERATOR_OVER);
-		cairo_set_source_rgba (cr, 0, 0, 0, 1.0);
+		if (ui->dragging == j + Ctrl_Piano) {
+			cairo_set_source_rgba (cr, 1, 1, 1, 1.0);
+		} else {
+			cairo_set_source_rgba (cr, 0, 0, 0, 1.0);
+		}
 		cairo_stroke (cr);
 	}
 	/* Hi/Lo */
@@ -2633,11 +2754,19 @@ static bool m0_expose_event (RobWidget* handle, cairo_t* cr, cairo_rectangle_t *
 		cairo_line_to (cr, xx - PK_RADIUS, yp - PK_RADIUS);
 		cairo_line_to (cr, xx + PK_RADIUS, yp - PK_RADIUS);
 		cairo_close_path (cr);
-		cairo_set_operator (cr, CAIRO_OPERATOR_OVERLAY);
+		if (ui->dragging == j + Ctrl_PHP || (ui->dragging < 0 && ui->hover == j + Ctrl_PHP)) {
+			cairo_set_operator (cr, CAIRO_OPERATOR_OVER);
+		} else {
+			cairo_set_operator (cr, CAIRO_OPERATOR_OVERLAY);
+		}
 		cairo_set_source_rgba (cr, c_fil[NCTRL + j][0], c_fil[NCTRL + j][1], c_fil[NCTRL + j][2], .8);
 		cairo_fill_preserve (cr);
 		cairo_set_operator (cr, CAIRO_OPERATOR_OVER);
-		cairo_set_source_rgba (cr, 0, 0, 0, 1.0);
+		if (ui->dragging == j + Ctrl_PHP) {
+			cairo_set_source_rgba (cr, 1, 1, 1, 1.0);
+		} else {
+			cairo_set_source_rgba (cr, 0, 0, 0, 1.0);
+		}
 		cairo_stroke (cr);
 	}
 	cairo_restore (cr);
