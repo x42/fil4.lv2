@@ -785,6 +785,14 @@ static void update_filter_display (Fil4UI* ui) {
 	queue_draw(ui->m0);
 }
 
+static void update_grid (Fil4UI* ui) {
+	if (ui->m0_grid) {
+		cairo_surface_destroy (ui->m0_grid);
+		ui->m0_grid = NULL;
+	}
+	queue_draw(ui->m0);
+}
+
 ///////////////////////////////////////////////////////////////////////////////
 
 static double warp_freq (double w, double f)
@@ -1365,6 +1373,9 @@ static void tx_state (Fil4UI* ui) {
 	lv2_atom_forge_property_head(&ui->forge, ui->uris.s_uiscale, 0);
 	lv2_atom_forge_float(&ui->forge, ui->rw->widget_scale);
 
+	lv2_atom_forge_property_head(&ui->forge, ui->uris.s_kbtuning, 0);
+	lv2_atom_forge_float(&ui->forge, ui->tuning_fq);
+
 	lv2_atom_forge_pop(&ui->forge, &frame);
 	ui->write(ui->controller, FIL_ATOM_CONTROL, lv2_atom_total_size(msg), ui->uris.atom_eventTransfer, msg);
 }
@@ -1905,10 +1916,7 @@ m0_size_allocate (RobWidget* handle, int w, int h) {
 	ui->m0_height = h;
 	robwidget_set_size(ui->m0, w, h);
 
-	if (ui->m0_grid) {
-		cairo_surface_destroy (ui->m0_grid);
-		ui->m0_grid = NULL;
-	}
+	update_grid (ui);
 
 	if (ui->m0_filters) {
 		cairo_surface_destroy (ui->m0_filters);
@@ -3246,6 +3254,15 @@ port_event(LV2UI_Handle handle,
 					const float sc = ((LV2_Atom_Float*)a0)->body;
 					if (sc != ui->rw->widget_scale && sc >= 1.0 && sc <= 2.0) {
 						robtk_queue_scale_change (ui->rw, sc);
+					}
+				}
+
+				a0 = NULL;
+				if (1 == lv2_atom_object_get(obj, ui->uris.s_kbtuning, &a0, NULL) && a0) {
+					const float fq = ((LV2_Atom_Float*)a0)->body;
+					if (fq > 220 && fq < 880) {
+						ui->tuning_fq = fq;
+						update_grid (ui);
 					}
 				}
 			}

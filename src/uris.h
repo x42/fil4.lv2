@@ -50,6 +50,7 @@ typedef struct {
 	LV2_URID s_fftgain;
 	LV2_URID s_fftchan;
 	LV2_URID s_uiscale;
+	LV2_URID s_kbtuning;
 } Fil4LV2URIs;
 
 static inline void
@@ -72,6 +73,7 @@ map_fil4_uris(LV2_URID_Map* map, Fil4LV2URIs* uris) {
 	uris->s_fftmode          = map->map(map->handle, FIL4_URI "fftmode");
 	uris->s_fftchan          = map->map(map->handle, FIL4_URI "fftchannel");
 	uris->s_uiscale          = map->map(map->handle, FIL4_URI "uiscale");
+	uris->s_kbtuning         = map->map(map->handle, FIL4_URI "kbtuning");
 }
 
 /* common definitions UI and DSP */
