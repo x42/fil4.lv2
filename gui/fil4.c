@@ -38,6 +38,11 @@
 #define DOTRADIUS (9) // radius of draggable nodes on the plot
 #define BOXRADIUS (7)
 
+#define PK_YOFFS (16)
+#define PK_WHITE (24)
+#define PK_BLACK (15)
+#define PK_RADIUS (4.5)
+
 #define NCTRL (NSECT + 2) // number of filter-bands + 2 (lo,hi-shelf)
 #define FFT_MAX 512
 
@@ -1745,13 +1750,13 @@ static void draw_grid (Fil4UI* ui) {
 	GRID_FREQ(20000, "20K");
 
 	/* piano keyboard */
-	int py0 = ui->m0_y1 + 15;
+	int py0 = ui->m0_y1 + PK_YOFFS;
   const double semitone_width = ceil (ui->m0_xw * logf(2.0) / logf (1000.0) / 12.f);
 
 	cairo_save (cr);
 	const float x20  = x_at_freq (20, ui->m0_xw) - (BOXRADIUS / 2.f);
 	const float x20k = x_at_freq (20000, ui->m0_xw) + (BOXRADIUS / 2.f);
-	cairo_rectangle (cr, x0 + x20, py0, x20k - x20, 20);
+	cairo_rectangle (cr, x0 + x20, py0, x20k - x20, PK_WHITE);
 	cairo_clip (cr);
 	cairo_set_line_width(cr, 1.0);
 
@@ -1782,7 +1787,7 @@ static void draw_grid (Fil4UI* ui) {
 
 		const float fq = ui->tuning_fq * powf (2.0, (note - 69.f) / 12.f);
 		const float xx = x_at_freq (fq, ui->m0_xw) - .5f;
-		cairo_rectangle (cr, round (x0 + xx - k0) - .5, py0, kw, 20);
+		cairo_rectangle (cr, round (x0 + xx - k0) - .5, py0, kw, PK_WHITE);
 		if (note < 21 || note > 108) {
 			/* outside default piano range, draw inverted color */
 			cairo_set_source_rgba (cr, 0.4, 0.4, 0.4, 1.0);
@@ -1802,7 +1807,7 @@ static void draw_grid (Fil4UI* ui) {
 		}
 		const float fq = ui->tuning_fq * powf (2.0, (note - 69.f) / 12.f);
 		const float xx = x_at_freq (fq, ui->m0_xw) - .5f;
-		cairo_rectangle (cr, round (x0 + xx - semitone_width * .5) - .5, py0, semitone_width, 15);
+		cairo_rectangle (cr, round (x0 + xx - semitone_width * .5) - .5, py0, semitone_width, PK_BLACK);
 		if (note < 21 || note > 108) {
 			/* outside default piano range, draw inverted color */
 			cairo_set_source_rgba (cr, 0.5, 0.5, 0.5, 1.0);
@@ -1814,6 +1819,11 @@ static void draw_grid (Fil4UI* ui) {
 		cairo_stroke (cr);
 	}
 	cairo_restore (cr);
+
+	char tune[16];
+	snprintf (tune, sizeof (tune), "A:%.0f", ui->tuning_fq);
+	write_text_full (cr, tune, ui->font[0], x0 - 20, py0 + PK_WHITE, M_PI * -.5, 9, c_ann);
+
 
 	write_text_full (cr,
 			ui->nfo ? ui->nfo : "x42 fil4.LV2",
@@ -1906,7 +1916,7 @@ static void end_solo (Fil4UI* ui) {
 static void
 m0_size_request (RobWidget* handle, int *w, int *h) {
 	*w = 600;
-	*h = 200;
+	*h = 240;
 }
 
 static void
@@ -1931,8 +1941,8 @@ m0_size_allocate (RobWidget* handle, int w, int h) {
 
 	const int m0h = h & ~1;
 	ui->m0_xw = ui->m0_width - 48;
-	ui->m0_ym = rintf((m0h - 8 - 20) * .5f) - .5;
-	ui->m0_yr = (m0h - 32 - 20) / ceilf(2 * ui->ydBrange);
+	ui->m0_ym = rintf((m0h - 10 - PK_WHITE) * .5f) - .5;
+	ui->m0_yr = (m0h - 34 - PK_WHITE) / ceilf(2 * ui->ydBrange);
 	ui->m0_y0 = floor (ui->m0_ym - ui->ydBrange * ui->m0_yr);
 	ui->m0_y1 = ceil  (ui->m0_ym + ui->ydBrange * ui->m0_yr);
 
@@ -2518,7 +2528,7 @@ static bool m0_expose_event (RobWidget* handle, cairo_t* cr, cairo_rectangle_t *
 	const float ym = ui->m0_ym;
 	const float yr = ui->m0_yr;
 	const float x0 = 30;
-	const float yp = ui->m0_y1 + 25; // piano
+	const float yp = ui->m0_y1 + PK_YOFFS + PK_WHITE / 2;
 
 	if (!ui->m0_grid) {
 		draw_grid (ui);
@@ -2553,16 +2563,16 @@ static bool m0_expose_event (RobWidget* handle, cairo_t* cr, cairo_rectangle_t *
 			continue;
 		}
 		const float fq = dial_to_freq(&freqs[j], robtk_dial_get_value (ui->spn_freq[j]));
-		const float xx = x0 + x_at_freq(fq, xw) - .5f;
+		const float xx = x0 + x_at_freq(fq, xw);
 		if (j == 0 || j == NCTRL - 1) {
-			cairo_rectangle (cr, xx - 4.5, yp - 4.5, 9, 9);
+			cairo_rectangle (cr, xx - PK_RADIUS, yp - PK_RADIUS, 2 * PK_RADIUS, 2 * PK_RADIUS);
 		} else {
-			cairo_arc (cr, xx, yp, 4.5, 0, 2 * M_PI);
+			cairo_arc (cr, xx, yp, PK_RADIUS, 0, 2 * M_PI);
 		}
-		// XXX This should use CAIRO_OPERATOR_ADD to mix dot colors
-		// but overlay alpha on the background itself.
+		cairo_set_operator (cr, CAIRO_OPERATOR_OVERLAY);
 		cairo_set_source_rgba (cr, c_fil[j][0], c_fil[j][1], c_fil[j][2], .8);
 		cairo_fill_preserve (cr);
+		cairo_set_operator (cr, CAIRO_OPERATOR_OVER);
 		cairo_set_source_rgba (cr, 0, 0, 0, 1.0);
 		cairo_stroke (cr);
 	}
@@ -2572,12 +2582,14 @@ static bool m0_expose_event (RobWidget* handle, cairo_t* cr, cairo_rectangle_t *
 			continue;
 		}
 		const float xx = x0 + x_at_freq (ui->hilo[j].f, xw);
-		cairo_move_to (cr, xx - .5      , yp + 3.5);
-		cairo_line_to (cr, xx - .5 - 5.0, yp - 3.5);
-		cairo_line_to (cr, xx - .5 + 5.0, yp - 3.5);
+		cairo_move_to (cr, xx            , yp + PK_RADIUS);
+		cairo_line_to (cr, xx - PK_RADIUS, yp - PK_RADIUS);
+		cairo_line_to (cr, xx + PK_RADIUS, yp - PK_RADIUS);
 		cairo_close_path (cr);
+		cairo_set_operator (cr, CAIRO_OPERATOR_OVERLAY);
 		cairo_set_source_rgba (cr, c_fil[NCTRL + j][0], c_fil[NCTRL + j][1], c_fil[NCTRL + j][2], .8);
 		cairo_fill_preserve (cr);
+		cairo_set_operator (cr, CAIRO_OPERATOR_OVER);
 		cairo_set_source_rgba (cr, 0, 0, 0, 1.0);
 		cairo_stroke (cr);
 	}
