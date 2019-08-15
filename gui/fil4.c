@@ -318,7 +318,7 @@ static char* freq_to_note (float freq) {
 	const int octave = note / 12 - 1;
 	const size_t n = note % 12;
 	static char buf[32];
-	snprintf (buf, sizeof (buf), "%s%d\n%+3.0fct", note_names[n], octave, cent);
+	snprintf (buf, sizeof (buf), "%s%d %+3.0fct", note_names[n], octave, cent);
 	return buf;
 }
 
@@ -373,6 +373,22 @@ static void dial_annotation_db (RobTkDial * d, cairo_t *cr, void *data) {
 	char txt[16];
 	snprintf(txt, 16, "%+5.1fdB", d->cur);
 	tooltip_text (ui, d, cr, txt);
+}
+
+static void dial_annotation_fq (RobTkDial * d, cairo_t *cr, void *data) {
+	Fil4UI* ui = (Fil4UI*) (data);
+	int k = -1;
+	for (uint32_t i = 0; i < NCTRL; ++i) {
+		if (ui->spn_freq[i] == d) {
+			k = i;
+			break;
+		}
+	}
+	if (k < 0) {
+		return;
+	}
+	float freq = dial_to_freq (&freqs[k], d->cur);
+	tooltip_text (ui, d, cr, freq_to_note (freq));
 }
 
 static void dial_annotation_hz (RobTkCBtn *l, const int which, const float hz) {
@@ -1704,13 +1720,21 @@ static void draw_grid (Fil4UI* ui) {
 	GRID_LINE(16000);
 	GRID_FREQ(20000, "20K");
 
-#if 0 // piano roll
-  const float semitone_width = ui->m0_xw * logf(2.0) / logf (1000.0) / 12.f;
+#if 1 // piano roll
+  const double semitone_width = ceil (ui->m0_xw * logf(2.0) / logf (1000.0) / 12.f);
+	int py0 = ui->m0_y1 + 15;
 
-	for (int note = 21; note < 128; ++note) {
+	cairo_save (cr);
+	const float x20 = x_at_freq (20, ui->m0_xw) - .5f;
+	const float x20k = x_at_freq (20000, ui->m0_xw) - .5f;
+	cairo_rectangle (cr, x0 + x20 - 3, py0, 6 + x20k - x20, 20);
+	cairo_clip (cr);
+	cairo_set_line_width(cr, 1.0);
+
+	for (int note = 14; note < 137; ++note) {
 		const float fq = 440 * powf (2.0, (note - 69.f) / 12.f);
 		const size_t n = note % 12;
-		float k0, kw;
+		double k0, kw;
 		switch (n) {
 			case 0: // "L" shape
 			case 5: // "L" shape
@@ -1734,8 +1758,8 @@ static void draw_grid (Fil4UI* ui) {
 		}
 
 		const float xx = x_at_freq (fq, ui->m0_xw) - .5f;
-		cairo_rectangle (cr, x0 + xx - k0, ui->m0_y1, kw, 20);
-		cairo_set_source_rgba (cr, 1.0, 1.0, 1.0, 1.0);
+		cairo_rectangle (cr, round (x0 + xx - k0) - .5, py0, kw, 20);
+		cairo_set_source_rgba (cr, 0.7, 0.7, 0.7, 1.0);
 		cairo_fill_preserve (cr);
 		cairo_set_source_rgba (cr, 0.0, 0.0, 0.0, 1.0);
 		cairo_stroke (cr);
@@ -1745,25 +1769,26 @@ static void draw_grid (Fil4UI* ui) {
 			const int octave = note / 12 - 1;
 			char buf[16];
 			snprintf (buf, sizeof (buf), "%s%d", note_names[n], octave);
-			write_text_full (cr, buf, ui->font[0], x0 + xx, ui->m0_y1 + 18, M_PI * .5, 1, c_blk);
+			write_text_full (cr, buf, ui->font[0], x0 + xx, py0 + 18, M_PI * .5, 1, c_blk);
 		}
 #endif
 	}
 
 	/* draw black keys on top */
-	for (int note = 21; note < 128; ++note) {
+	for (int note = 14; note < 137; ++note) {
 		const float fq = 440 * powf (2.0, (note - 69.f) / 12.f);
 		const size_t n = note % 12;
 		if (n == 0 || n == 2 || n == 4 || n == 5 || n == 7 || n == 9 || n == 11) {
 			continue; // white-key
 		}
 		const float xx = x_at_freq (fq, ui->m0_xw) - .5f;
-		cairo_rectangle (cr, x0 + xx - semitone_width * .5, ui->m0_y1, semitone_width, 15);
+		cairo_rectangle (cr, round (x0 + xx - semitone_width * .5) - .5, py0, semitone_width, 15);
 		cairo_set_source_rgba (cr, 0.3, 0.3, 0.3, 1.0);
 		cairo_fill_preserve (cr);
 		cairo_set_source_rgba (cr, 0.0, 0.0, 0.0, 1.0);
 		cairo_stroke (cr);
 	}
+	cairo_restore (cr);
 #endif
 
 	write_text_full (cr,
@@ -1885,8 +1910,8 @@ m0_size_allocate (RobWidget* handle, int w, int h) {
 
 	const int m0h = h & ~1;
 	ui->m0_xw = ui->m0_width - 48;
-	ui->m0_ym = rintf((m0h - 8) * .5f) - .5;
-	ui->m0_yr = (m0h - 32) / ceilf(2 * ui->ydBrange);
+	ui->m0_ym = rintf((m0h - 8 - 20) * .5f) - .5;
+	ui->m0_yr = (m0h - 32 - 20) / ceilf(2 * ui->ydBrange);
 	ui->m0_y0 = floor (ui->m0_ym - ui->ydBrange * ui->m0_yr);
 	ui->m0_y1 = ceil  (ui->m0_ym + ui->ydBrange * ui->m0_yr);
 
@@ -2501,6 +2526,27 @@ static bool m0_expose_event (RobWidget* handle, cairo_t* cr, cairo_rectangle_t *
 		cairo_paint (cr);
 	}
 
+#if 1
+	for (int j = 0 ; j < NCTRL; ++j) {
+		if (!robtk_cbtn_get_active(ui->btn_enable[j])) {
+			continue;
+		}
+		const float fq = dial_to_freq(&freqs[j], robtk_dial_get_value (ui->spn_freq[j]));
+		const float xx = 30 + x_at_freq(fq, xw) - .5f;
+		int py = ui->m0_y1 + 25;
+		cairo_set_line_width(cr, 1.0);
+		cairo_set_source_rgba (cr, c_fil[j][0], c_fil[j][1], c_fil[j][2], .6);
+		if (j == 0 || j == NCTRL - 1) {
+			cairo_rectangle (cr, xx - 3, py - 3, 6, 6);
+		} else {
+			cairo_arc (cr, xx, py, 3.5, 0, 2 * M_PI);
+		}
+		cairo_fill_preserve (cr);
+		cairo_set_source_rgba (cr, 0, 0, 0, 1.0);
+		cairo_stroke (cr);
+	}
+#endif
+
 	cairo_rectangle (cr, x0, ui->m0_y0, xw, ui->m0_y1 - ui->m0_y0);
 	cairo_clip (cr);
 
@@ -2749,6 +2795,9 @@ static RobWidget * toplevel(Fil4UI* ui, void * const top) {
 			/* band's bandwidth */
 			robtk_dial_annotation_callback(ui->spn_bw[i], dial_annotation_bw, ui);
 		}
+
+		robtk_dial_annotation_callback(ui->spn_freq[i], dial_annotation_fq, ui);
+
 		robtk_dial_set_constained (ui->spn_freq[i], false);
 		robtk_dial_set_default(ui->spn_freq[i], freq_to_dial (&freqs[i], freqs[i].dflt));
 		robtk_dial_set_default(ui->spn_gain[i], 0.0);
