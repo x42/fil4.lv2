@@ -208,6 +208,8 @@ typedef struct {
 	float xscale[FFT_MAX + 1];
 	float ydBrange;
 
+	float tuning_fq; // for piano
+
 	int n_channels;
 	float mixdown[8192];
 #ifdef USE_LOP_FFT
@@ -309,8 +311,7 @@ static float dial_to_freq (const FilterFreq *m, float f) {
 	return m->min + (m->max - m->min) * (pow((1. + m->warp), f) - 1.) / m->warp;
 }
 
-static char* freq_to_note (float freq) {
-	const float tuning = 440.f;
+static char* freq_to_note (const float tuning, float freq) {
 	const int note = rintf (12.f * log2f (freq / tuning) + 69.0);
 	const float note_freq = tuning * powf (2.0, (note - 69.f) / 12.f);
 	const float cent = 1200.0 * log2 (freq / note_freq);
@@ -318,7 +319,7 @@ static char* freq_to_note (float freq) {
 	const int octave = note / 12 - 1;
 	const size_t n = note % 12;
 	static char buf[32];
-	snprintf (buf, sizeof (buf), "%s%d %+3.0fct", note_names[n], octave, cent);
+	snprintf (buf, sizeof (buf), "%2s%d %+3.0fct", note_names[n], octave, cent);
 	return buf;
 }
 
@@ -388,7 +389,7 @@ static void dial_annotation_fq (RobTkDial * d, cairo_t *cr, void *data) {
 		return;
 	}
 	float freq = dial_to_freq (&freqs[k], d->cur);
-	tooltip_text (ui, d, cr, freq_to_note (freq));
+	tooltip_text (ui, d, cr, freq_to_note (ui->tuning_fq, freq));
 }
 
 static void dial_annotation_hz (RobTkCBtn *l, const int which, const float hz) {
@@ -1720,35 +1721,34 @@ static void draw_grid (Fil4UI* ui) {
 	GRID_LINE(16000);
 	GRID_FREQ(20000, "20K");
 
-#if 1 // piano roll
-  const double semitone_width = ceil (ui->m0_xw * logf(2.0) / logf (1000.0) / 12.f);
+	/* piano keyboard */
 	int py0 = ui->m0_y1 + 15;
+  const double semitone_width = ceil (ui->m0_xw * logf(2.0) / logf (1000.0) / 12.f);
 
 	cairo_save (cr);
-	const float x20 = x_at_freq (20, ui->m0_xw) - .5f;
-	const float x20k = x_at_freq (20000, ui->m0_xw) - .5f;
-	cairo_rectangle (cr, x0 + x20 - 3, py0, 6 + x20k - x20, 20);
+	const float x20  = x_at_freq (20, ui->m0_xw) - (BOXRADIUS / 2.f);
+	const float x20k = x_at_freq (20000, ui->m0_xw) + (BOXRADIUS / 2.f);
+	cairo_rectangle (cr, x0 + x20, py0, x20k - x20, 20);
 	cairo_clip (cr);
 	cairo_set_line_width(cr, 1.0);
 
 	for (int note = 14; note < 137; ++note) {
-		const float fq = 440 * powf (2.0, (note - 69.f) / 12.f);
 		const size_t n = note % 12;
 		double k0, kw;
 		switch (n) {
-			case 0: // "L" shape
-			case 5: // "L" shape
+			case 0:
+			case 5:
 				k0 = .5 * semitone_width;
 				kw = semitone_width * 1.5;
 				break;
-			case 2: // inverted "T" shape
-			case 7: // inverted "T" shape
-			case 9: // inverted "T" shape
+			case 2:
+			case 7:
+			case 9:
 				k0 = semitone_width;
 				kw = semitone_width * 2.0;
 				break;
-			case 4: // mirrored "L" shape
-			case 11: // mirrored "L" shape
+			case 4:
+			case 11:
 				k0 = semitone_width;
 				kw = semitone_width * 1.5;
 				break;
@@ -1757,39 +1757,40 @@ static void draw_grid (Fil4UI* ui) {
 				continue;
 		}
 
+		const float fq = ui->tuning_fq * powf (2.0, (note - 69.f) / 12.f);
 		const float xx = x_at_freq (fq, ui->m0_xw) - .5f;
 		cairo_rectangle (cr, round (x0 + xx - k0) - .5, py0, kw, 20);
-		cairo_set_source_rgba (cr, 0.7, 0.7, 0.7, 1.0);
+		if (note < 21 || note > 108) {
+			/* outside default piano range, draw inverted color */
+			cairo_set_source_rgba (cr, 0.4, 0.4, 0.4, 1.0);
+		} else {
+			cairo_set_source_rgba (cr, 0.7, 0.7, 0.7, 1.0);
+		}
 		cairo_fill_preserve (cr);
 		cairo_set_source_rgba (cr, 0.0, 0.0, 0.0, 1.0);
 		cairo_stroke (cr);
-
-#if 0
-		if (n == 0) {
-			const int octave = note / 12 - 1;
-			char buf[16];
-			snprintf (buf, sizeof (buf), "%s%d", note_names[n], octave);
-			write_text_full (cr, buf, ui->font[0], x0 + xx, py0 + 18, M_PI * .5, 1, c_blk);
-		}
-#endif
 	}
 
 	/* draw black keys on top */
 	for (int note = 14; note < 137; ++note) {
-		const float fq = 440 * powf (2.0, (note - 69.f) / 12.f);
 		const size_t n = note % 12;
 		if (n == 0 || n == 2 || n == 4 || n == 5 || n == 7 || n == 9 || n == 11) {
 			continue; // white-key
 		}
+		const float fq = ui->tuning_fq * powf (2.0, (note - 69.f) / 12.f);
 		const float xx = x_at_freq (fq, ui->m0_xw) - .5f;
 		cairo_rectangle (cr, round (x0 + xx - semitone_width * .5) - .5, py0, semitone_width, 15);
-		cairo_set_source_rgba (cr, 0.3, 0.3, 0.3, 1.0);
+		if (note < 21 || note > 108) {
+			/* outside default piano range, draw inverted color */
+			cairo_set_source_rgba (cr, 0.5, 0.5, 0.5, 1.0);
+		} else {
+			cairo_set_source_rgba (cr, 0.3, 0.3, 0.3, 1.0);
+		}
 		cairo_fill_preserve (cr);
 		cairo_set_source_rgba (cr, 0.0, 0.0, 0.0, 1.0);
 		cairo_stroke (cr);
 	}
 	cairo_restore (cr);
-#endif
 
 	write_text_full (cr,
 			ui->nfo ? ui->nfo : "x42 fil4.LV2",
@@ -2282,9 +2283,6 @@ static void draw_filters (Fil4UI* ui) {
 		cairo_fill_preserve (cr);
 		cairo_set_source_rgba (cr, c_fil[j][0], c_fil[j][1], c_fil[j][2], .3 * fshade);
 		cairo_stroke (cr);
-#if 0
-		write_text_full (cr, freq_to_note(fq), ui->font[0], xx, yy, 0, 2, c_wht);
-#endif
 
 		/* cache position (for drag) */
 		ui->flt[j].x0 = x0 + xx;
@@ -2500,6 +2498,7 @@ static bool m0_expose_event (RobWidget* handle, cairo_t* cr, cairo_rectangle_t *
 	const float ym = ui->m0_ym;
 	const float yr = ui->m0_yr;
 	const float x0 = 30;
+	const float yp = ui->m0_y1 + 25; // piano
 
 	if (!ui->m0_grid) {
 		draw_grid (ui);
@@ -2526,26 +2525,43 @@ static bool m0_expose_event (RobWidget* handle, cairo_t* cr, cairo_rectangle_t *
 		cairo_paint (cr);
 	}
 
-#if 1
+	/* draw indicators on top of piano */
+	cairo_save (cr);
+	cairo_set_line_width(cr, 1.0);
 	for (int j = 0 ; j < NCTRL; ++j) {
 		if (!robtk_cbtn_get_active(ui->btn_enable[j])) {
 			continue;
 		}
 		const float fq = dial_to_freq(&freqs[j], robtk_dial_get_value (ui->spn_freq[j]));
-		const float xx = 30 + x_at_freq(fq, xw) - .5f;
-		int py = ui->m0_y1 + 25;
-		cairo_set_line_width(cr, 1.0);
-		cairo_set_source_rgba (cr, c_fil[j][0], c_fil[j][1], c_fil[j][2], .6);
+		const float xx = x0 + x_at_freq(fq, xw) - .5f;
 		if (j == 0 || j == NCTRL - 1) {
-			cairo_rectangle (cr, xx - 3, py - 3, 6, 6);
+			cairo_rectangle (cr, xx - 4.5, yp - 4.5, 9, 9);
 		} else {
-			cairo_arc (cr, xx, py, 3.5, 0, 2 * M_PI);
+			cairo_arc (cr, xx, yp, 4.5, 0, 2 * M_PI);
 		}
+		// XXX This should use CAIRO_OPERATOR_ADD to mix dot colors
+		// but overlay alpha on the background itself.
+		cairo_set_source_rgba (cr, c_fil[j][0], c_fil[j][1], c_fil[j][2], .8);
 		cairo_fill_preserve (cr);
 		cairo_set_source_rgba (cr, 0, 0, 0, 1.0);
 		cairo_stroke (cr);
 	}
-#endif
+	/* Hi/Lo */
+	for (int j = 0 ; j < 2; ++j) {
+		if (!robtk_ibtn_get_active(j == 1 ? ui->btn_g_lopass : ui->btn_g_hipass)) {
+			continue;
+		}
+		const float xx = x0 + x_at_freq (ui->hilo[j].f, xw);
+		cairo_move_to (cr, xx - .5      , yp + 3.5);
+		cairo_line_to (cr, xx - .5 - 5.0, yp - 3.5);
+		cairo_line_to (cr, xx - .5 + 5.0, yp - 3.5);
+		cairo_close_path (cr);
+		cairo_set_source_rgba (cr, c_fil[NCTRL + j][0], c_fil[NCTRL + j][1], c_fil[NCTRL + j][2], .8);
+		cairo_fill_preserve (cr);
+		cairo_set_source_rgba (cr, 0, 0, 0, 1.0);
+		cairo_stroke (cr);
+	}
+	cairo_restore (cr);
 
 	cairo_rectangle (cr, x0, ui->m0_y0, xw, ui->m0_y1 - ui->m0_y0);
 	cairo_clip (cr);
@@ -3099,6 +3115,7 @@ instantiate(
 	ui->hover      = -1;
 	ui->samplerate = 48000;
 	ui->ydBrange   = DEFAULT_YZOOM;
+	ui->tuning_fq  = 440;
 	ui->filter_redisplay = true;
 #ifdef OPTIMIZE_FOR_BROKEN_HOSTS
 	ui->last_peak = 9999;
