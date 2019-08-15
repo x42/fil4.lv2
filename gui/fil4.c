@@ -219,6 +219,10 @@ typedef struct {
 
 ///////////////////////////////////////////////////////////////////////////////
 
+static const char* note_names[] = {
+	"C", "Db", "D", "Eb", "E", "F", "F#", "G", "Ab", "A", "Bb", "B"
+};
+
 /* frequency mapping */
 static const FilterFreq freqs[NCTRL] = {
 	/*min    max   dflt*/
@@ -303,6 +307,19 @@ static float freq_to_dial (const FilterFreq *m, float f) {
 
 static float dial_to_freq (const FilterFreq *m, float f) {
 	return m->min + (m->max - m->min) * (pow((1. + m->warp), f) - 1.) / m->warp;
+}
+
+static char* freq_to_note (float freq) {
+	const float tuning = 440.f;
+	const int note = rintf (12.f * log2f (freq / tuning) + 69.0);
+	const float note_freq = tuning * powf (2.0, (note - 69.f) / 12.f);
+	const float cent = 1200.0 * log2 (freq / note_freq);
+
+	const int octave = note / 12 - 1;
+	const size_t n = note % 12;
+	static char buf[32];
+	snprintf (buf, sizeof (buf), "%s%d\n%+3.0fct", note_names[n], octave, cent);
+	return buf;
 }
 
 /*** faceplates and annotation ***/
@@ -1687,6 +1704,68 @@ static void draw_grid (Fil4UI* ui) {
 	GRID_LINE(16000);
 	GRID_FREQ(20000, "20K");
 
+#if 0 // piano roll
+  const float semitone_width = ui->m0_xw * logf(2.0) / logf (1000.0) / 12.f;
+
+	for (int note = 21; note < 128; ++note) {
+		const float fq = 440 * powf (2.0, (note - 69.f) / 12.f);
+		const size_t n = note % 12;
+		float k0, kw;
+		switch (n) {
+			case 0: // "L" shape
+			case 5: // "L" shape
+				k0 = .5 * semitone_width;
+				kw = semitone_width * 1.5;
+				break;
+			case 2: // inverted "T" shape
+			case 7: // inverted "T" shape
+			case 9: // inverted "T" shape
+				k0 = semitone_width;
+				kw = semitone_width * 2.0;
+				break;
+			case 4: // mirrored "L" shape
+			case 11: // mirrored "L" shape
+				k0 = semitone_width;
+				kw = semitone_width * 1.5;
+				break;
+			default:
+				/* black-key */
+				continue;
+		}
+
+		const float xx = x_at_freq (fq, ui->m0_xw) - .5f;
+		cairo_rectangle (cr, x0 + xx - k0, ui->m0_y1, kw, 20);
+		cairo_set_source_rgba (cr, 1.0, 1.0, 1.0, 1.0);
+		cairo_fill_preserve (cr);
+		cairo_set_source_rgba (cr, 0.0, 0.0, 0.0, 1.0);
+		cairo_stroke (cr);
+
+#if 0
+		if (n == 0) {
+			const int octave = note / 12 - 1;
+			char buf[16];
+			snprintf (buf, sizeof (buf), "%s%d", note_names[n], octave);
+			write_text_full (cr, buf, ui->font[0], x0 + xx, ui->m0_y1 + 18, M_PI * .5, 1, c_blk);
+		}
+#endif
+	}
+
+	/* draw black keys on top */
+	for (int note = 21; note < 128; ++note) {
+		const float fq = 440 * powf (2.0, (note - 69.f) / 12.f);
+		const size_t n = note % 12;
+		if (n == 0 || n == 2 || n == 4 || n == 5 || n == 7 || n == 9 || n == 11) {
+			continue; // white-key
+		}
+		const float xx = x_at_freq (fq, ui->m0_xw) - .5f;
+		cairo_rectangle (cr, x0 + xx - semitone_width * .5, ui->m0_y1, semitone_width, 15);
+		cairo_set_source_rgba (cr, 0.3, 0.3, 0.3, 1.0);
+		cairo_fill_preserve (cr);
+		cairo_set_source_rgba (cr, 0.0, 0.0, 0.0, 1.0);
+		cairo_stroke (cr);
+	}
+#endif
+
 	write_text_full (cr,
 			ui->nfo ? ui->nfo : "x42 fil4.LV2",
 			ui->font[0], x1 + 2, ui->m0_y0, 1.5 * M_PI, 7, c_g30);
@@ -2178,6 +2257,9 @@ static void draw_filters (Fil4UI* ui) {
 		cairo_fill_preserve (cr);
 		cairo_set_source_rgba (cr, c_fil[j][0], c_fil[j][1], c_fil[j][2], .3 * fshade);
 		cairo_stroke (cr);
+#if 0
+		write_text_full (cr, freq_to_note(fq), ui->font[0], xx, yy, 0, 2, c_wht);
+#endif
 
 		/* cache position (for drag) */
 		ui->flt[j].x0 = x0 + xx;
