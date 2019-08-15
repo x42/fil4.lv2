@@ -424,14 +424,14 @@ static void dial_annotation_bw (RobTkDial *d, cairo_t *cr, void *data) {
 	const int bw = rintf (1000.f * dial_to_bw (d->cur));
 	switch (bw) {
 		case   62: snprintf(txt, 16, "1/16 Oct"); break;
-		case  125: snprintf(txt, 16, "1/8 Oct"); break;
-		case  250: snprintf(txt, 16, "1/4 Oct"); break;
-		case  500: snprintf(txt, 16, "1/2 Oct"); break;
-		case 1000: snprintf(txt, 16, "1 Oct"); break;
-		case 2000: snprintf(txt, 16, "2 Oct"); break;
-		case 4000: snprintf(txt, 16, "4 Oct"); break;
+		case  125: snprintf(txt, 16, " 1/8 Oct"); break;
+		case  250: snprintf(txt, 16, " 1/4 Oct"); break;
+		case  500: snprintf(txt, 16, " 1/2 Oct"); break;
+		case 1000: snprintf(txt, 16, "  1  Oct"); break;
+		case 2000: snprintf(txt, 16, "  2  Oct"); break;
+		case 4000: snprintf(txt, 16, "  4  Oct"); break;
 		default:
-			snprintf(txt, 16, "%.2f Oct", dial_to_bw (d->cur));
+			snprintf(txt, 16, "%4.2f Oct", dial_to_bw (d->cur));
 			break;
 	}
 	tooltip_text (ui, d, cr, txt);
