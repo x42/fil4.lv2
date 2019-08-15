@@ -392,6 +392,18 @@ static void dial_annotation_fq (RobTkDial * d, cairo_t *cr, void *data) {
 	tooltip_text (ui, d, cr, freq_to_note (ui->tuning_fq, freq));
 }
 
+static void dial_annotation_hifreq (RobTkDial * d, cairo_t *cr, void *data) {
+	Fil4UI* ui = (Fil4UI*) (data);
+	float freq = dial_to_freq (&lphp[0], d->cur);
+	tooltip_text (ui, d, cr, freq_to_note (ui->tuning_fq, freq));
+}
+
+static void dial_annotation_lofreq (RobTkDial * d, cairo_t *cr, void *data) {
+	Fil4UI* ui = (Fil4UI*) (data);
+	float freq = dial_to_freq (&lphp[1], d->cur);
+	tooltip_text (ui, d, cr, freq_to_note (ui->tuning_fq, freq));
+}
+
 static void dial_annotation_hz (RobTkCBtn *l, const int which, const float hz) {
 	char txt[24];
 	if (hz > 5000) {
@@ -2740,6 +2752,9 @@ static RobWidget * toplevel(Fil4UI* ui, void * const top) {
 	robtk_dial_set_callback (ui->spn_g_lofreq, cb_spn_g_lofreq, ui);
 	robtk_dial_set_callback (ui->spn_g_hiq, cb_spn_g_hiq, ui);
 	robtk_dial_set_callback (ui->spn_g_loq, cb_spn_g_loq, ui);
+
+	robtk_dial_annotation_callback(ui->spn_g_hifreq, dial_annotation_hifreq, ui);
+	robtk_dial_annotation_callback(ui->spn_g_lofreq, dial_annotation_lofreq, ui);
 
 	if (ui->touch) {
 		robtk_dial_set_touch (ui->spn_g_hifreq, ui->touch->touch, ui->touch->handle, FIL_HIFREQ);
