@@ -2381,15 +2381,30 @@ static RobWidget* m0_mouse_move (RobWidget* handle, RobTkBtnEvent *ev) {
 		return NULL;
 	}
 
-	if (fctl && ev->x >= x0 && ev->x <= x1) {
+	if (ev->x < x0) {
+		ev->x = x0;
+	}
+	if (ev->x > x1) {
+		ev->x = x1;
+	}
+
+	if (fctl) {
 		float hz = freq_at_x (ev->x - x0, ui->m0_xw);
 		if (snap_to_note) {
-			const int note = rintf (12.f * log2f (hz / ui->tuning_fq) + 69.0);
+			int note = rintf (12.f * log2f (hz / ui->tuning_fq) + 69.0);
 			hz = ui->tuning_fq * powf (2.0, (note - 69.f) / 12.f);
+			if (hz < ffq->min) {
+				note = ceilf (12.f * log2f (ffq->min / ui->tuning_fq) + 69.0);
+				hz = ui->tuning_fq * powf (2.0, (note - 69.f) / 12.f);
+			}
+			if (hz > ffq->max) {
+				note = floorf (12.f * log2f (ffq->max / ui->tuning_fq) + 69.0);
+				hz = ui->tuning_fq * powf (2.0, (note - 69.f) / 12.f);
+			}
 		}
-		if (!snap_to_note || (hz >= ffq->min && hz <= ffq->max)) {
-			robtk_dial_set_value (fctl, freq_to_dial (ffq, hz));
-		}
+
+		robtk_dial_set_value (fctl, freq_to_dial (ffq, hz));
+
 		if (ui->soloing) {
 			robtk_dial_set_value (ui->spn_g_hifreq, freq_to_dial (&lphp[0], hz));
 			robtk_dial_set_value (ui->spn_g_lofreq, freq_to_dial (&lphp[1], hz));
