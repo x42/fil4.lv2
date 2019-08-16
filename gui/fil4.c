@@ -1757,7 +1757,7 @@ static void draw_grid (Fil4UI* ui) {
 
 	/* piano keyboard */
 	int py0 = ui->m0_y1 + PK_YOFFS;
-  const double semitone_width = ceil (ui->m0_xw * logf(2.0) / logf (1000.0) / 12.f);
+	const double semitone_width = ceil (ui->m0_xw * logf(2.0) / logf (1000.0) / 12.f);
 
 	cairo_save (cr);
 	const float x20  = x_at_freq (20, ui->m0_xw) - (BOXRADIUS / 2.f);
