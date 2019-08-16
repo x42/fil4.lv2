@@ -2717,6 +2717,9 @@ static bool m0_expose_event (RobWidget* handle, cairo_t* cr, cairo_rectangle_t *
 
 	/* draw indicators on top of piano */
 	cairo_save (cr);
+	cairo_rectangle (cr, x0 - BOXRADIUS / 2, ui->m0_y1 + PK_YOFFS, xw + BOXRADIUS, PK_WHITE);
+	cairo_clip(cr);
+
 	cairo_set_line_width(cr, 1.0);
 	for (int j = 0 ; j < NCTRL; ++j) {
 		if (!robtk_cbtn_get_active(ui->btn_enable[j])) {
