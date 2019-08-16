@@ -61,7 +61,7 @@ You really want to package the superset of [x42-plugins](https://github.com/x42/
 Screenshots
 -----------
 
-![screenshot](https://raw.github.com/x42/fil4.lv2/master/img/fil4_v2.png "Fil4 GUI")
+![screenshot](https://raw.github.com/x42/fil4.lv2/master/img/fil4_v6.png "Fil4 GUI")
 
 
 Details
