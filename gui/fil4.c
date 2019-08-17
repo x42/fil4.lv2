@@ -2059,7 +2059,7 @@ static int find_control_point (Fil4UI* ui, const int x, const int y) {
 		return Ctrl_Tuning;
 	}
 
-	if (x > 30 && fabs (y - (ui->m0_y1 + PK_YOFFS + PK_WHITE / 2)) < PK_RADIUS) {
+	if (x > 30 && fabs (y - (ui->m0_y1 + PK_YOFFS + PK_WHITE / 2)) <= PK_RADIUS) {
 		for (int i = 0; i < NCTRL; ++i) {
 			if (!robtk_cbtn_get_active (ui->btn_enable[i])) {
 				continue;
