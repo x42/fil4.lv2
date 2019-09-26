@@ -2,5 +2,4 @@
 .gitattributes export-ignore
 .gitmodules export-ignore
 /Makefile.git export-ignore
-/img export-ignore
 /modgui export-ignore
