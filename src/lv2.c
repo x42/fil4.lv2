@@ -559,7 +559,7 @@ fil4_save(LV2_Handle                instance,
 	STATESTORE(s_dbscale, Float, self->db_scale)
 	STATESTORE(s_fftgain, Float, self->fft_gain)
 	STATESTORE(s_uiscale, Float, self->ui_scale)
-	STATESTORE(s_uiscale, Float, self->kb_tuning)
+	STATESTORE(s_kbtuning, Float, self->kb_tuning)
 	STATESTORE(s_fftmode, Int, self->fft_mode)
 	STATESTORE(s_fftchan, Int, self->fft_chan)
 
@@ -589,7 +589,7 @@ fil4_restore(LV2_Handle                  instance,
 	STATEREAD(s_dbscale, Float, float,   self->db_scale)
 	STATEREAD(s_fftgain, Float, float,   self->fft_gain)
 	STATEREAD(s_uiscale, Float, float,   self->ui_scale)
-	STATEREAD(s_uiscale, Float, float,   self->kb_tuning)
+	STATEREAD(s_kbtuning, Float, float,   self->kb_tuning)
 	STATEREAD(s_fftmode, Int,   int32_t, self->fft_mode)
 	STATEREAD(s_fftchan, Int,   int32_t, self->fft_chan)
 
