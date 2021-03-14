@@ -53,7 +53,7 @@ libpango, libcairo and openGL (sometimes called: glu, glx, mesa).
 ```
 
 Note to packagers: the Makefile honors `PREFIX` and `DESTDIR` variables as well
-as `CXXLAGS`, `LDFLAGS` and `OPTIMIZATIONS` (additions to `CXXFLAGS`), also
+as `CXXFLAGS`, `LDFLAGS` and `OPTIMIZATIONS` (additions to `CXXFLAGS`), also
 see the first 10 lines of the Makefile.
 You really want to package the superset of [x42-plugins](https://github.com/x42/x42-plugins).
 
