@@ -1585,11 +1585,11 @@ static bool cb_set_fft (RobWidget* w, void *handle) {
 	Fil4UI* ui = (Fil4UI*)handle;
 	ui->fft_change = true;
 	update_filter_display (ui);
-	if (ui->disable_signals) return TRUE;
 	const float val = robtk_select_get_value(ui->sel_fft);
 	robtk_dial_set_sensitive (ui->spn_fftgain, val > 0);
 	robtk_select_set_sensitive (ui->sel_res, (val > 0 && val < 3));
 	robtk_select_set_sensitive (ui->sel_spd, (val > 0 && val < 3));
+	if (ui->disable_signals) return TRUE;
 	tx_state (ui);
 	return TRUE;
 }
