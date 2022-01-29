@@ -20,6 +20,7 @@
 #define _FIL4_IIR_H
 
 #include <stdint.h>
+#include <string.h>
 #include <math.h>
 
 typedef struct {
