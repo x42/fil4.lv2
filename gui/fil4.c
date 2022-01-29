@@ -289,6 +289,10 @@ static float dial_to_bw (const float v) {
 	return powf (2, 6.f * v - 4.f);
 }
 
+static float shelf_q_ann (const float v) {
+	return .222f + .444f * dial_to_bw (v);
+}
+
 static float hplp_to_dial (const float v) {
 #if 1
 	float rv = 0.525561 - 0.387896 * atan(4.5601 - 5.2275 * v);
@@ -457,6 +461,13 @@ static void dial_annotation_bw (RobTkDial *d, cairo_t *cr, void *data) {
 			snprintf(txt, 16, "%4.2f Oct", dial_to_bw (d->cur));
 			break;
 	}
+	tooltip_text (ui, d, cr, txt);
+}
+
+static void dial_annotation_q (RobTkDial *d, cairo_t *cr, void *data) {
+	Fil4UI* ui = (Fil4UI*) (data);
+	char txt[16];
+	snprintf(txt, 16, "Q: %4.2f", shelf_q_ann (d->cur));
 	tooltip_text (ui, d, cr, txt);
 }
 
@@ -3040,6 +3051,8 @@ static RobWidget * toplevel(Fil4UI* ui, void * const top) {
 		if (i > 0 && i < NCTRL - 1) {
 			/* band's bandwidth */
 			robtk_dial_annotation_callback(ui->spn_bw[i], dial_annotation_bw, ui);
+		} else {
+			robtk_dial_annotation_callback(ui->spn_bw[i], dial_annotation_q, ui);
 		}
 
 		robtk_dial_annotation_callback(ui->spn_freq[i], dial_annotation_fq, ui);
