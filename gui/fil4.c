@@ -29,6 +29,7 @@
 #define WITH_FFTW_LOCK
 #include "analyser.cc"
 
+#define RTK_USE_HOST_COLORS
 #define OPTIMIZE_FOR_BROKEN_HOSTS // which send updates for non-changed values every cycle
 #define USE_LOP_FFT // measure LowPass response rather than calculate its magnitude
 
@@ -252,7 +253,7 @@ static const FilterFreq lphp[2] = {
 	{  630, 20000, 20000,  32}, // LP
 };
 
-/* vidual filter colors */
+/* individual filter colors */
 static const float c_fil[NCTRL+2][4] = {
 	{0.5, 0.6, 0.7, 0.8}, //LS
 	{1.0, 0.2, 0.2, 0.8},
@@ -265,7 +266,7 @@ static const float c_fil[NCTRL+2][4] = {
 };
 
 static const float c_ann[4] = {0.5, 0.5, 0.5, 1.0}; // text annotation color
-static const float c_dlf[4] = {0.8, 0.8, 0.8, 1.0}; // dial faceplate fg
+static float c_dlf[4] = {0.8, 0.8, 0.8, 1.0}; // dial faceplate fg
 
 ///////////////////////////////////////////////////////////////////////////////
 
@@ -358,6 +359,8 @@ static void format_button_dbfs (RobTkPBtn *p, const float db) {
 		robtk_pbtn_set_bg (p, 1.0, 0.0, 0.0, 1.0);
 	} else if (db > -1.f) {
 		robtk_pbtn_set_bg (p, 0.9, 0.6, 0.05, 1.0);
+	} else if (is_light_theme ()) {
+		robtk_pbtn_set_bg (p, 0.8, 0.8, 0.8, 1.0);
 	} else {
 		robtk_pbtn_set_bg (p, 0.2, 0.2, 0.2, 1.0);
 	}
@@ -480,15 +483,29 @@ static void prepare_faceplates(Fil4UI* ui) {
 	VAR = cairo_image_surface_create(CAIRO_FORMAT_ARGB32, W, H); \
 	cr = cairo_create (VAR); \
 
+#define FP_COLOR_BW              \
+	if (is_light_theme ()) {       \
+		CairoSetSouerceRGBA (c_wht); \
+	} else {                       \
+		CairoSetSouerceRGBA (c_blk); \
+	}
+
+#define FP_COLOR_GRY             \
+	if (is_light_theme ()) {       \
+		CairoSetSouerceRGBA (c_g20); \
+	} else {                       \
+		CairoSetSouerceRGBA (c_g80); \
+	}
+
 	NEW_SF(ui->hpf_btn[0], 26, 20);
 	cairo_move_to (cr,  4, 16);
 	cairo_line_to (cr,  9,  4);
 	cairo_line_to (cr, 22,  4);
 	cairo_set_line_cap (cr, CAIRO_LINE_CAP_ROUND);
-	CairoSetSouerceRGBA (c_blk);
+	FP_COLOR_BW
 	cairo_set_line_width (cr, 3.0);
 	cairo_stroke_preserve (cr);
-	CairoSetSouerceRGBA (c_g80);
+	FP_COLOR_GRY
 	cairo_set_line_width (cr, 1.5);
 	cairo_stroke (cr);
 	cairo_destroy (cr);
@@ -498,7 +515,7 @@ static void prepare_faceplates(Fil4UI* ui) {
 	cairo_line_to (cr,  9, 4);
 	cairo_line_to (cr, 22, 4);
 	cairo_set_line_cap (cr, CAIRO_LINE_CAP_ROUND);
-	CairoSetSouerceRGBA (c_blk);
+	FP_COLOR_BW
 	cairo_set_line_width (cr, 3.0);
 	cairo_stroke_preserve (cr);
 	CairoSetSouerceRGBA (c_grn);
@@ -512,10 +529,10 @@ static void prepare_faceplates(Fil4UI* ui) {
 	cairo_line_to (cr, 17,  4);
 	cairo_line_to (cr, 22, 16);
 	cairo_set_line_cap (cr, CAIRO_LINE_CAP_ROUND);
-	CairoSetSouerceRGBA (c_blk);
+	FP_COLOR_BW
 	cairo_set_line_width (cr, 3.0);
 	cairo_stroke_preserve (cr);
-	CairoSetSouerceRGBA (c_g80);
+	FP_COLOR_GRY
 	cairo_set_line_width (cr, 1.5);
 	cairo_stroke (cr);
 	cairo_destroy (cr);
@@ -525,7 +542,7 @@ static void prepare_faceplates(Fil4UI* ui) {
 	cairo_line_to (cr, 17, 4);
 	cairo_line_to (cr, 22, 16);
 	cairo_set_line_cap (cr, CAIRO_LINE_CAP_ROUND);
-	CairoSetSouerceRGBA (c_blk);
+	FP_COLOR_BW
 	cairo_set_line_width (cr, 3.0);
 	cairo_stroke_preserve (cr);
 	cairo_set_source_rgba (cr, c_fil[Ctrl_LPF][0], c_fil[Ctrl_LPF][1], c_fil[Ctrl_LPF][2], 1.0);
@@ -907,7 +924,11 @@ static void update_fft_scale (Fil4UI* ui) {
 
 	cairo_t *cr = cairo_create (ui->fft_scale);
 	cairo_rectangle (cr, 0, ui->m0_y0, 12,  ui->m0_y1 -  ui->m0_y0);
-	CairoSetSouerceRGBA(c_blk);
+	if (is_light_theme ()) {
+		CairoSetSouerceRGBA(c_g80);
+	} else {
+		CairoSetSouerceRGBA(c_blk);
+	}
 	cairo_fill (cr);
 
 #define FFT_DB(db, len) { \
@@ -923,14 +944,22 @@ static void update_fft_scale (Fil4UI* ui) {
 
 	if (mode < 3) {
 		cairo_set_line_width(cr, 1.0);
-		CairoSetSouerceRGBA(c_g30);
+		if (is_light_theme ()) {
+			CairoSetSouerceRGBA(c_wht);
+		} else {
+			CairoSetSouerceRGBA(c_g30);
+		}
 
 		for (int i = 0; i < 2 * ui->ydBrange; ++i) {
 			int dB = align + ui->ydBrange - i;
 			if (dB == 0) {
 				CairoSetSouerceRGBA(c_g60);
 				FFT_DB(i, 5.5);
-				CairoSetSouerceRGBA(c_g30);
+				if (is_light_theme ()) {
+					CairoSetSouerceRGBA(c_wht);
+				} else {
+					CairoSetSouerceRGBA(c_g30);
+				}
 			}
 			else if (dB % 10 == 0) {
 				FFT_DB(i, 4.5);
@@ -1034,7 +1063,11 @@ static void update_spectrum_history (Fil4UI* ui, const size_t n_elem, float cons
 			double dash = 1;
 			cairo_set_operator (cr, CAIRO_OPERATOR_OVER);
 			cairo_set_line_cap(cr, CAIRO_LINE_CAP_BUTT);
-			cairo_set_source_rgba(cr, 1, 1, 1, .5);
+			if (is_light_theme ()) {
+				cairo_set_source_rgba (cr, 0, 0, 0, .5);
+			} else {
+				cairo_set_source_rgba (cr, 1, 1, 1, .5);
+			}
 			cairo_set_dash (cr, &dash, 1, ui->fft_hist_line & 1);
 			cairo_move_to (cr, 0, yy+.5);
 			cairo_line_to (cr, ui->m0_xw, yy+.5);
@@ -1694,7 +1727,11 @@ static void draw_grid (Fil4UI* ui) {
 
 	if (subgrid > 0) {
 		cairo_set_line_width(cr, .75);
-		CairoSetSouerceRGBA(c_g20);
+		if (is_light_theme ()) {
+			CairoSetSouerceRGBA(c_g90);
+		} else {
+			CairoSetSouerceRGBA(c_g20);
+		}
 		for (int i = subgrid; i <= ui->ydBrange; i += subgrid) {
 			if (ui->ydBrange - i < subgrid) break;
 			if (i % numgrid == 0) {
@@ -1706,7 +1743,11 @@ static void draw_grid (Fil4UI* ui) {
 	}
 
 	cairo_set_line_width(cr, 1.0);
-	CairoSetSouerceRGBA(c_g30);
+	if (is_light_theme ()) {
+		CairoSetSouerceRGBA(c_wht);
+	} else {
+		CairoSetSouerceRGBA(c_g30);
+	}
 
 	GRID_DB(0, "0");
 
@@ -1732,7 +1773,11 @@ static void draw_grid (Fil4UI* ui) {
 		GRID_DB(-ui->ydBrange, txt);
 	}
 
-	CairoSetSouerceRGBA(c_g30);
+	if (is_light_theme ()) {
+		CairoSetSouerceRGBA(c_wht);
+	} else {
+		CairoSetSouerceRGBA(c_g30);
+	}
 
 	GRID_FREQ(20, "20");
 	GRID_LINE(25);
@@ -2468,7 +2513,11 @@ static void draw_filters (Fil4UI* ui) {
 	const float ny = x_at_freq(.5 * ui->samplerate, xw);
 
 	/* draw dots for peaking EQ, boxes for shelves */
-	cairo_set_operator (cr, CAIRO_OPERATOR_ADD);
+	if (is_light_theme ()) {
+		cairo_set_operator (cr, CAIRO_OPERATOR_MULTIPLY);
+	} else {
+		cairo_set_operator (cr, CAIRO_OPERATOR_ADD);
+	}
 	cairo_set_line_width(cr, 1.0);
 	for (int j = 0 ; j < NCTRL; ++j) {
 		float fshade = shade;
@@ -2548,7 +2597,12 @@ static void draw_filters (Fil4UI* ui) {
 	}
 
 	/* draw filters , hi/lo first (only when dragging)*/
-	cairo_set_operator (cr, CAIRO_OPERATOR_ADD);
+
+	if (is_light_theme ()) {
+		cairo_set_operator (cr, CAIRO_OPERATOR_MULTIPLY);
+	} else {
+		cairo_set_operator (cr, CAIRO_OPERATOR_ADD);
+	}
 	cairo_set_line_width(cr, 1.0);
 
 	{
@@ -2646,14 +2700,22 @@ static void draw_filters (Fil4UI* ui) {
 	/* zero line - mask added colors */
 	cairo_set_operator (cr, CAIRO_OPERATOR_OVER);
 	cairo_set_line_width(cr, 1.0);
-	CairoSetSouerceRGBA(c_g60);
+	if (is_light_theme ()) {
+		CairoSetSouerceRGBA(c_g30);
+	} else {
+		CairoSetSouerceRGBA(c_g60);
+	}
 	cairo_move_to (cr, 0, ym - yr * g_gain);
 	cairo_line_to (cr, xw -1 , ym - yr * g_gain);
 	cairo_stroke(cr);
 
 	/* draw total */
 	cairo_set_line_width(cr, 2.0 * shade);
-	cairo_set_source_rgba (cr, 1.0, 1.0, 1.0, shade);
+	if (is_light_theme ()) {
+		cairo_set_source_rgba (cr, 0.0, 0.0, 0.0, shade);
+	} else {
+		cairo_set_source_rgba (cr, 1.0, 1.0, 1.0, shade);
+	}
 	for (int i = 0 ; i < xw && i < ny; ++i) {
 		const float xf = freq_at_x(i, xw);
 		float y = yr * g_gain;
@@ -2680,9 +2742,14 @@ static void draw_filters (Fil4UI* ui) {
 			cairo_line_to (cr, i, ym - y);
 		}
 	}
-	cairo_set_operator (cr, CAIRO_OPERATOR_ADD);
+
+	if (is_light_theme ()) {
+		cairo_set_operator (cr, CAIRO_OPERATOR_MULTIPLY);
+	} else {
+		cairo_set_operator (cr, CAIRO_OPERATOR_ADD);
+	}
 	cairo_stroke_preserve(cr);
-	cairo_set_operator (cr, CAIRO_OPERATOR_ADD);
+
 	cairo_line_to (cr, xw, ym - yr * g_gain);
 	cairo_line_to (cr, 0, ym - yr * g_gain);
 	cairo_set_source_rgba (cr, 0.5, 0.5, 0.5, 0.33 * shade);
@@ -2701,7 +2768,12 @@ static bool m0_expose_event (RobWidget* handle, cairo_t* cr, cairo_rectangle_t *
 	cairo_fill (cr);
 
 	rounded_rectangle (cr, 4, 4, ui->m0_width - 8 , ui->m0_height - 8, 9);
-	CairoSetSouerceRGBA(c_blk);
+
+	if (is_light_theme ()) {
+		CairoSetSouerceRGBA (c_g80);
+	} else {
+		CairoSetSouerceRGBA (c_blk);
+	}
 	cairo_fill (cr);
 
 	const float xw = ui->m0_xw;
@@ -2827,10 +2899,18 @@ static bool m0_expose_event (RobWidget* handle, cairo_t* cr, cairo_rectangle_t *
 	else if (fft_mode > 0 && fft_mode < 3) {
 		cairo_set_operator (cr, CAIRO_OPERATOR_OVER);
 		cairo_set_line_width(cr, 1.0);
-		if (robtk_select_get_value(ui->sel_pos)) {
-			cairo_set_source_rgba (cr, .5, .6, .7, .75);
+		if (is_light_theme ()) {
+			if (robtk_select_get_value(ui->sel_pos)) {
+				cairo_set_source_rgba (cr, .1, .2, .5, .75);
+			} else {
+				cairo_set_source_rgba (cr, .5, .2, .1, .75);
+			}
 		} else {
-			cairo_set_source_rgba (cr, .7, .6, .5, .75);
+			if (robtk_select_get_value(ui->sel_pos)) {
+				cairo_set_source_rgba (cr, .5, .6, .7, .75);
+			} else {
+				cairo_set_source_rgba (cr, .7, .6, .5, .75);
+			}
 		}
 		float *d = ui->japa->power ()->_data;
 		if (!ui->scale_cached) {
@@ -2859,7 +2939,12 @@ static bool m0_expose_event (RobWidget* handle, cairo_t* cr, cairo_rectangle_t *
 		ui->filter_redisplay = false;
 	}
 
-	cairo_set_operator (cr, CAIRO_OPERATOR_ADD);
+	if (is_light_theme ()) {
+		cairo_set_operator (cr, CAIRO_OPERATOR_MULTIPLY);
+	} else {
+		cairo_set_operator (cr, CAIRO_OPERATOR_ADD);
+	}
+
 	cairo_set_source_surface(cr, ui->m0_filters, x0, 0);
 	cairo_rectangle (cr, x0, 0, xw, ui->m0_height);
 	cairo_fill (cr);
@@ -2876,6 +2961,10 @@ static RobWidget * toplevel(Fil4UI* ui, void * const top) {
 
 	ui->font[0] = pango_font_description_from_string("Mono 9px");
 	ui->font[1] = pango_font_description_from_string("Mono 10px");
+
+	if (is_light_theme ()) {
+		c_dlf[0] = c_dlf[1] = c_dlf[2] = 0.2;
+	}
 
 	prepare_faceplates (ui);
 
