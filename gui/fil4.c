@@ -1757,10 +1757,10 @@ static void draw_grid (Fil4UI* ui) {
 			GRID_DB_DOT(-i);
 			break;
 		}
-		char txt[8];
-		snprintf (txt, 8, "%+d", i);
+		char txt[16];
+		snprintf (txt, sizeof(txt), "%+d", i);
 		GRID_DB(i, txt);
-		snprintf (txt, 8, "%+d", -i);
+		snprintf (txt, sizeof(txt), "%+d", -i);
 		GRID_DB(-i, txt);
 	}
 
