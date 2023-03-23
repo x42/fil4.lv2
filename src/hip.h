@@ -102,9 +102,8 @@ static bool hip_interpolate (HighPass *f, bool en, float freq, float q) {
 		changed = true;
 	}
 
-	if (!en) {
-		f->z1 += .01 * (f->z2 - f->z1) + 1e-12;
-		//f->z2 += .01 * (f->y2 - f->z2) + 1e-12;
+	if (!en && !changed) {
+		f->z1 = f->z2 = 0;
 	}
 
 #ifndef NO_NAN_PROTECTION

@@ -142,6 +142,10 @@ static bool lop_interpolate (LowPass *f, bool en, float freq, float res) {
 		changed = true;
 	}
 
+	if (!en && !changed) {
+		f->z1 = f->z2 = f->z3 = f->z4 = 0;
+	}
+
 #ifdef LP_EXTRA_SHELF
 	if (iir_interpolate (&f->iir_hs, en ? .5 : 1.0, f->rate / 3, .444)) {
 		iir_calc_highshelf (&f->iir_hs);
