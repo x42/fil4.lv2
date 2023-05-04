@@ -3210,7 +3210,7 @@ static RobWidget * toplevel(Fil4UI* ui, void * const top) {
 	ui->lbl_fft = robtk_lbl_new ("Spectrum");
 	robtk_lbl_set_alignment (ui->lbl_fft, .5, 0);
 
-	ui->spn_fftgain  = robtk_dial_new_with_size (-30, 30, 1.0,
+	ui->spn_fftgain  = robtk_dial_new_with_size (-12, 48, 1.0,
 				GED_WIDTH, GED_HEIGHT + 4, GED_CX, GED_CY + 3, GED_RADIUS);
 	robtk_dial_set_scaled_surface_scale (ui->spn_fftgain, ui->dial_bg[4], 2.0);
 	robtk_dial_set_value (ui->spn_fftgain, 0);
