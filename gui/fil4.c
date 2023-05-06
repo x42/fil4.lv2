@@ -1437,8 +1437,12 @@ static void tx_state (Fil4UI* ui) {
 
 /*** knob & button callbacks ****/
 
-// TODO separate handle and data, update single value only
-// (no big deal, LV2 hosts ignore values if not changed, DSP backend does not care either)
+static void cb_scale_changed (RobWidget* w, void* handle) {
+	Fil4UI* ui = (Fil4UI*)handle;
+	if (!ui->disable_signals) {
+		tx_state (ui);
+	}
+}
 
 static bool cb_btn_en (RobWidget *w, void* handle) {
 	Fil4UI* ui = (Fil4UI*)handle;
@@ -2957,7 +2961,7 @@ static RobWidget * toplevel(Fil4UI* ui, void * const top) {
 	/* main widget: layout */
 	ui->rw = rob_vbox_new (FALSE, 2);
 	robwidget_make_toplevel (ui->rw, top);
-	robwidget_toplevel_enable_scaling (ui->rw);
+	robwidget_toplevel_enable_scaling (ui->rw, cb_scale_changed, ui);
 
 	ui->font[0] = pango_font_description_from_string("Mono 9px");
 	ui->font[1] = pango_font_description_from_string("Mono 10px");
