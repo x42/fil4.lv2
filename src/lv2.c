@@ -26,9 +26,15 @@
 #include "hip.h"
 #include "lop.h"
 
-#include "lv2/lv2plug.in/ns/lv2core/lv2.h"
-#include "lv2/lv2plug.in/ns/ext/state/state.h"
-#include "lv2/lv2plug.in/ns/ext/options/options.h"
+#ifdef HAVE_LV2_1_18_6
+#include <lv2/core/lv2.h>
+#include <lv2/options/options.h>
+#include <lv2/state/state.h>
+#else
+#include <lv2/lv2plug.in/ns/lv2core/lv2.h>
+#include <lv2/lv2plug.in/ns/ext/state/state.h>
+#include <lv2/lv2plug.in/ns/ext/options/options.h>
+#endif
 
 #ifdef DISPLAY_INTERFACE
 #include <cairo/cairo.h>
