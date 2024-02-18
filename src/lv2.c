@@ -508,9 +508,10 @@ run(LV2_Handle instance, uint32_t n_samples)
 	// audio processing & peak calc.
 	float peak = self->peak_signal;
 	for (uint32_t c = 0; c < self->n_channels; ++c) {
-		process_channel (self, &self->fc[c], n_samples, c);
+		int cc = self->n_channels - c -1; // reverse order for inplace processing
+		process_channel (self, &self->fc[cc], n_samples, cc);
 
-		const float * const d = self->_port [FIL_OUTPUT0 + (c<<1)];
+		const float * const d = self->_port [FIL_OUTPUT0 + (cc<<1)];
 		for (uint32_t i = 0; i < n_samples; ++i) {
 			const float pk = fabsf (d[i]);
 			if (pk > peak) {
