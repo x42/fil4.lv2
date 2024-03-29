@@ -3042,8 +3042,8 @@ static RobWidget * toplevel(Fil4UI* ui, void * const top) {
 
 	/* HPF & LPF */
 	++col;
-	ui->btn_g_hipass = robtk_ibtn_new (ui->hpf_btn[0], ui->hpf_btn[1]);
-	ui->btn_g_lopass = robtk_ibtn_new (ui->lpf_btn[0], ui->lpf_btn[1]);
+	ui->btn_g_hipass = robtk_ibtn_new (ui->hpf_btn[0], ui->hpf_btn[1], 1.0);
+	ui->btn_g_lopass = robtk_ibtn_new (ui->lpf_btn[0], ui->lpf_btn[1], 1.0);
 	ui->lbl_hilo[0]  = robtk_lbl_new ("XXXX Hz");
 	ui->lbl_hilo[1]  = robtk_lbl_new ("XXXX Hz");
 
