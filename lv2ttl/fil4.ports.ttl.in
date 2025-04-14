@@ -98,7 +98,7 @@
 			lv2:ControlPort ;
 		lv2:index 8 ;
 		lv2:symbol "HPQ" ;
-		lv2:name "HighPass Resonance" ;
+		lv2:name "Highpass Resonance" ;
 		lv2:default 0.7 ;
 		lv2:minimum 0.0 ;
 		lv2:maximum 1.4;
@@ -131,7 +131,7 @@
 			lv2:ControlPort ;
 		lv2:index 11 ;
 		lv2:symbol "LPQ" ;
-		lv2:name "LowPass Resonance" ;
+		lv2:name "Lowpass Resonance" ;
 		lv2:default 1.0 ;
 		lv2:minimum 0.0 ;
 		lv2:maximum 1.4;
