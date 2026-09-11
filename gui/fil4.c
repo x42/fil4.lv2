@@ -2045,7 +2045,7 @@ static void y_axis_zoom (RobWidget* handle, float dbRange) {
 	Fil4UI* ui = (Fil4UI*)GET_HANDLE(handle);
 
 	if (dbRange >= 50) dbRange = 50;
-	if (dbRange <= 12) dbRange = 12;
+	if (dbRange <= 3) dbRange = 3;
 	if (ui->ydBrange == dbRange) {
 		return;
 	}
