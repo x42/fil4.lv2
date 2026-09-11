@@ -106,7 +106,7 @@ typedef enum {
 	FIL_LAST
 } PortIndex;
 
-#define DEFAULT_YZOOM (30) // [dB] -30..+30, 60dB total range per default
+#define DEFAULT_YZOOM (12) // [dB] -12..+12, 24dB total range by default
 
 #define NSECT (4)
 
